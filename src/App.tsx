@@ -10,6 +10,7 @@ import { InventoryScreen } from '@/pages/InventoryScreen'
 import { EmployeesScreen } from '@/pages/EmployeesScreen'
 import { ReportsScreen } from '@/pages/ReportsScreen'
 import { CashierScreen } from '@/pages/CashierScreen'
+import { PlayZoneScreen } from '@/pages/PlayZoneScreen'
 import { useAuthStore } from '@/store/authStore'
 
 /** Redirects to /pos if a worker is already authenticated */
@@ -29,6 +30,12 @@ function PosGuard() {
   return activeWorker ? <POSScreen /> : <Navigate to="/" replace />
 }
 
+/** Guards routes accessible to ANY logged-in worker (not admin-only) */
+function WorkerGuard({ children }: { children: React.ReactNode }) {
+  const activeWorker = useAuthStore((s) => s.activeWorker)
+  return activeWorker ? <>{children}</> : <Navigate to="/" replace />
+}
+
 /** Guards /admin — only users with role ADMIN or ADMINISTRADOR can enter */
 function AdminGuard({ children }: { children: React.ReactNode }) {
   const activeWorker = useAuthStore((s) => s.activeWorker)
@@ -43,6 +50,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<RootRedirect />} />
         <Route path="/pos" element={<PosGuard />} />
+        <Route path="/playzone" element={<WorkerGuard><PlayZoneScreen /></WorkerGuard>} />
 
         {/* Admin Routes */}
         <Route path="/admin" element={<AdminGuard><AdminScreen /></AdminGuard>} />
@@ -50,6 +58,7 @@ export default function App() {
         <Route path="/admin/employees" element={<AdminGuard><EmployeesScreen /></AdminGuard>} />
         <Route path="/admin/reports" element={<AdminGuard><ReportsScreen /></AdminGuard>} />
         <Route path="/admin/cashier" element={<AdminGuard><CashierScreen /></AdminGuard>} />
+        <Route path="/admin/playzone" element={<WorkerGuard><PlayZoneScreen /></WorkerGuard>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

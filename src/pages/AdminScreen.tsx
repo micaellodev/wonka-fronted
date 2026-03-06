@@ -3,7 +3,7 @@
 // ============================================================
 
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Users, Package, BarChart2, Banknote } from 'lucide-react'
+import { LogOut, Users, Package, BarChart2, Banknote, Timer } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 
 export function AdminScreen() {
@@ -92,6 +92,17 @@ export function AdminScreen() {
                         <div>
                             <h3 className="text-lg font-bold text-white">Arqueo de Caja</h3>
                             <p className="text-sm text-slate-400 mt-1">Control de ingresos y transacciones.</p>
+                        </div>
+                    </div>
+
+                    {/* Zona de Juegos */}
+                    <div onClick={() => navigate('/admin/playzone')} className="group flex flex-col gap-3 p-6 rounded-3xl bg-slate-800/40 border border-white/5 hover:bg-slate-800/60 hover:border-brand-500/30 transition-all cursor-pointer">
+                        <div className="p-3 w-fit rounded-2xl bg-brand-500/10 text-brand-400 group-hover:scale-110 group-hover:bg-brand-500/20 transition-all">
+                            <Timer className="w-8 h-8" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-white">Zona de Juegos</h3>
+                            <p className="text-sm text-slate-400 mt-1">Registro y control de tiempo de niños.</p>
                         </div>
                     </div>
                 </div>

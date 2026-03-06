@@ -51,7 +51,7 @@ export function ReportsScreen() {
     }, [fetchSales])
 
     function formatCurrency(v: number) {
-        return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(v)
+        return new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN', minimumFractionDigits: 2 }).format(v)
     }
 
     function formatDate(iso: string) {
@@ -134,7 +134,7 @@ export function ReportsScreen() {
                                         <div className="md:w-1/2 flex flex-col gap-1">
                                             {sale.items?.slice(0, 3).map((item, i) => (
                                                 <div key={i} className="text-xs flex justify-between bg-slate-900/50 px-3 py-1.5 rounded-md text-slate-300">
-                                                    <span>{item.qty}x {item.product?.name || item.productName || 'Producto'}</span>
+                                                    <span>{item.qty}x {item.productName || 'Producto'}</span>
                                                 </div>
                                             ))}
                                             {sale.items?.length > 3 && (

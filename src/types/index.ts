@@ -45,6 +45,7 @@ export interface ApiError {
 export interface Category {
     id: string
     name: string
+    imageUrl?: string | null
     createdAt: string
 }
 
@@ -52,6 +53,7 @@ export interface Product {
     id: string
     name: string
     sku: string
+    imageUrl?: string | null
     price: number
     cost: number
     stock: number

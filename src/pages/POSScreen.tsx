@@ -14,6 +14,13 @@ import {
     Package,
     RefreshCw,
     LogOut,
+    Banknote as BanknoteIcon,
+    Smartphone,
+    Receipt,
+    FileText,
+    ChevronRight,
+    ChevronLeft,
+    CheckCircle2,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
@@ -23,7 +30,7 @@ import type { Product, Category } from '@/types'
 import { useNavigate } from 'react-router-dom'
 import { AdminGatekeeper } from '@/components/AdminGatekeeper'
 import { AttendanceModal } from '@/components/AttendanceModal'
-import { Lock, Unlock, Clock, BarChart2, Banknote, Users } from 'lucide-react'
+import { Lock, Unlock, Clock, BarChart2, Banknote, Users, Timer } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -37,16 +44,355 @@ interface ToastState {
     message: string
 }
 
+// ── Types ────────────────────────────────────────────────────────────────────
+
+type PaymentMethod = 'efectivo' | 'yape' | 'tarjeta'
+type InvoiceType = 'boleta' | 'boleta_dni' | 'factura'
+
+interface CheckoutDetails {
+    paymentMethod: PaymentMethod
+    cashGiven?: number      // efectivo: cuánto entrega el cliente
+    yapeCode?: string       // yape: código 3 dígitos
+    referenceCode?: string  // tarjeta: código de referencia
+    invoiceType: InvoiceType
+    clientDni?: string      // boleta con dni
+    clientRuc?: string      // factura
+    clientName?: string     // factura: razón social
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 const ALL_CATEGORY_ID = '__ALL__'
 
 function formatCurrency(value: number): string {
-    return new Intl.NumberFormat('es-CO', {
+    return new Intl.NumberFormat('es-PE', {
         style: 'currency',
-        currency: 'COP',
-        minimumFractionDigits: 0,
+        currency: 'PEN',
+        minimumFractionDigits: 2,
     }).format(value)
+}
+
+// ── Checkout Modal ───────────────────────────────────────────────────────────
+
+function CheckoutModal({
+    total,
+    onConfirm,
+    onCancel,
+}: {
+    total: number
+    onConfirm: (details: CheckoutDetails) => void
+    onCancel: () => void
+}) {
+    const [step, setStep] = useState<1 | 2>(1)
+    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('efectivo')
+    const [cashGiven, setCashGiven] = useState('')
+    const [yapeCode, setYapeCode] = useState('')
+    const [referenceCode, setReferenceCode] = useState('')
+    const [invoiceType, setInvoiceType] = useState<InvoiceType>('boleta')
+    const [clientDni, setClientDni] = useState('')
+    const [clientRuc, setClientRuc] = useState('')
+    const [clientName, setClientName] = useState('')
+
+    const cashGivenNum = parseFloat(cashGiven) || 0
+    const change = cashGivenNum - total
+
+    const canGoNext = () => {
+        if (paymentMethod === 'efectivo') return cashGivenNum >= total
+        if (paymentMethod === 'yape') return yapeCode.length === 3
+        if (paymentMethod === 'tarjeta') return referenceCode.trim().length >= 1
+        return false
+    }
+
+    const canConfirm = () => {
+        if (invoiceType === 'boleta_dni') return clientDni.trim().length >= 8
+        if (invoiceType === 'factura') return clientRuc.trim().length >= 11 && clientName.trim().length >= 2
+        return true
+    }
+
+    const handleConfirm = () => {
+        onConfirm({
+            paymentMethod,
+            cashGiven: paymentMethod === 'efectivo' ? cashGivenNum : undefined,
+            yapeCode: paymentMethod === 'yape' ? yapeCode : undefined,
+            referenceCode: paymentMethod === 'tarjeta' ? referenceCode : undefined,
+            invoiceType,
+            clientDni: invoiceType === 'boleta_dni' ? clientDni : undefined,
+            clientRuc: invoiceType === 'factura' ? clientRuc : undefined,
+            clientName: invoiceType === 'factura' ? clientName : undefined,
+        })
+    }
+
+    return (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl flex flex-col overflow-hidden">
+
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 py-4 bg-slate-800 border-b border-slate-700">
+                    <div>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                            {step === 1 ? 'PASO 1 DE 2' : 'PASO 2 DE 2'}
+                        </p>
+                        <h2 className="text-base font-black text-white uppercase tracking-widest">
+                            {step === 1 ? 'Método de Pago' : 'Comprobante'}
+                        </h2>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-[10px] text-slate-500 font-mono uppercase">TOTAL</p>
+                        <p className="text-xl font-black text-green-400 font-mono">{formatCurrency(total)}</p>
+                    </div>
+                </div>
+
+                {/* Step 1: Payment Method */}
+                {step === 1 && (
+                    <div className="p-5 flex flex-col gap-4">
+                        {/* Method selector */}
+                        <div className="grid grid-cols-3 gap-2">
+                            {([
+                                { id: 'efectivo', label: 'EFECTIVO', icon: <BanknoteIcon className="w-6 h-6" /> },
+                                { id: 'yape', label: 'YAPE', icon: <Smartphone className="w-6 h-6" /> },
+                                { id: 'tarjeta', label: 'TARJETA', icon: <CreditCard className="w-6 h-6" /> },
+                            ] as { id: PaymentMethod; label: string; icon: React.ReactNode }[]).map(m => (
+                                <button
+                                    key={m.id}
+                                    onClick={() => setPaymentMethod(m.id)}
+                                    className={`flex flex-col items-center justify-center gap-2 py-4 rounded-xl border-2 font-black text-xs tracking-widest transition-none ${
+                                        paymentMethod === m.id
+                                            ? 'bg-brand-600 border-brand-500 text-white'
+                                            : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white'
+                                    }`}
+                                >
+                                    {m.icon}
+                                    {m.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Efectivo */}
+                        {paymentMethod === 'efectivo' && (
+                            <div className="flex flex-col gap-3">
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">¿Cuánto entrega el cliente?</label>
+                                <div className="relative">
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">S/</span>
+                                    <input
+                                        type="number"
+                                        min={total}
+                                        step="0.50"
+                                        value={cashGiven}
+                                        onChange={e => setCashGiven(e.target.value)}
+                                        placeholder={total.toFixed(2)}
+                                        autoFocus
+                                        className="w-full bg-slate-800 border-2 border-slate-600 focus:border-green-500 rounded-xl pl-10 pr-4 py-3 text-2xl font-black text-white font-mono placeholder:text-slate-600 focus:outline-none transition-colors"
+                                    />
+                                </div>
+                                {/* Quick amounts */}
+                                <div className="grid grid-cols-4 gap-1.5">
+                                    {[10, 20, 50, 100].map(v => (
+                                        <button
+                                            key={v}
+                                            onClick={() => setCashGiven(String(v))}
+                                            className="py-2 bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white rounded-lg text-xs font-bold font-mono transition-none"
+                                        >
+                                            S/ {v}
+                                        </button>
+                                    ))}
+                                </div>
+                                {/* Change display */}
+                                {cashGivenNum >= total && (
+                                    <div className={`flex items-center justify-between rounded-xl px-4 py-3 border-2 ${
+                                        change === 0 ? 'bg-green-500/10 border-green-500/40 text-green-400' : 'bg-amber-500/10 border-amber-500/40 text-amber-400'
+                                    }`}>
+                                        <span className="text-xs font-bold uppercase tracking-widest">VUELTO</span>
+                                        <span className="text-2xl font-black font-mono">{formatCurrency(change)}</span>
+                                    </div>
+                                )}
+                                {cashGivenNum > 0 && cashGivenNum < total && (
+                                    <div className="flex items-center justify-between rounded-xl px-4 py-3 border-2 bg-red-500/10 border-red-500/40 text-red-400">
+                                        <span className="text-xs font-bold uppercase tracking-widest">FALTA</span>
+                                        <span className="text-2xl font-black font-mono">{formatCurrency(total - cashGivenNum)}</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Yape */}
+                        {paymentMethod === 'yape' && (
+                            <div className="flex flex-col gap-3">
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Código de seguridad Yape (3 dígitos)</label>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    maxLength={3}
+                                    value={yapeCode}
+                                    onChange={e => setYapeCode(e.target.value.replace(/\D/g, '').slice(0, 3))}
+                                    placeholder="···"
+                                    autoFocus
+                                    className="w-full bg-slate-800 border-2 border-slate-600 focus:border-purple-500 rounded-xl px-4 py-4 text-4xl font-black text-white font-mono text-center tracking-[1rem] placeholder:text-slate-600 focus:outline-none transition-colors"
+                                />
+                                <div className="flex justify-center gap-1.5 mt-1">
+                                    {[0, 1, 2].map(i => (
+                                        <div key={i} className={`w-4 h-4 rounded-full border-2 ${
+                                            yapeCode.length > i ? 'bg-purple-500 border-purple-400' : 'bg-slate-700 border-slate-600'
+                                        }`} />
+                                    ))}
+                                </div>
+                                <p className="text-center text-xs text-slate-500">Ingresa el código que aparece en la app Yape</p>
+                            </div>
+                        )}
+
+                        {/* Tarjeta */}
+                        {paymentMethod === 'tarjeta' && (
+                            <div className="flex flex-col gap-3">
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Código de referencia / aprobación</label>
+                                <input
+                                    type="text"
+                                    value={referenceCode}
+                                    onChange={e => setReferenceCode(e.target.value.toUpperCase())}
+                                    placeholder="Ej. TXN-123456"
+                                    autoFocus
+                                    className="w-full bg-slate-800 border-2 border-slate-600 focus:border-blue-500 rounded-xl px-4 py-3 text-lg font-black text-white font-mono placeholder:text-slate-600 focus:outline-none transition-colors"
+                                />
+                                <p className="text-xs text-slate-500 text-center">Ingresa el código que aparece en el POS / voucher de la tarjeta</p>
+                            </div>
+                        )}
+
+                        {/* Nav */}
+                        <div className="flex gap-2 mt-2">
+                            <button
+                                onClick={onCancel}
+                                className="flex-[0.4] py-3 bg-slate-800 border border-slate-700 text-slate-400 hover:text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-none"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={() => setStep(2)}
+                                disabled={!canGoNext()}
+                                className="flex-1 flex items-center justify-center gap-2 py-3 bg-brand-600 hover:bg-brand-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-sm uppercase tracking-widest rounded-xl transition-none"
+                            >
+                                Siguiente <ChevronRight className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Step 2: Invoice Type */}
+                {step === 2 && (
+                    <div className="p-5 flex flex-col gap-4">
+                        {/* Payment summary */}
+                        <div className="flex items-center gap-3 px-4 py-3 bg-slate-800 rounded-xl border border-slate-700">
+                            {paymentMethod === 'efectivo' && <BanknoteIcon className="w-5 h-5 text-green-400" />}
+                            {paymentMethod === 'yape' && <Smartphone className="w-5 h-5 text-purple-400" />}
+                            {paymentMethod === 'tarjeta' && <CreditCard className="w-5 h-5 text-blue-400" />}
+                            <div className="flex-1">
+                                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">
+                                    {paymentMethod === 'efectivo' ? 'Efectivo' : paymentMethod === 'yape' ? 'Yape' : 'Tarjeta'}
+                                </p>
+                                {paymentMethod === 'efectivo' && change >= 0 && (
+                                    <p className="text-xs text-amber-400 font-bold">Vuelto: {formatCurrency(change)}</p>
+                                )}
+                                {paymentMethod === 'yape' && (
+                                    <p className="text-xs text-slate-300 font-mono">Código: {yapeCode}</p>
+                                )}
+                                {paymentMethod === 'tarjeta' && (
+                                    <p className="text-xs text-slate-300 font-mono">Ref: {referenceCode}</p>
+                                )}
+                            </div>
+                            <CheckCircle2 className="w-4 h-4 text-green-400" />
+                        </div>
+
+                        {/* Invoice selector */}
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Tipo de comprobante</label>
+                        <div className="flex flex-col gap-2">
+                            {([
+                                { id: 'boleta', label: 'Boleta', desc: 'Sin datos del cliente', icon: <Receipt className="w-5 h-5" /> },
+                                { id: 'boleta_dni', label: 'Boleta con DNI', desc: 'Ingresa el DNI del cliente', icon: <FileText className="w-5 h-5" /> },
+                                { id: 'factura', label: 'Factura', desc: 'RUC + Razón Social', icon: <FileText className="w-5 h-5" /> },
+                            ] as { id: InvoiceType; label: string; desc: string; icon: React.ReactNode }[]).map(inv => (
+                                <button
+                                    key={inv.id}
+                                    onClick={() => setInvoiceType(inv.id)}
+                                    className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-none ${
+                                        invoiceType === inv.id
+                                            ? 'bg-brand-600/20 border-brand-500 text-white'
+                                            : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600 hover:text-white'
+                                    }`}
+                                >
+                                    {inv.icon}
+                                    <div>
+                                        <p className="text-sm font-black uppercase tracking-widest">{inv.label}</p>
+                                        <p className="text-[10px] text-slate-500">{inv.desc}</p>
+                                    </div>
+                                    {invoiceType === inv.id && <CheckCircle2 className="w-4 h-4 text-brand-400 ml-auto" />}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* DNI field */}
+                        {invoiceType === 'boleta_dni' && (
+                            <div>
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">DNI del cliente</label>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    maxLength={8}
+                                    value={clientDni}
+                                    onChange={e => setClientDni(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                                    placeholder="12345678"
+                                    autoFocus
+                                    className="mt-2 w-full bg-slate-800 border-2 border-slate-600 focus:border-brand-500 rounded-xl px-4 py-3 text-xl font-black text-white font-mono placeholder:text-slate-600 focus:outline-none transition-colors"
+                                />
+                            </div>
+                        )}
+
+                        {/* RUC + Razón Social */}
+                        {invoiceType === 'factura' && (
+                            <div className="flex flex-col gap-3">
+                                <div>
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">RUC</label>
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        maxLength={11}
+                                        value={clientRuc}
+                                        onChange={e => setClientRuc(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                                        placeholder="20123456789"
+                                        autoFocus
+                                        className="mt-2 w-full bg-slate-800 border-2 border-slate-600 focus:border-brand-500 rounded-xl px-4 py-3 text-lg font-black text-white font-mono placeholder:text-slate-600 focus:outline-none transition-colors"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Razón Social</label>
+                                    <input
+                                        type="text"
+                                        value={clientName}
+                                        onChange={e => setClientName(e.target.value)}
+                                        placeholder="Empresa S.A.C."
+                                        className="mt-2 w-full bg-slate-800 border-2 border-slate-600 focus:border-brand-500 rounded-xl px-4 py-3 text-base font-bold text-white placeholder:text-slate-600 focus:outline-none transition-colors"
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Nav */}
+                        <div className="flex gap-2 mt-2">
+                            <button
+                                onClick={() => setStep(1)}
+                                className="flex-[0.4] flex items-center justify-center gap-1 py-3 bg-slate-800 border border-slate-700 text-slate-400 hover:text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-none"
+                            >
+                                <ChevronLeft className="w-4 h-4" /> Atrás
+                            </button>
+                            <button
+                                onClick={handleConfirm}
+                                disabled={!canConfirm()}
+                                className="flex-1 flex items-center justify-center gap-2 py-3 bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-sm uppercase tracking-widest rounded-xl transition-none"
+                            >
+                                <CheckCircle2 className="w-5 h-5" /> Confirmar Cobro
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    )
 }
 
 function useClock() {
@@ -78,42 +424,59 @@ function ProductCard({
             disabled={isOutOfStock || isMaxed}
             aria-label={`Agregar ${product.name}`}
             className={`
-                relative flex flex-col items-start p-3 
-                border-2 text-left bg-slate-800 transition-none
+                relative flex flex-col items-start text-left bg-slate-800 transition-none
                 active:bg-slate-700 focus:outline-none focus:ring-0
-                rounded-md min-h-[120px]
+                rounded-md overflow-hidden
+                border-2
                 ${isOutOfStock || isMaxed
                     ? 'border-slate-700 opacity-50 cursor-not-allowed'
                     : 'border-slate-700 hover:border-brand-600 cursor-pointer'
                 }
             `}
         >
-            {/* Top row: Name and Price */}
-            <div className="flex justify-between items-start w-full gap-2 mb-2">
-                <p className="text-sm font-bold text-slate-100 leading-tight line-clamp-2 uppercase tracking-wide">
-                    {product.name}
-                </p>
-                <p className="text-base font-bold text-green-500 font-mono tracking-tight shrink-0 bg-slate-900 px-1 border border-slate-700 rounded-sm">
-                    {formatCurrency(product.price)}
-                </p>
+            {/* Product image */}
+            <div className="w-full aspect-square bg-slate-700 overflow-hidden">
+                {product.imageUrl ? (
+                    <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                    />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                        <Package className="w-8 h-8 text-slate-600" />
+                    </div>
+                )}
             </div>
 
-            {/* Category */}
-            <span className="text-[10px] font-bold uppercase tracking-widest text-brand-400 mb-auto">
-                {product.category.name}
-            </span>
+            <div className="p-2 flex flex-col gap-1 w-full">
+                {/* Top row: Name and Price */}
+                <div className="flex justify-between items-start w-full gap-2">
+                    <p className="text-xs font-bold text-slate-100 leading-tight line-clamp-2 uppercase tracking-wide">
+                        {product.name}
+                    </p>
+                    <p className="text-sm font-bold text-green-500 font-mono tracking-tight shrink-0 bg-slate-900 px-1 border border-slate-700 rounded-sm">
+                        {formatCurrency(product.price)}
+                    </p>
+                </div>
 
-            {/* Bottom row: Stock Indicator */}
-            <div className="flex justify-between items-end w-full mt-3 pt-2 border-t border-slate-700">
-                <span className={`text-[12px] font-mono font-bold tracking-tight ${isOutOfStock ? 'text-red-500' : product.stock <= 5 ? 'text-amber-500' : 'text-slate-400'}`}>
-                    {isOutOfStock ? 'STOCK: 0' : `STOCK: ${product.stock}`}
+                {/* Category */}
+                <span className="text-[10px] font-bold uppercase tracking-widest text-brand-400">
+                    {product.category.name}
                 </span>
 
-                {cartQty > 0 && (
-                    <span className="text-[12px] font-mono font-bold text-white bg-brand-600 px-2 rounded-sm tracking-tight">
-                        +{cartQty}
+                {/* Bottom row: Stock Indicator */}
+                <div className="flex justify-between items-end w-full mt-1 pt-2 border-t border-slate-700">
+                    <span className={`text-[12px] font-mono font-bold tracking-tight ${isOutOfStock ? 'text-red-500' : product.stock <= 5 ? 'text-amber-500' : 'text-slate-400'}`}>
+                        {isOutOfStock ? 'STOCK: 0' : `STOCK: ${product.stock}`}
                     </span>
-                )}
+
+                    {cartQty > 0 && (
+                        <span className="text-[12px] font-mono font-bold text-white bg-brand-600 px-2 rounded-sm tracking-tight">
+                            +{cartQty}
+                        </span>
+                    )}
+                </div>
             </div>
 
             {/* Out-of-stock overlay label */}
@@ -144,6 +507,7 @@ export function POSScreen() {
     const [loading, setLoading] = useState(true)
     const [paying, setPaying] = useState(false)
     const [toast, setToast] = useState<ToastState | null>(null)
+    const [checkoutOpen, setCheckoutOpen] = useState(false)
 
     // ── Admin Gatekeeper state ───────────────────────────────────
     const [isGatekeeperOpen, setIsGatekeeperOpen] = useState(false)
@@ -204,12 +568,13 @@ export function POSScreen() {
         items.find((i) => i.product.id === productId)?.quantity ?? 0
 
     // ── PAY action ───────────────────────────────────────────────
-    const handlePay = async () => {
+    const handlePay = async (details: CheckoutDetails) => {
         if (items.length === 0 || paying) return
         if (!activeWorker) {
             showToast({ type: 'error', message: 'No hay un trabajador activo.' })
             return
         }
+        setCheckoutOpen(false)
         setPaying(true)
         try {
             const payload = {
@@ -223,13 +588,14 @@ export function POSScreen() {
                 showToast({ type: 'error', message: msg })
                 return
             }
-            const res = data as { meta: { message: string; itemCount: number } }
+            void data
+            const method = details.paymentMethod === 'efectivo' ? 'EFECTIVO' : details.paymentMethod === 'yape' ? 'YAPE' : 'TARJETA'
+            const invoice = details.invoiceType === 'boleta' ? 'BOLETA' : details.invoiceType === 'boleta_dni' ? `BOLETA DNI:${details.clientDni}` : `FACTURA RUC:${details.clientRuc}`
             showToast({
                 type: 'success',
-                message: res.meta?.message ?? `VENTA OK: ${formatCurrency(total)}`,
-            })
+                message: `VENTA OK · ${method} · ${invoice} · ${formatCurrency(total)}`,
+            }, 5000)
             clearCart()
-            // Refresh stock counts after a successful sale
             fetchProducts()
         } catch {
             showToast({ type: 'error', message: 'Error de conexión. Reintenta.' })
@@ -348,6 +714,13 @@ export function POSScreen() {
                 <aside className="flex flex-col w-[120px] flex-shrink-0 bg-slate-900 border-r border-slate-700">
                     {/* Categories */}
                     <div className="flex-1 flex flex-col gap-2 p-2 overflow-y-auto">
+                        {/* Play Zone link — above TODO */}
+                        <OperationButton
+                            icon={<Timer className="w-5 h-5" />}
+                            label="JUEGOS"
+                            onClick={() => navigate('/playzone')}
+                        />
+                        <div className="border-t border-slate-700/50 mt-1 mb-1" />
                         <CategoryButton
                             label="TODO"
                             active={selectedCategory === ALL_CATEGORY_ID}
@@ -432,7 +805,7 @@ export function POSScreen() {
                     )}
 
                     {!loading && visibleProducts.length > 0 && (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 cursor-default">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 cursor-default">
                             {visibleProducts.map((product) => (
                                 <ProductCard
                                     key={product.id}
@@ -528,7 +901,7 @@ export function POSScreen() {
 
                             {/* PAY button */}
                             <button
-                                onClick={handlePay}
+                                onClick={() => setCheckoutOpen(true)}
                                 disabled={items.length === 0 || paying}
                                 className={`
                                     flex-1 flex items-center justify-center gap-2
@@ -570,6 +943,15 @@ export function POSScreen() {
                 >
                     {toast.message}
                 </div>
+            )}
+
+            {/* ══════════════════ CHECKOUT MODAL ═════════════════════════ */}
+            {checkoutOpen && (
+                <CheckoutModal
+                    total={total}
+                    onConfirm={handlePay}
+                    onCancel={() => setCheckoutOpen(false)}
+                />
             )}
 
             {/* ══════════════════ GATEKEEPER MODAL ════════════════════════ */}
@@ -704,10 +1086,10 @@ function CartRow({
             {/* Subtotal */}
             <div className="w-20 text-right shrink-0">
                 <span className="text-sm font-black font-mono text-slate-900 tracking-tighter">
-                    {new Intl.NumberFormat('es-CO', {
+                    {new Intl.NumberFormat('es-PE', {
                         style: 'currency',
-                        currency: 'COP',
-                        minimumFractionDigits: 0,
+                        currency: 'PEN',
+                        minimumFractionDigits: 2,
                     }).format(subtotal)}
                 </span>
             </div>

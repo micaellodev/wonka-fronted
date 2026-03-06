@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
-import { Banknote, Calculator, CheckCircle2, AlertTriangle, AlertCircle } from 'lucide-react'
+import { Banknote, Calculator, CheckCircle2, AlertTriangle } from 'lucide-react'
 
 // Assuming Sale structure based on backend implementation
 interface Sale {
@@ -55,7 +55,7 @@ export function CashierScreen() {
     const difference = Number(countedCash || 0) - expectedCash
 
     function formatCurrency(v: number) {
-        return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(v)
+        return new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN', minimumFractionDigits: 2 }).format(v)
     }
 
     const handleReconcile = () => {
