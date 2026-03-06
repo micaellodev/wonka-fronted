@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import {
     Timer, UserPlus, Search, LogOut, RefreshCw, Clock,
     Baby, User, CheckCircle2, AlertTriangle, XCircle,
-    Infinity as InfinityIcon, ChevronRight, Plus, ArrowLeft,
+    Infinity as InfinityIcon, ChevronRight, Plus,
     Shield, Phone, FileText
 } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -69,11 +69,6 @@ function fmtPrice(price: number | null) {
 
 function calcElapsed(startTime: string) {
     return Math.floor((Date.now() - new Date(startTime).getTime()) / 60_000)
-}
-
-function calcRemaining(session: { durationMinutes: number | null; startTime: string }) {
-    if (session.durationMinutes === null) return null
-    return Math.max(0, session.durationMinutes - calcElapsed(session.startTime))
 }
 
 // ── Sub-Components ────────────────────────────────────────────
