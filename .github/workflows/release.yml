@@ -27,13 +27,15 @@ jobs:
       - name: Install frontend dependencies
         run: bun install
 
-      - name: Build and Create Release
-        uses: tauri-apps/tauri-action@v0.5.15
+- name: Build and Create Release
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: app-v__VERSION__
+          tagName: v__VERSION__ # Se recomienda que el tag sea solo la versión
           releaseName: 'Wonka POS v__VERSION__'
-          releaseBody: 'Descarga el instalador (`.exe`) de Wonka POS desde los archivos adjuntos (Assets) al final de esta página.'
+          releaseBody: 'Descarga el instalador de Wonka POS debajo.'
           releaseDraft: true
           prerelease: false
+          # Añadimos esto para asegurar que use Bun si es necesario
+          includeRelease: true
