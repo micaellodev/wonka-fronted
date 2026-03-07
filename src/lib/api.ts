@@ -5,4 +5,6 @@
 
 import { treaty } from '@elysiajs/eden'
 
-export const api = treaty('http://localhost:3000') as any
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+
+export const api = treaty(API_URL) as any
