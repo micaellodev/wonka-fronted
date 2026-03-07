@@ -3,6 +3,10 @@
     "productName": "Wonka",
     "version": "0.1.0",
     "identifier": "com.wonka.pos",
+    "bundle": {
+        "active": true,
+        "targets": "all"
+    },
     "build": {
         "beforeDevCommand": "bun dev",
         "beforeBuildCommand": "bun run build",
