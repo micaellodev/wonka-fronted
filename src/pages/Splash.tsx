@@ -47,21 +47,21 @@ export function SplashScreen() {
           // No hay update, cerrar splash y abrir main
           setStatus('Todo listo. Abriendo Wonka...')
           setTimeout(async () => {
-            const currentWindow = getCurrentWindow()
-            // Asumiendo que podemos invocar algo para mostrar la app principal, o:
-            // Obtenemos todas las ventanas y mostramos la principal. 
-            // En tauri v2 podemos hacerlo desde Rust o pasando un comando.
             await invoke('show_main_window')
-            await currentWindow.close()
           }, 1500)
         }
       } catch (error) {
         console.error('Error verificando actualizaciones:', error)
-        setStatus('Error al actualizar. Abriendo Wonka...')
+        // En desarrollo siempre dará error porque no hay archivo o endpoint en Railway aun.
+        // Mostramos un texto mas amigable en lugar de "Error" para que no asuste.
+        setStatus('Buscando actualizaciones...')
+        
         setTimeout(async () => {
-          const currentWindow = getCurrentWindow()
+          setStatus('Todo listo. Abriendo Wonka...')
+        }, 800)
+
+        setTimeout(async () => {
           await invoke('show_main_window')
-          await currentWindow.close()
         }, 1500)
       }
     }
