@@ -11,7 +11,12 @@ import { EmployeesScreen } from '@/pages/EmployeesScreen'
 import { ReportsScreen } from '@/pages/ReportsScreen'
 import { CashierScreen } from '@/pages/CashierScreen'
 import { PlayZoneScreen } from '@/pages/PlayZoneScreen'
+import { SplashScreen } from '@/pages/Splash'
 import { useAuthStore } from '@/store/authStore'
+
+function SplashGuard() {
+  return <SplashScreen />
+}
 
 /** Redirects to /pos if a worker is already authenticated */
 function RootRedirect() {
@@ -48,6 +53,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/splash" element={<SplashGuard />} />
         <Route path="/" element={<RootRedirect />} />
         <Route path="/pos" element={<PosGuard />} />
         <Route path="/playzone" element={<WorkerGuard><PlayZoneScreen /></WorkerGuard>} />

@@ -15,17 +15,44 @@
         ]
     },
     "build": {
-        "beforeDevCommand": "bun dev",
-        "beforeBuildCommand": "",
-        "devUrl": "https://wonka-fronted-production.up.railway.app",
-        "frontendDist": "https://wonka-fronted-production.up.railway.app"
+        "beforeDevCommand": "npm run dev",
+        "beforeBuildCommand": "npm run build",
+        "devUrl": "http://localhost:5173",
+        "frontendDist": "../dist"
+    },
+    "plugins": {
+        "updater": {
+            "endpoints": [
+                "https://wonka-backend-production.up.railway.app/public/updater/latest.json"
+            ],
+            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc4QzU2MzJCRDI3MkQ4RDIKUldUUzJITFNLMlBGZUhjSllaS3F6YkR0RExQOEpvSWJUSm92b1NEYnlySUVUUitLTjhLTGJRakYK",
+            "windows": {
+                "installMode": "passive"
+            }
+        }
     },
     "app": {
         "windows": [
             {
+                "title": "Wonka Updater",
+                "label": "splashscreen",
+                "width": 320,
+                "height": 400,
+                "resizable": false,
+                "decorations": false,
+                "alwaysOnTop": true,
+                "center": true,
+                "transparent": true,
+                "url": "/splash"
+            },
+            {
                 "title": "Wonka",
-                "width": 800,
-                "height": 600
+                "label": "main",
+                "width": 1200,
+                "height": 800,
+                "center": true,
+                "visible": false,
+                "url": "/"
             }
         ],
         "security": {
