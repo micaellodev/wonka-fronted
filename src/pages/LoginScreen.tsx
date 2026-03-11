@@ -132,7 +132,7 @@ export function LoginScreen() {
                 {/* Logo / title */}
                 <div className="flex flex-col items-center gap-2 text-center">
                     <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-600 shadow-lg shadow-brand-900/50 mb-1">
-                        <span className="text-3xl" role="img" aria-label="Wonka">🍫</span>
+                        <span className="text-3xl" role="img" aria-label="Wonka">😂</span>
                     </div>
                     <h1 className="text-3xl font-extrabold tracking-tight text-white">Wonka</h1>
                     <p className="text-sm text-slate-400 font-medium">Sistema de Punto de Venta</p>
