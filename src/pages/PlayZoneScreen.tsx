@@ -4,7 +4,6 @@
 // ============================================================
 
 import { useEffect, useState, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
     Timer, UserPlus, Search, LogOut, RefreshCw, Clock,
     Baby, User, CheckCircle2, AlertTriangle, XCircle,
@@ -201,7 +200,6 @@ function SessionCard({
 
 export function PlayZoneScreen() {
     const { tenantId } = useAuthStore()
-    const navigate = useNavigate()
     const { upsertExtraCharge } = usePlayzoneTicketStore()
 
     // ── left panel state ──

@@ -16,10 +16,6 @@ import { CashDrawerGuard } from '@/components/CashDrawerGuard'
 import { useAuthStore } from '@/store/authStore'
 import { useAdminStore } from '@/store/adminStore'
 
-function SplashGuard() {
-  return <SplashScreen />
-}
-
 /** Redirects to /cash-guard after successful login */
 function RootRedirect() {
   const activeWorker = useAuthStore((s) => s.activeWorker)
