@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
     Package, Plus, Search, Edit2, Layers, Upload, X, ImageIcon, CheckCircle, XCircle,
     ZoomIn, ZoomOut, RotateCw, Crop
@@ -401,6 +400,125 @@ interface ProductModalProps {
     onSaved: () => void
 }
 
+interface StockEntryModalProps {
+    tenantId: string
+    products: Product[]
+    onClose: () => void
+    onSaved: () => void
+}
+
+function StockEntryModal({ tenantId, products, onClose, onSaved }: StockEntryModalProps) {
+    const [productId, setProductId] = useState(products[0]?.id ?? '')
+    const [qty, setQty] = useState('1')
+    const [saving, setSaving] = useState(false)
+
+    const selectedProduct = products.find((p) => p.id === productId) ?? null
+
+    const handleSave = async () => {
+        if (!selectedProduct) return
+        const qtyNum = parseInt(qty, 10)
+        if (isNaN(qtyNum) || qtyNum <= 0) {
+            alert('Ingresa una cantidad valida mayor a 0.')
+            return
+        }
+
+        setSaving(true)
+        try {
+            await (api.inventory.products as any)({ id: selectedProduct.id }).patch(
+                {
+                    name: selectedProduct.name,
+                    sku: selectedProduct.sku,
+                    categoryId: selectedProduct.category.id,
+                    ...(selectedProduct.imageUrl ? { imageUrl: selectedProduct.imageUrl } : {}),
+                    price: selectedProduct.price,
+                    cost: selectedProduct.cost,
+                    stock: selectedProduct.stock + qtyNum,
+                    isActive: selectedProduct.isActive,
+                } as any,
+                { query: { tenantId } } as any
+            )
+
+            onSaved()
+        } catch {
+            alert('No se pudo registrar la entrada de productos.')
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-slate-800 border border-slate-700 rounded-3xl w-full max-w-md p-6 shadow-2xl flex flex-col gap-5">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="text-xl font-bold text-white">Entrada de Productos</h2>
+                        <p className="text-sm text-slate-400 mt-0.5">Suma unidades al stock actual del inventario.</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-colors">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-semibold text-slate-300 mb-1.5">Producto</label>
+                    <select
+                        value={productId}
+                        onChange={(e) => setProductId(e.target.value)}
+                        className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-500 transition-colors"
+                    >
+                        {products.map((p) => (
+                            <option key={p.id} value={p.id}>{p.name} · {p.sku}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-300 mb-1.5">Cantidad de entrada</label>
+                        <input
+                            type="number"
+                            min="1"
+                            value={qty}
+                            onChange={(e) => setQty(e.target.value)}
+                            className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white placeholder:text-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
+                            placeholder="1"
+                        />
+                    </div>
+                    <div className="flex items-end">
+                        <div className="w-full bg-slate-900/40 border border-slate-700/50 rounded-xl px-4 py-2.5">
+                            <span className="text-xs text-slate-500 block mb-0.5">Stock actual</span>
+                            <span className="text-sm font-bold text-slate-200">{selectedProduct?.stock ?? 0}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-slate-900/40 border border-slate-700/50 rounded-xl px-4 py-3">
+                    <span className="text-xs text-slate-500 block mb-1">Nuevo stock proyectado</span>
+                    <span className="text-lg font-black text-green-400">
+                        {(selectedProduct?.stock ?? 0) + Math.max(0, parseInt(qty, 10) || 0)}
+                    </span>
+                </div>
+
+                <div className="flex gap-3">
+                    <button
+                        onClick={onClose}
+                        className="flex-1 py-3 font-semibold text-slate-300 bg-slate-700 hover:bg-slate-600 rounded-xl transition-colors"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={handleSave}
+                        disabled={saving || !selectedProduct || products.length === 0}
+                        className="flex-1 py-3 font-semibold text-white bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors"
+                    >
+                        {saving ? 'Registrando...' : 'Registrar Entrada'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 function ProductModal({ tenantId, categories, editing, onClose, onSaved }: ProductModalProps) {
     const [form, setForm] = useState({
         name: editing?.name ?? '',
@@ -667,7 +785,6 @@ function ProductModal({ tenantId, categories, editing, onClose, onSaved }: Produ
 
 export function InventoryScreen() {
     const { tenantId } = useAuthStore()
-    const navigate = useNavigate()
 
     type TabType = 'productos' | 'categorias'
     const [activeTab, setActiveTab] = useState<TabType>('productos')
@@ -679,6 +796,7 @@ export function InventoryScreen() {
     // Modal state
     const [catModal, setCatModal] = useState<{ open: boolean; editing: Category | null }>({ open: false, editing: null })
     const [prodModal, setProdModal] = useState<{ open: boolean; editing: Product | null }>({ open: false, editing: null })
+    const [isAttendanceOpen, setIsAttendanceOpen] = useState(false)
 
     const fetchData = useCallback(async () => {
         setLoading(true)
@@ -717,14 +835,8 @@ export function InventoryScreen() {
     return (
         <div className="min-h-screen bg-surface-900 text-slate-200 flex flex-col">
             {/* Header */}
-            <header className="px-6 py-4 bg-slate-800/80 border-b border-white/5 shadow-md flex items-center justify-between shrink-0">
+            <header className="px-6 py-4 bg-slate-800/80 border-b border-white/5 shadow-md flex items-center justify-between shrink-0 rounded-sm">
                 <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => navigate('/admin')}
-                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 transition-colors rounded-xl font-medium text-white"
-                    >
-                        Volver
-                    </button>
                     <div>
                         <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
                             <Package className="w-5 h-5 text-brand-400" /> Inventario
@@ -741,14 +853,24 @@ export function InventoryScreen() {
                         </button>
                     )}
                     {activeTab === 'productos' && (
-                        <button
-                            onClick={() => setProdModal({ open: true, editing: null })}
-                            disabled={categories.length === 0}
-                            className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-medium text-white transition-all active:scale-95"
-                            title={categories.length === 0 ? 'Crea al menos una categoría primero' : ''}
-                        >
-                            <Plus className="w-4 h-4" /> Nuevo Producto
-                        </button>
+                        <>
+                            <button
+                                onClick={() => setIsAttendanceOpen(true)}
+                                disabled={products.length === 0}
+                                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-medium text-white transition-all active:scale-95"
+                                title={products.length === 0 ? 'No hay productos para registrar entrada' : ''}
+                            >
+                                <Plus className="w-4 h-4" /> Entrada
+                            </button>
+                            <button
+                                onClick={() => setProdModal({ open: true, editing: null })}
+                                disabled={categories.length === 0}
+                                className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-medium text-white transition-all active:scale-95"
+                                title={categories.length === 0 ? 'Crea al menos una categoría primero' : ''}
+                            >
+                                <Plus className="w-4 h-4" /> Nuevo Producto
+                            </button>
+                        </>
                     )}
                 </div>
             </header>
@@ -970,6 +1092,18 @@ export function InventoryScreen() {
                     editing={prodModal.editing}
                     onClose={() => setProdModal({ open: false, editing: null })}
                     onSaved={() => { setProdModal({ open: false, editing: null }); fetchData() }}
+                />
+            )}
+
+            {isAttendanceOpen && (
+                <StockEntryModal
+                    tenantId={tenantId}
+                    products={products}
+                    onClose={() => setIsAttendanceOpen(false)}
+                    onSaved={() => {
+                        setIsAttendanceOpen(false)
+                        fetchData()
+                    }}
                 />
             )}
         </div>

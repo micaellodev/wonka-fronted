@@ -279,7 +279,7 @@ export function EmployeesScreen() {
         <div className="min-h-screen bg-surface-900 text-slate-200 flex flex-col">
             <header className="px-6 py-4 bg-slate-800/80 border-b border-white/5 shadow-md flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-4">
-                    <button onClick={() => navigate('/admin')} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 transition-colors rounded-xl font-medium text-white">Volver</button>
+                    <button onClick={() => navigate('/pos')} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 transition-colors rounded-xl font-medium text-white">Volver</button>
                     <div>
                         <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
                             <Users className="w-5 h-5 text-brand-400" /> Empleados y Asistencia
@@ -296,7 +296,7 @@ export function EmployeesScreen() {
             </header>
 
             <div className="px-6 pt-6 shrink-0 flex items-center justify-between">
-                <div className="flex space-x-2 bg-slate-800/50 p-1.5 rounded-xl w-fit border border-slate-700/50">
+                <div className="flex space-x-2 bg-171717 p-1.5 rounded-xl w-fit border border-slate-700/50">
                     <button
                         onClick={() => setActiveTab('empleados')}
                         className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'empleados' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'

@@ -13,12 +13,14 @@ import {
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
+import { usePlayzoneTicketStore } from '@/store/playzoneTicketStore'
 
 // ── Constants ─────────────────────────────────────────────────
 
 const RATE_PER_MIN = 0.50
 const DURATION_OPTIONS = [
-    { label: '15 Min', minutes: 15,   price: 15 * RATE_PER_MIN },
+    { label: '1 Min', minutes: 1,   price: 2.00 },
+    { label: '15 Min', minutes: 15,   price: 15.00 },
     { label: '30 Min', minutes: 30,   price: 20.00 },
     { label: '1 Hora', minutes: 60,   price: 40.00 },
     { label: '∞ Libre', minutes: null, price: null },
@@ -48,6 +50,21 @@ interface ActiveSession {
     isOverdue: boolean
 }
 
+interface SessionCheckoutTicket {
+    wristbandCode: string
+    childName: string
+    guardianName: string
+    startTime: string
+    endTime: string
+    elapsedMinutes: number
+    includedMinutes: number | null
+    extraMinutes: number
+    baseAmount: number
+    extraAmount: number
+    totalAmount: number
+    extraRatePerMinute: number
+}
+
 // UI states for the left panel
 type PanelMode =
     | { type: 'IDLE' }
@@ -69,6 +86,17 @@ function fmtPrice(price: number | null) {
 
 function calcElapsed(startTime: string) {
     return Math.floor((Date.now() - new Date(startTime).getTime()) / 60_000)
+}
+
+function getApiErrorMessage(err: unknown, fallback: string) {
+    const e = err as any
+    return (
+        e?.message ||
+        e?.summary ||
+        e?.value?.message ||
+        e?.value?.summary ||
+        fallback
+    )
 }
 
 // ── Sub-Components ────────────────────────────────────────────
@@ -174,6 +202,7 @@ function SessionCard({
 export function PlayZoneScreen() {
     const { tenantId } = useAuthStore()
     const navigate = useNavigate()
+    const { upsertExtraCharge } = usePlayzoneTicketStore()
 
     // ── left panel state ──
     const [mode, setMode] = useState<PanelMode>({ type: 'IDLE' })
@@ -279,14 +308,36 @@ export function PlayZoneScreen() {
 
     // ── register guardian + child ─────────────────────────────
     const handleRegister = async () => {
-        if (!guardianDni || !guardianName || !childName || registering) return
+        if (registering) return
+        if (!tenantId) {
+            alert('No hay tenant activo. Vuelve a iniciar sesión.')
+            return
+        }
+
+        const dni = guardianDni.trim()
+        const gName = guardianName.trim()
+        const cName = childName.trim()
+
+        if (!dni || !gName || !cName) return
+        if (dni.length < 7 || dni.length > 15) {
+            alert('El DNI del apoderado debe tener entre 7 y 15 dígitos.')
+            return
+        }
+        if (childAge) {
+            const ageNum = Number(childAge)
+            if (!Number.isInteger(ageNum) || ageNum < 1 || ageNum > 17) {
+                alert('La edad del niño debe estar entre 1 y 17.')
+                return
+            }
+        }
+
         setRegistering(true)
         try {
             const body: Record<string, unknown> = {
                 tenantId,
-                dni: guardianDni.trim(),
-                fullName: guardianName.trim(),
-                childName: childName.trim(),
+                dni,
+                fullName: gName,
+                childName: cName,
             }
             if (guardianPhone) body.phone = guardianPhone.trim()
             if (childDni) body.childDni = childDni.trim()
@@ -298,9 +349,9 @@ export function PlayZoneScreen() {
                 const guardian: Guardian = (res.data as any).data
                 setMode({ type: 'FOUND', guardian })
             } else {
-                alert((res.error.value as any)?.message ?? 'Error al registrar.')
+                alert(getApiErrorMessage(res.error, 'Error al registrar.'))
             }
-        } catch { alert('Error de conexión.') }
+        } catch (err) { alert(getApiErrorMessage(err, 'Error de conexión.')) }
         finally { setRegistering(false) }
     }
 
@@ -353,15 +404,37 @@ export function PlayZoneScreen() {
 
     // ── checkout ──────────────────────────────────────────────
     const handleCheckout = async (sessionId: string) => {
+        if (!tenantId) {
+            alert('No hay tenant activo. Vuelve a iniciar sesión.')
+            return
+        }
         setCheckingOut(sessionId)
         try {
-            const res = await (api.playzone.sessions as any)({ id: sessionId }).complete.patch({}, { query: { tenantId } })
+            const res = await (api.playzone.sessions as any)({ id: sessionId }).complete.patch(
+                undefined,
+                { query: { tenantId } }
+            )
             if (!res.error) {
+                const ticket = (res.data as any)?.data?.ticket as SessionCheckoutTicket | undefined
                 setSessions(prev => prev.filter(s => s.id !== sessionId))
                 if (typeof codeResult === 'object' && codeResult !== null && (codeResult as ActiveSession).id === sessionId) {
                     setCodeResult(null); setCodeSearch('')
                 }
+                if (ticket) {
+                    upsertExtraCharge({
+                        sessionId,
+                        code: ticket.wristbandCode,
+                        childName: ticket.childName,
+                        extraMinutes: ticket.extraMinutes,
+                        extraRate: ticket.extraRatePerMinute,
+                        amount: ticket.extraAmount,
+                    })
+                }
+            } else {
+                alert(getApiErrorMessage(res.error, 'No se pudo finalizar la sesión.'))
             }
+        } catch (err) {
+            alert(getApiErrorMessage(err, 'Error de conexión al finalizar sesión.'))
         } finally { setCheckingOut(null) }
     }
 
@@ -380,15 +453,11 @@ export function PlayZoneScreen() {
 
     // ── render ────────────────────────────────────────────────
     return (
-        <div className="flex flex-col h-screen bg-slate-900 overflow-hidden">
+        <div className="flex flex-col h-screen bg-slate-900 overflow-hidden rounded-sm">
 
             {/* HEADER */}
             <header className="flex items-center justify-between px-5 py-3 bg-slate-900 border-b border-slate-700 flex-shrink-0">
                 <div className="flex items-center gap-4">
-                    <button onClick={() => navigate(-1)}
-                        className="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-xs uppercase tracking-widest rounded-sm transition-none">
-                        ← Volver
-                    </button>
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 flex items-center justify-center bg-slate-800 border-2 border-slate-600 rounded-md">
                             <Baby className="w-6 h-6 text-brand-400" />
@@ -798,6 +867,7 @@ export function PlayZoneScreen() {
                     )}
                 </main>
             </div>
+
         </div>
     )
 }

@@ -3,7 +3,7 @@
 // ============================================================
 
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Users, Package, BarChart2, Banknote, Timer } from 'lucide-react'
+import { LogOut, Users, Package, BarChart2, Banknote, Timer, Calendar } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 
 export function AdminScreen() {
@@ -32,7 +32,7 @@ export function AdminScreen() {
                 <div className="flex items-center gap-4">
                     <div className="text-right hidden sm:block">
                         <p className="text-sm font-semibold text-white">{activeWorker?.name}</p>
-                        <p className="text-xs text-slate-400">{activeWorker?.role.name}</p>
+                        <p className="text-xs text-slate-400">{activeWorker?.role?.name}</p>
                     </div>
                     <button
                         onClick={handleLogout}
@@ -50,7 +50,7 @@ export function AdminScreen() {
                     <h2 className="text-2xl font-bold text-white tracking-tight">Inicio rápido</h2>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
                     {/* Empleados */}
                     <div onClick={() => navigate('/admin/employees')} className="group flex flex-col gap-3 p-6 rounded-3xl bg-slate-800/40 border border-white/5 hover:bg-slate-800/60 hover:border-brand-500/30 transition-all cursor-pointer">
                         <div className="p-3 w-fit rounded-2xl bg-brand-500/10 text-brand-400 group-hover:scale-110 group-hover:bg-brand-500/20 transition-all">
@@ -103,6 +103,17 @@ export function AdminScreen() {
                         <div>
                             <h3 className="text-lg font-bold text-white">Zona de Juegos</h3>
                             <p className="text-sm text-slate-400 mt-1">Registro y control de tiempo de niños.</p>
+                        </div>
+                    </div>
+
+                    {/* Historial de Arqueos */}
+                    <div onClick={() => navigate('/admin/cash-history')} className="group flex flex-col gap-3 p-6 rounded-3xl bg-slate-800/40 border border-white/5 hover:bg-slate-800/60 hover:border-sky-500/30 transition-all cursor-pointer">
+                        <div className="p-3 w-fit rounded-2xl bg-sky-500/10 text-sky-400 group-hover:scale-110 group-hover:bg-sky-500/20 transition-all">
+                            <Calendar className="w-8 h-8" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-white">Historial de Arqueos</h3>
+                            <p className="text-sm text-slate-400 mt-1">Consulta todos los cierres diarios de caja.</p>
                         </div>
                     </div>
                 </div>

@@ -58,10 +58,10 @@ export function PinPad({ onComplete, disabled = false, hasError = false }: PinPa
                         className={`
               w-4 h-4 rounded-full border-2 transition-all duration-200
               ${i < pin.length
-                                ? 'bg-brand-400 border-brand-400 scale-110'
-                                : 'bg-transparent border-slate-500'
+                                ? 'bg-primary border-primary scale-110'
+                                : 'bg-transparent border-border'
                             }
-              ${hasError ? 'border-red-400 bg-red-400' : ''}
+              ${hasError ? 'border-red-500 bg-red-500' : ''}
             `}
                     />
                 ))}
@@ -84,14 +84,13 @@ export function PinPad({ onComplete, disabled = false, hasError = false }: PinPa
                 relative flex items-center justify-center
                 h-16 rounded-2xl text-xl font-semibold
                 transition-all duration-150 active:scale-95
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400
+                                focus:outline-none focus-visible:ring-2 focus-visible:ring-ring
                 disabled:opacity-40 disabled:cursor-not-allowed
                 ${isSpecial
-                                    ? 'bg-slate-700/60 text-slate-300 hover:bg-slate-600/80 text-sm'
-                                    : 'bg-slate-700/80 text-white hover:bg-brand-700/70 active:bg-brand-600'
+                                                                        ? 'bg-muted text-muted-foreground hover:bg-accent text-sm'
+                                                                        : 'bg-card text-card-foreground border border-border hover:bg-accent active:bg-accent/80'
                                 }
-                shadow-lg shadow-black/30
-                border border-white/5
+                                shadow-sm
               `}
                         >
                             {isClear ? <X className="w-5 h-5" /> : isDel ? <Delete className="w-5 h-5" /> : key}

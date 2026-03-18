@@ -21,16 +21,33 @@ import {
     ChevronRight,
     ChevronLeft,
     CheckCircle2,
+    Home,
+    FolderKanban,
+    Settings2,
+    Grid3X3,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
+import { useCashDrawerStore } from '@/store/cashDrawerStore'
 import { useCartStore } from '@/store/cartStore'
+import { usePlayzoneTicketStore } from '@/store/playzoneTicketStore'
+import { usePaymentLedgerStore } from '@/store/paymentLedgerStore'
 import { useAdminStore } from '@/store/adminStore'
 import type { Product, Category } from '@/types'
 import { useNavigate } from 'react-router-dom'
 import { AdminGatekeeper } from '@/components/AdminGatekeeper'
 import { AttendanceModal } from '@/components/AttendanceModal'
-import { Lock, Unlock, Clock, BarChart2, Banknote, Users, Timer } from 'lucide-react'
+import { Unlock, Clock } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Separator } from '@/components/ui/separator'
+import { InventoryScreen } from '@/pages/InventoryScreen'
+import { CashierScreen } from '@/pages/CashierScreen'
+import { ReportsScreen } from '@/pages/ReportsScreen'
+import { EmployeesScreen } from '@/pages/EmployeesScreen'
+import { PlayZoneScreen } from '@/pages/PlayZoneScreen'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -60,9 +77,9 @@ interface CheckoutDetails {
     clientName?: string     // factura: razón social
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+type ModuleView = 'pos' | 'inventory' | 'cashier' | 'reports' | 'employees' | 'playzone'
 
-const ALL_CATEGORY_ID = '__ALL__'
+// ── Helpers ────────────────────────────────────────────────────────────────
 
 function formatCurrency(value: number): string {
     return new Intl.NumberFormat('es-PE', {
@@ -424,18 +441,16 @@ function ProductCard({
             disabled={isOutOfStock || isMaxed}
             aria-label={`Agregar ${product.name}`}
             className={`
-                relative flex flex-col items-start text-left bg-slate-800 transition-none
-                active:bg-slate-700 focus:outline-none focus:ring-0
-                rounded-md overflow-hidden
-                border-2
+                relative flex flex-col items-start overflow-hidden rounded-lg border text-left transition-none
+                active:bg-zinc-900 focus:outline-none focus:ring-0
                 ${isOutOfStock || isMaxed
-                    ? 'border-slate-700 opacity-50 cursor-not-allowed'
-                    : 'border-slate-700 hover:border-brand-600 cursor-pointer'
+                    ? 'border-zinc-800 bg-[#0a0a0a] opacity-50 cursor-not-allowed'
+                    : 'border-zinc-800 bg-[#0a0a0a] hover:border-zinc-500 cursor-pointer'
                 }
             `}
         >
             {/* Product image */}
-            <div className="w-full aspect-square bg-slate-700 overflow-hidden">
+            <div className="w-full aspect-square bg-zinc-900 overflow-hidden">
                 {product.imageUrl ? (
                     <img
                         src={product.imageUrl}
@@ -455,24 +470,24 @@ function ProductCard({
                     <p className="text-xs font-bold text-slate-100 leading-tight line-clamp-2 uppercase tracking-wide">
                         {product.name}
                     </p>
-                    <p className="text-sm font-bold text-green-500 font-mono tracking-tight shrink-0 bg-slate-900 px-1 border border-slate-700 rounded-sm">
+                    <p className="text-sm font-bold text-white font-mono tracking-tight shrink-0 bg-black px-1 border border-zinc-700">
                         {formatCurrency(product.price)}
                     </p>
                 </div>
 
                 {/* Category */}
-                <span className="text-[10px] font-bold uppercase tracking-widest text-brand-400">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
                     {product.category.name}
                 </span>
 
                 {/* Bottom row: Stock Indicator */}
-                <div className="flex justify-between items-end w-full mt-1 pt-2 border-t border-slate-700">
+                <div className="flex justify-between items-end w-full mt-1 pt-2 border-t border-zinc-800">
                     <span className={`text-[12px] font-mono font-bold tracking-tight ${isOutOfStock ? 'text-red-500' : product.stock <= 5 ? 'text-amber-500' : 'text-slate-400'}`}>
                         {isOutOfStock ? 'STOCK: 0' : `STOCK: ${product.stock}`}
                     </span>
 
                     {cartQty > 0 && (
-                        <span className="text-[12px] font-mono font-bold text-white bg-brand-600 px-2 rounded-sm tracking-tight">
+                        <span className="rounded-sm bg-zinc-100 px-2 text-[12px] font-mono font-bold tracking-tight text-black">
                             +{cartQty}
                         </span>
                     )}
@@ -495,15 +510,23 @@ function ProductCard({
 
 export function POSScreen() {
     const { tenantId, activeWorker, logout } = useAuthStore()
+    const { openingBalance } = useCashDrawerStore()
     const { items, total, addItem, decrementItem, removeItem, clearCart } = useCartStore()
+    const { charges: playzoneCharges, clearAllCharges } = usePlayzoneTicketStore()
+    const { recordPayment } = usePaymentLedgerStore()
     const { isAdminAuthenticated, logoutAdmin } = useAdminStore()
     const navigate = useNavigate()
     const now = useClock()
+    const playzoneExtraCharges = playzoneCharges.filter((c) => c.kind === 'extra')
+    const playzoneExtraTotal = playzoneExtraCharges.reduce((sum, c) => sum + c.total, 0)
+    const totalToPay = total + playzoneExtraTotal
+    const hasSomethingToCharge = items.length > 0 || playzoneExtraCharges.length > 0
+    const displayedOpeningBalance = openingBalance ?? 0
 
     // ── Local state ──────────────────────────────────────────────
     const [products, setProducts] = useState<Product[]>([])
     const [categories, setCategories] = useState<Category[]>([])
-    const [selectedCategory, setSelectedCategory] = useState<string>(ALL_CATEGORY_ID)
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
     const [loading, setLoading] = useState(true)
     const [paying, setPaying] = useState(false)
     const [toast, setToast] = useState<ToastState | null>(null)
@@ -515,6 +538,9 @@ export function POSScreen() {
 
     // ── Attendance Modal state ───────────────────────────────────
     const [isAttendanceOpen, setIsAttendanceOpen] = useState(false)
+    const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false)
+    const [activityRange, setActivityRange] = useState<'hoy' | '7' | '30'>('hoy')
+    const [activeView, setActiveView] = useState<ModuleView>('pos')
 
     // ── Toast helper ─────────────────────────────────────────────
     const showToast = useCallback((t: ToastState, duration = 3500) => {
@@ -559,9 +585,11 @@ export function POSScreen() {
 
     // ── Filtered products ────────────────────────────────────────
     const visibleProducts =
-        selectedCategory === ALL_CATEGORY_ID
-            ? products.filter((p) => p.isActive)
+        selectedCategory === null
+            ? []
             : products.filter((p) => p.isActive && p.category.id === selectedCategory)
+
+    const selectedCategoryName = categories.find((cat) => cat.id === selectedCategory)?.name
 
     // ── Cart helpers ─────────────────────────────────────────────
     const cartQtyFor = (productId: string) =>
@@ -569,7 +597,7 @@ export function POSScreen() {
 
     // ── PAY action ───────────────────────────────────────────────
     const handlePay = async (details: CheckoutDetails) => {
-        if (items.length === 0 || paying) return
+        if (!hasSomethingToCharge || paying) return
         if (!activeWorker) {
             showToast({ type: 'error', message: 'No hay un trabajador activo.' })
             return
@@ -577,25 +605,37 @@ export function POSScreen() {
         setCheckoutOpen(false)
         setPaying(true)
         try {
-            const payload = {
-                tenantId,
-                workerId: activeWorker.id,
-                items: items.map((i) => ({ productId: i.product.id, qty: i.quantity })),
+            if (items.length > 0) {
+                const payload = {
+                    tenantId,
+                    workerId: activeWorker.id,
+                    items: items.map((i) => ({ productId: i.product.id, qty: i.quantity })),
+                }
+                const { data, error } = await api.pos.sales.post(payload)
+                if (error) {
+                    const msg = (error.value as { message?: string })?.message ?? 'Error al procesar la venta.'
+                    showToast({ type: 'error', message: msg })
+                    return
+                }
+                void data
             }
-            const { data, error } = await api.pos.sales.post(payload)
-            if (error) {
-                const msg = (error.value as { message?: string })?.message ?? 'Error al procesar la venta.'
-                showToast({ type: 'error', message: msg })
-                return
-            }
-            void data
+
             const method = details.paymentMethod === 'efectivo' ? 'EFECTIVO' : details.paymentMethod === 'yape' ? 'YAPE' : 'TARJETA'
             const invoice = details.invoiceType === 'boleta' ? 'BOLETA' : details.invoiceType === 'boleta_dni' ? `BOLETA DNI:${details.clientDni}` : `FACTURA RUC:${details.clientRuc}`
             showToast({
                 type: 'success',
-                message: `VENTA OK · ${method} · ${invoice} · ${formatCurrency(total)}`,
+                message: `VENTA OK · ${method} · ${invoice} · ${formatCurrency(totalToPay)}`,
             }, 5000)
+
+            recordPayment({
+                tenantId,
+                workerId: activeWorker.id,
+                method: details.paymentMethod,
+                amount: totalToPay,
+            })
+
             clearCart()
+            clearAllCharges()
             fetchProducts()
         } catch {
             showToast({ type: 'error', message: 'Error de conexión. Reintenta.' })
@@ -606,14 +646,16 @@ export function POSScreen() {
 
     // ── Cancel / clear cart ──────────────────────────────────────
     const handleCancel = () => {
-        if (items.length === 0) return
+        if (!hasSomethingToCharge) return
         clearCart()
+        clearAllCharges()
         showToast({ type: 'info', message: 'ORDEN CANCELADA' })
     }
 
     // ── Logout ───────────────────────────────────────────────────
     const handleLogout = () => {
         clearCart()
+        clearAllCharges()
         logout()
         logoutAdmin()
         navigate('/')
@@ -636,6 +678,10 @@ export function POSScreen() {
         }
     }
 
+    const handleAdminMenuToggle = () => {
+        handleAdminAction(() => setIsAdminMenuOpen((prev) => !prev))
+    }
+
     // ── Date / time format ───────────────────────────────────────
     const dateStr = now.toLocaleDateString('es-CO', {
         day: '2-digit',
@@ -647,40 +693,50 @@ export function POSScreen() {
         minute: '2-digit',
         second: '2-digit',
     })
+    const cartLineCount = items.length + playzoneExtraCharges.length
+    const cartUnits = items.reduce((sum, i) => sum + i.quantity, 0) + playzoneExtraCharges.reduce((sum, i) => sum + i.qty, 0)
+    const isPosView = activeView === 'pos'
 
     // ──────────────────────────────────────────────────────────────────────
     return (
-        <div className="flex flex-col h-screen bg-slate-900 overflow-hidden font-sans">
+        <div className="monochrome-ui flex h-screen flex-col overflow-hidden bg-black font-sans text-zinc-100">
 
             {/* ══════════════════ HEADER ══════════════════════════════════ */}
-            <header className="flex items-center justify-between px-5 py-3 bg-slate-900 border-b border-slate-700 flex-shrink-0">
+            <header className="flex flex-shrink-0 items-center justify-between border-b border-zinc-800 bg-[#060606] px-5 py-3">
                 {/* Left: Store identity and Operations */}
                 <div className="flex items-center gap-6">
                     <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center w-10 h-10 bg-slate-800 border-2 border-slate-600 rounded-md">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-700 bg-[#0d0d0d]">
                             <span className="text-xl" role="img" aria-label="Wonka">🍫</span>
                         </div>
                         <div>
-                            <h1 className="text-lg font-black text-white uppercase tracking-wider leading-none">WONKA POS</h1>
-                            <p className="text-[12px] text-slate-400 font-mono leading-none mt-1 uppercase tracking-widest">TID: {tenantId}</p>
+                            <h1 className="text-lg font-extrabold uppercase tracking-[0.14em] leading-none text-white">WONKA POS</h1>
+                            <p className="mt-1 text-[11px] font-mono uppercase tracking-[0.18em] text-zinc-500 leading-none">TID: {tenantId}</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Center: Date / time */}
-                <div className="hidden lg:flex flex-col items-center bg-slate-800 px-4 py-1.5 border border-slate-700 rounded-md">
-                    <span className="text-lg font-bold text-brand-400 font-mono tabular-nums leading-none tracking-tight">{timeStr}</span>
-                    <span className="text-[10px] font-bold text-slate-400 font-mono mt-1 tracking-widest">{dateStr}</span>
+                <div className="hidden min-w-[170px] flex-col items-center rounded-lg border border-zinc-700 bg-[#0a0a0a] px-4 py-1.5 lg:flex">
+                    <span className="font-mono text-lg font-bold tabular-nums leading-none tracking-tight text-white">{timeStr}</span>
+                    <span className="mt-1 font-mono text-[10px] font-bold tracking-widest text-zinc-500">{dateStr}</span>
                 </div>
 
                 {/* Right: Worker + Admin + logout */}
                 <div className="flex items-center gap-4">
+                    <div className="flex flex-col items-end rounded-lg border border-zinc-700 bg-[#0a0a0a] px-3 py-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 leading-none">Apertura</span>
+                        <span className="mt-1 font-mono text-sm font-black leading-none text-white">
+                            {formatCurrency(displayedOpeningBalance)}
+                        </span>
+                    </div>
+
                     {/* Admin Logout Button */}
                     {isAdminAuthenticated && (
                         <button
                             onClick={logoutAdmin}
                             title="Desconectar Administrador"
-                            className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-brand-400 rounded-md text-xs font-bold uppercase tracking-wider transition-none"
+                            className="flex items-center gap-2 rounded-lg border border-zinc-700 bg-[#0a0a0a] px-3 py-2 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-[#141414]"
                         >
                             <Unlock className="w-4 h-4" />
                             ADMIN OK
@@ -688,11 +744,11 @@ export function POSScreen() {
                     )}
 
                     {activeWorker && (
-                        <div className="text-right flex items-center gap-3 pr-4 border-r border-slate-700">
+                        <div className="flex items-center gap-3 border-r border-zinc-800 pr-4 text-right">
                             <div>
                                 <p className="text-sm font-bold text-white uppercase tracking-wider leading-none">{activeWorker.name}</p>
                                 {activeWorker.role?.name && (
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">{activeWorker.role.name}</p>
+                                    <p className="mt-1 text-[10px] font-bold uppercase tracking-widest leading-none text-zinc-500">{activeWorker.role?.name}</p>
                                 )}
                             </div>
                         </div>
@@ -700,7 +756,7 @@ export function POSScreen() {
                     <button
                         onClick={handleLogout}
                         title="Cerrar sesión"
-                        className="flex items-center justify-center w-10 h-10 bg-slate-800 border border-slate-600 text-slate-300 hover:bg-red-600 hover:border-red-600 hover:text-white rounded-md transition-none"
+                        className="flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-700 bg-[#0a0a0a] text-zinc-300 transition-colors hover:bg-[#171717] hover:text-white"
                     >
                         <LogOut className="w-5 h-5" />
                     </button>
@@ -709,218 +765,310 @@ export function POSScreen() {
 
             {/* ══════════════════ BODY ════════════════════════════════════ */}
             <div className="flex flex-1 overflow-hidden">
+                <aside className="hidden w-[260px] flex-shrink-0 border-r border-zinc-800 bg-[#080808] px-4 py-3 md:flex md:flex-col">
+                    <div className="flex items-center gap-2.5 px-1">
+                    </div>
 
-                {/* ── LEFT SIDEBAR: Categories & Operations ─────────────────────────── */}
-                <aside className="flex flex-col w-[120px] flex-shrink-0 bg-slate-900 border-r border-slate-700">
-                    {/* Categories */}
-                    <div className="flex-1 flex flex-col gap-2 p-2 overflow-y-auto">
-                        {/* Play Zone link — above TODO */}
-                        <OperationButton
-                            icon={<Timer className="w-5 h-5" />}
-                            label="JUEGOS"
-                            onClick={() => navigate('/playzone')}
-                        />
-                        <div className="border-t border-slate-700/50 mt-1 mb-1" />
-                        <CategoryButton
-                            label="TODO"
-                            active={selectedCategory === ALL_CATEGORY_ID}
-                            onClick={() => setSelectedCategory(ALL_CATEGORY_ID)}
-                        />
+                    <Separator className="my-4 bg-zinc-800" />
+
+                    <p className="mb-2 px-1 text-xs uppercase tracking-widest text-zinc-500">Navegacion</p>
+                    <div className="space-y-1">
+                        <SidebarNavItem icon={<Home className="w-4 h-4" />} label="Punto de venta" active={activeView === 'pos'} onClick={() => setActiveView('pos')} />
+                        <SidebarNavItem icon={<FolderKanban className="w-4 h-4" />} label="Zona de juegos" active={activeView === 'playzone'} onClick={() => setActiveView('playzone')} />
+                        <SidebarNavItem icon={<Settings2 className="w-4 h-4" />} label="Administrador" onClick={handleAdminMenuToggle} />
+                    </div>
+
+                    {isAdminMenuOpen && (
+                        <div className="ml-6 mt-2 space-y-1 border-l border-slate-800 pl-3">
+                            <SidebarNavItem label="Inventario" active={activeView === 'inventory'} onClick={() => handleAdminAction(() => setActiveView('inventory'))} compact />
+                            <SidebarNavItem label="Cuadre de caja" active={activeView === 'cashier'} onClick={() => handleAdminAction(() => setActiveView('cashier'))} compact />
+                            <SidebarNavItem label="Reportes" active={activeView === 'reports'} onClick={() => handleAdminAction(() => setActiveView('reports'))} compact />
+                            <SidebarNavItem label="Empleados" active={activeView === 'employees'} onClick={() => handleAdminAction(() => setActiveView('employees'))} compact />
+                        </div>
+                    )}
+
+                    <p className="mb-2 mt-6 px-1 text-xs uppercase tracking-widest text-zinc-500">Administrador</p>
+                    <div className="space-y-1">
+                        <SidebarNavItem icon={<Package className="w-4 h-4" />} label="Inventario" active={activeView === 'inventory'} onClick={() => handleAdminAction(() => setActiveView('inventory'))}/>
+                        <SidebarNavItem icon={<Package className="w-4 h-4" />} label="Cuadre De Caja" active={activeView === 'cashier'} onClick={() => handleAdminAction(() => setActiveView('cashier'))}/>
+                        <SidebarNavItem icon={<Package className="w-4 h-4" />} label="Empleados" active={activeView === 'employees'} onClick={() => handleAdminAction(() => setActiveView('employees'))}/>
+                        <SidebarNavItem icon={<Receipt className="w-4 h-4" />} label="Reports" active={activeView === 'reports'} onClick={() => handleAdminAction(() => setActiveView('reports'))} />
+                        <SidebarNavItem icon={<FileText className="w-4 h-4" />} label="Word Assistant" onClick={() => setIsAttendanceOpen(true)} />
+                    </div>
+
+                        <div className="ml-6 mt-2 max-h-44 space-y-1 overflow-y-auto border-l border-zinc-800 pl-3">
+                        <button
+                            onClick={() => setSelectedCategory(null)}
+                            className={`w-full px-2 py-1.5 text-left text-sm transition-colors ${selectedCategory === null ? 'bg-zinc-100 text-black' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}`}
+                        >
+                            Categorias
+                        </button>
                         {categories.map((cat) => (
-                            <CategoryButton
+                            <button
                                 key={cat.id}
-                                label={cat.name}
-                                active={selectedCategory === cat.id}
                                 onClick={() => setSelectedCategory(cat.id)}
-                            />
+                                className={`w-full px-2 py-1.5 text-left text-sm transition-colors ${selectedCategory === cat.id ? 'bg-zinc-100 text-black' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}`}
+                            >
+                                {cat.name}
+                            </button>
                         ))}
                     </div>
 
-                    {/* Operations */}
-                    <div className="p-2 border-t border-slate-700 flex flex-col gap-2 relative">
-                        <div className="text-[10px] font-bold text-slate-500 text-center uppercase tracking-widest mb-1">SISTEMA</div>
-                        <OperationButton
-                            icon={<Clock className="w-5 h-5" />}
-                            label="ASIST."
-                            onClick={() => setIsAttendanceOpen(true)}
-                        />
-                        <OperationButton
-                            icon={<Package className="w-5 h-5" />}
-                            label="INVENT."
-                            locked={!isAdminAuthenticated}
-                            onClick={() => handleAdminAction(() => navigate('/admin/inventory'))}
-                        />
-                        <OperationButton
-                            icon={<BarChart2 className="w-5 h-5" />}
-                            label="REPORT."
-                            locked={!isAdminAuthenticated}
-                            onClick={() => handleAdminAction(() => navigate('/admin/reports'))}
-                        />
-                        <OperationButton
-                            icon={<Banknote className="w-5 h-5" />}
-                            label="CAJA"
-                            locked={!isAdminAuthenticated}
-                            onClick={() => handleAdminAction(() => navigate('/admin/cashier'))}
-                        />
-                        <OperationButton
-                            icon={<Users className="w-5 h-5" />}
-                            label="EMPL."
-                            locked={!isAdminAuthenticated}
-                            onClick={() => handleAdminAction(() => navigate('/admin/employees'))}
-                        />
+                    <div className="mt-auto pt-4">
+                        <SidebarNavItem icon={<Clock className="w-4 h-4" />} label="Asistencia" onClick={() => setIsAttendanceOpen(true)} />
                     </div>
                 </aside>
 
-                {/* ── CENTER: Product grid ─────────────────────────────── */}
-                <main className="flex-1 overflow-y-auto bg-slate-900 p-4">
-                    {/* Toolbar row */}
-                    <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-800">
-                        <p className="text-xs font-bold font-mono text-slate-500 tracking-widest uppercase">
-                            [{visibleProducts.length} ITEMS]
-                        </p>
-                        <button
-                            onClick={fetchProducts}
-                            disabled={loading}
-                            title="Recargar productos"
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-sm text-[11px] font-bold text-slate-400 bg-slate-800 border border-slate-700 hover:bg-slate-700 hover:text-white uppercase tracking-wider transition-none disabled:opacity-50"
-                        >
-                            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-                            {loading ? 'SINC...' : 'SYNC'}
-                        </button>
+                <main className={isPosView ? 'flex-1 min-w-0 p-4 md:p-5 overflow-y-auto' : 'flex-1 min-w-0 overflow-y-auto'}>
+                    {isPosView && isAdminAuthenticated && isAdminMenuOpen && (
+                        <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-3">
+                                <Badge variant="warning">Administrador</Badge>
+                                <p className="text-xs uppercase tracking-widest text-zinc-500 font-bold">Resumen rapido</p>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                                <DashboardMetric label="Productos Activos" value={String(visibleProducts.length)} hint="Disponibles para venta" tone="cyan" />
+                                <DashboardMetric label="Lineas del Ticket" value={String(cartLineCount)} hint="Items distintos en cobro" tone="amber" />
+                                <DashboardMetric label="Unidades" value={String(cartUnits)} hint="Total de unidades" tone="slate" />
+                                <DashboardMetric label="Total Actual" value={formatCurrency(totalToPay)} hint="Incluye extras de juegos" tone="emerald" />
+                            </div>
+                        </div>
+                    )}
+
+                    {isPosView && isAdminAuthenticated && isAdminMenuOpen && (
+                        <Card className="mb-4 rounded-xl border-zinc-800 bg-[#0a0a0a]">
+                            <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between mb-3">
+                                <div>
+                                    <p className="text-xs uppercase tracking-widest text-zinc-500 font-bold">Actividad de Turno</p>
+                                    <h3 className="text-sm font-bold text-zinc-200">Flujo operativo POS</h3>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <TabsList className="border-zinc-800 bg-black p-0.5">
+                                        <TabsTrigger active={activityRange === 'hoy'} onClick={() => setActivityRange('hoy')} className="text-[10px] uppercase tracking-widest px-2.5 py-1">Hoy</TabsTrigger>
+                                        <TabsTrigger active={activityRange === '7'} onClick={() => setActivityRange('7')} className="text-[10px] uppercase tracking-widest px-2.5 py-1">7 dias</TabsTrigger>
+                                        <TabsTrigger active={activityRange === '30'} onClick={() => setActivityRange('30')} className="text-[10px] uppercase tracking-widest px-2.5 py-1">30 dias</TabsTrigger>
+                                    </TabsList>
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={fetchProducts}
+                                        disabled={loading}
+                                        title="Recargar productos"
+                                        className="uppercase tracking-wider text-[10px] h-7 px-2"
+                                    >
+                                        <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+                                        Sync
+                                    </Button>
+                                </div>
+                            </div>
+                            </CardHeader>
+                            <CardContent>
+                            <Separator className="mb-3" />
+                            <div className="relative h-28 overflow-hidden rounded-lg border border-zinc-800 bg-[linear-gradient(180deg,#0b0b0b,#050505)]">
+                                <svg viewBox="0 0 100 30" className="absolute inset-0 w-full h-full opacity-70">
+                                    <defs>
+                                        <linearGradient id="curveA" x1="0" x2="0" y1="0" y2="1">
+                                            <stop offset="0%" stopColor="#f5f5f5" stopOpacity="0.22" />
+                                            <stop offset="100%" stopColor="#f5f5f5" stopOpacity="0" />
+                                        </linearGradient>
+                                        <linearGradient id="curveB" x1="0" x2="0" y1="0" y2="1">
+                                            <stop offset="0%" stopColor="#d4d4d4" stopOpacity="0.18" />
+                                            <stop offset="100%" stopColor="#d4d4d4" stopOpacity="0" />
+                                        </linearGradient>
+                                    </defs>
+                                    <path d="M0,18 C12,8 25,26 40,18 C55,10 70,20 85,14 C92,11 96,12 100,9 L100,30 L0,30 Z" fill="url(#curveA)" />
+                                    <path d="M0,23 C10,18 24,26 40,23 C55,20 72,28 88,20 C94,17 98,18 100,16 L100,30 L0,30 Z" fill="url(#curveB)" />
+                                </svg>
+                                <div className="absolute top-2 left-3 text-[10px] uppercase tracking-widest text-zinc-500">Rendimiento del turno</div>
+                                <div className="absolute right-3 bottom-2 text-[10px] font-bold uppercase tracking-widest text-zinc-200">+12.6%</div>
+                            </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {isPosView ? (
+                    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-4 min-h-[480px]">
+                        <section className="flex min-h-0 flex-col rounded-xl border border-zinc-800 bg-[#090909] p-4">
+                            <div className="mb-3 flex items-center justify-between border-b border-zinc-800 pb-2">
+                                <p className="text-xs font-bold font-mono uppercase tracking-widest text-zinc-500">[{selectedCategory === null ? categories.length : visibleProducts.length} items]</p>
+                                <div className="text-[11px] uppercase tracking-widest text-zinc-500">Catalogo</div>
+                            </div>
+
+                            {loading && (
+                                <div className="flex flex-col items-center justify-center h-64 gap-4 text-slate-500">
+                                    <RefreshCw className="w-8 h-8 animate-spin text-brand-600" />
+                                    <p className="text-sm font-mono font-bold uppercase tracking-widest">Sincronizando DB...</p>
+                                </div>
+                            )}
+
+                            {!loading && selectedCategory === null && categories.length === 0 && (
+                                <div className="flex flex-col items-center justify-center h-64 gap-4 text-slate-600">
+                                    <Grid3X3 className="w-12 h-12 opacity-50" />
+                                    <p className="text-sm font-bold uppercase tracking-widest">Sin categorias</p>
+                                </div>
+                            )}
+
+                            {!loading && selectedCategory === null && categories.length > 0 && (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 cursor-default overflow-y-auto pr-1">
+                                    {categories.map((cat) => {
+                                        const count = products.filter((p) => p.isActive && p.category.id === cat.id).length
+                                        return (
+                                            <button
+                                                key={cat.id}
+                                                onClick={() => setSelectedCategory(cat.id)}
+                                                className="flex min-h-[120px] flex-col items-start justify-between rounded-lg border border-zinc-800 bg-[#0a0a0a] p-3 text-left transition-none hover:border-zinc-500"
+                                            >
+                                                <div className="rounded-md border border-zinc-700 bg-black/60 p-2">
+                                                    <Grid3X3 className="w-5 h-5 text-zinc-300" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-black uppercase tracking-wide text-zinc-100">{cat.name}</p>
+                                                    <p className="text-[11px] font-mono uppercase tracking-widest text-zinc-500">{count} productos</p>
+                                                </div>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            )}
+
+                            {!loading && selectedCategory !== null && visibleProducts.length === 0 && (
+                                <div className="flex flex-col items-center justify-center h-64 gap-4 text-slate-600">
+                                    <Package className="w-12 h-12 opacity-50" />
+                                    <p className="text-sm font-bold uppercase tracking-widest">Cero resultados</p>
+                                </div>
+                            )}
+
+                            {!loading && selectedCategory !== null && visibleProducts.length > 0 && (
+                                <div className="flex min-h-0 flex-col gap-3 overflow-hidden">
+                                    <div className="flex items-center justify-between rounded-lg border border-zinc-800 bg-black/40 px-3 py-2">
+                                        <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">
+                                            Categoria activa: <span className="text-zinc-100">{selectedCategoryName ?? 'Sin nombre'}</span>
+                                        </p>
+                                        <button
+                                            onClick={() => setSelectedCategory(null)}
+                                            className="rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-zinc-300 hover:border-zinc-500 hover:text-white"
+                                        >
+                                            Volver a categorias
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 cursor-default overflow-y-auto pr-1">
+                                        {visibleProducts.map((product) => (
+                                            <ProductCard
+                                                key={product.id}
+                                                product={product}
+                                                onAdd={addItem}
+                                                cartQty={cartQtyFor(product.id)}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </section>
+
+                        <aside className="flex min-h-0 flex-col rounded-xl border border-zinc-800 bg-[#070707]">
+                            <div className="border-b border-zinc-800 px-4 py-4">
+                                <h2 className="text-lg font-black text-slate-100 uppercase tracking-widest">Ticket Wonka</h2>
+                                <p className="mt-1 text-[10px] font-mono font-bold text-zinc-500">{dateStr} - {timeStr}</p>
+                                <p className="text-[10px] font-mono font-bold text-zinc-500">Cajero: {activeWorker?.name}</p>
+                            </div>
+
+                            {hasSomethingToCharge && (
+                                <div className="flex justify-between border-b border-zinc-800 px-4 py-2 text-[10px] font-mono font-bold uppercase text-zinc-500">
+                                    <span className="flex-1">Descripcion</span>
+                                    <span className="w-16 text-center">Cant</span>
+                                    <span className="w-20 text-right">Importe</span>
+                                </div>
+                            )}
+
+                            <div className="flex-1 overflow-y-auto bg-white p-2">
+                                {!hasSomethingToCharge ? (
+                                    <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-400 py-12">
+                                        <ShoppingCart className="w-10 h-10 opacity-30 text-slate-400" />
+                                        <p className="text-xs font-bold uppercase tracking-widest text-center">
+                                            Ticket vacio<br />Esperando...
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-1">
+                                        {items.map((item) => (
+                                            <CartRow
+                                                key={item.product.id}
+                                                item={item}
+                                                onDecrement={() => decrementItem(item.product.id)}
+                                                onIncrement={() => addItem(item.product)}
+                                                onRemove={() => removeItem(item.product.id)}
+                                            />
+                                        ))}
+                                        {playzoneExtraCharges.map((charge) => (
+                                            <PlayzoneChargeRow key={charge.id} charge={charge} />
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex shrink-0 flex-col gap-4 border-t border-zinc-800 bg-[#090909] p-4">
+                                {hasSomethingToCharge && (
+                                    <div className="mb-2 flex justify-between border-b border-zinc-800 pb-2 text-[11px] font-mono font-bold text-zinc-500">
+                                        <span>Lineas: {cartLineCount}</span>
+                                        <span>Total uds: {cartUnits}</span>
+                                    </div>
+                                )}
+
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-black uppercase tracking-widest text-zinc-200">Total a pagar</span>
+                                    <span className="text-3xl font-black text-emerald-300 font-mono tracking-tighter">{formatCurrency(totalToPay)}</span>
+                                </div>
+
+                                <div className="flex gap-2 mt-2">
+                                    <button
+                                        onClick={handleCancel}
+                                        disabled={!hasSomethingToCharge || paying}
+                                        className="
+                                            flex-[0.4] flex items-center justify-center
+                                            h-14 rounded-lg font-black text-xs uppercase tracking-widest
+                                            focus:outline-none focus:ring-0
+                                            bg-slate-800 border border-slate-700
+                                            text-slate-300 hover:bg-slate-700 hover:text-white
+                                            disabled:opacity-50 disabled:cursor-not-allowed
+                                            transition-none
+                                        "
+                                    >
+                                        <XCircle className="w-5 h-5" />
+                                    </button>
+
+                                    <button
+                                        onClick={() => setCheckoutOpen(true)}
+                                        disabled={!hasSomethingToCharge || paying}
+                                        className={`
+                                            flex-1 flex items-center justify-center gap-2
+                                            h-14 rounded-lg font-black text-lg uppercase tracking-widest
+                                            focus:outline-none focus:ring-0
+                                            disabled:opacity-50 disabled:cursor-not-allowed
+                                            transition-none
+                                            ${hasSomethingToCharge && !paying
+                                                ? 'bg-green-600 hover:bg-green-700 text-white shadow-none'
+                                                : 'bg-slate-800 text-slate-500 border border-slate-700'
+                                            }
+                                        `}
+                                    >
+                                        <CreditCard className="w-6 h-6 shrink-0" />
+                                        {paying ? 'Proc...' : 'Cobrar'}
+                                    </button>
+                                </div>
+                            </div>
+                        </aside>
                     </div>
-
-                    {/* States */}
-                    {loading && (
-                        <div className="flex flex-col items-center justify-center h-64 gap-4 text-slate-500">
-                            <RefreshCw className="w-8 h-8 animate-spin text-brand-600" />
-                            <p className="text-sm font-mono font-bold uppercase tracking-widest">Sincronizando DB...</p>
-                        </div>
-                    )}
-
-                    {!loading && visibleProducts.length === 0 && (
-                        <div className="flex flex-col items-center justify-center h-64 gap-4 text-slate-600">
-                            <Package className="w-12 h-12 opacity-50" />
-                            <p className="text-sm font-bold uppercase tracking-widest">CERO RESULTADOS</p>
-                        </div>
-                    )}
-
-                    {!loading && visibleProducts.length > 0 && (
-                        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 cursor-default">
-                            {visibleProducts.map((product) => (
-                                <ProductCard
-                                    key={product.id}
-                                    product={product}
-                                    onAdd={addItem}
-                                    cartQty={cartQtyFor(product.id)}
-                                />
-                            ))}
-                        </div>
+                    ) : (
+                    <div className="h-full w-full overflow-auto p-3 md:p-4">
+                        {activeView === 'inventory' && <InventoryScreen />}
+                        {activeView === 'cashier' && <CashierScreen />}
+                        {activeView === 'reports' && <ReportsScreen />}
+                        {activeView === 'employees' && <EmployeesScreen />}
+                        {activeView === 'playzone' && <PlayZoneScreen />}
+                    </div>
                     )}
                 </main>
-
-                {/* ── RIGHT SIDEBAR: Cart / Checkout (Receipt Style) ─────────────── */}
-                <aside className="flex flex-col w-[320px] flex-shrink-0 bg-slate-50 border-l-2 border-slate-400">
-
-                    {/* Receipt Header */}
-                    <div className="flex flex-col items-center justify-center gap-1 px-4 py-4 bg-white border-b-2 border-slate-300">
-                        <h2 className="text-xl font-black text-slate-900 uppercase tracking-widest">TICKET WONKA</h2>
-                        <p className="text-[10px] font-mono font-bold text-slate-500">{dateStr} - {timeStr}</p>
-                        <p className="text-[10px] font-mono font-bold text-slate-500">CAJERO: {activeWorker?.name}</p>
-                    </div>
-
-                    {/* Cart Header Columns */}
-                    {items.length > 0 && (
-                        <div className="flex justify-between px-4 py-2 bg-slate-100 border-b border-slate-300 text-[10px] font-mono font-bold text-slate-600 uppercase">
-                            <span className="flex-1">DESCRIPCIÓN</span>
-                            <span className="w-16 text-center">CANT</span>
-                            <span className="w-20 text-right">IMPORTE</span>
-                        </div>
-                    )}
-
-                    {/* Cart items (scrollable) */}
-                    <div className="flex-1 overflow-y-auto bg-white p-2">
-                        {items.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-400 py-12">
-                                <ShoppingCart className="w-10 h-10 opacity-30 text-slate-400" />
-                                <p className="text-xs font-bold uppercase tracking-widest text-center">
-                                    TICKET VACÍO<br />ESPERANDO...
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="space-y-1">
-                                {items.map((item) => (
-                                    <CartRow
-                                        key={item.product.id}
-                                        item={item}
-                                        onDecrement={() => decrementItem(item.product.id)}
-                                        onIncrement={() => addItem(item.product)}
-                                        onRemove={() => removeItem(item.product.id)}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Total + actions */}
-                    <div className="bg-slate-100 border-t-2 border-dashed border-slate-400 p-4 shrink-0 flex flex-col gap-4">
-
-                        {/* Items count summary */}
-                        {items.length > 0 && (
-                            <div className="flex justify-between text-[11px] font-mono font-bold text-slate-500 mb-2 border-b border-slate-300 pb-2">
-                                <span>LÍNEAS: {items.length}</span>
-                                <span>TOTAL UDS: {items.reduce((s, i) => s + i.quantity, 0)}</span>
-                            </div>
-                        )}
-
-                        {/* Total display */}
-                        <div className="flex items-center justify-between">
-                            <span className="text-sm font-black text-slate-800 uppercase tracking-widest">TOTAL A PAGAR</span>
-                            <span className="text-3xl font-black text-slate-900 font-mono tracking-tighter">
-                                {formatCurrency(total)}
-                            </span>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex gap-2 mt-2">
-                            {/* CANCEL button */}
-                            <button
-                                onClick={handleCancel}
-                                disabled={items.length === 0 || paying}
-                                className="
-                                    flex-[0.4] flex items-center justify-center 
-                                    h-14 rounded-md font-black text-xs uppercase tracking-widest
-                                    focus:outline-none focus:ring-0
-                                    bg-slate-200 border-2 border-slate-300
-                                    text-slate-600 hover:bg-slate-300 hover:text-slate-800
-                                    disabled:opacity-50 disabled:cursor-not-allowed
-                                    transition-none
-                                "
-                            >
-                                <XCircle className="w-5 h-5" />
-                            </button>
-
-                            {/* PAY button */}
-                            <button
-                                onClick={() => setCheckoutOpen(true)}
-                                disabled={items.length === 0 || paying}
-                                className={`
-                                    flex-1 flex items-center justify-center gap-2
-                                    h-14 rounded-md font-black text-lg uppercase tracking-widest
-                                    focus:outline-none focus:ring-0
-                                    disabled:opacity-50 disabled:cursor-not-allowed
-                                    transition-none
-                                    ${items.length > 0 && !paying
-                                        ? 'bg-green-600 hover:bg-green-700 text-white shadow-none'
-                                        : 'bg-slate-300 text-slate-500 border-2 border-slate-400'
-                                    }
-                                `}
-                            >
-                                <CreditCard className="w-6 h-6 shrink-0" />
-                                {paying ? 'PROC...' : 'COBRAR'}
-                            </button>
-                        </div>
-                    </div>
-                </aside>
             </div>
 
             {/* TOAST NOTIFICATION (Blocky, high contrast) */}
@@ -948,7 +1096,7 @@ export function POSScreen() {
             {/* ══════════════════ CHECKOUT MODAL ═════════════════════════ */}
             {checkoutOpen && (
                 <CheckoutModal
-                    total={total}
+                    total={totalToPay}
                     onConfirm={handlePay}
                     onCancel={() => setCheckoutOpen(false)}
                 />
@@ -973,55 +1121,65 @@ export function POSScreen() {
 
 // ── Extracted pure-presentational components ────────────────────────────────
 
-function CategoryButton({
+function DashboardMetric({
     label,
-    active,
-    onClick,
+    value,
+    hint,
+    tone,
 }: {
     label: string
-    active: boolean
-    onClick: () => void
+    value: string
+    hint: string
+    tone: 'cyan' | 'amber' | 'slate' | 'emerald'
 }) {
+    const tones = {
+        cyan: 'text-zinc-100 border-zinc-700 bg-zinc-900/70',
+        amber: 'text-zinc-100 border-zinc-700 bg-zinc-900/70',
+        slate: 'text-zinc-100 border-zinc-700 bg-zinc-900/70',
+        emerald: 'text-zinc-100 border-zinc-700 bg-zinc-900/70',
+    }
+
     return (
-        <button
-            onClick={onClick}
-            className={`
-                w-full px-2 py-3 rounded-md text-[11px] font-black uppercase text-center tracking-widest
-                transition-none focus:outline-none focus:ring-0
-                border-2
-                ${active
-                    ? 'bg-brand-600 text-white border-brand-600 shadow-none'
-                    : 'bg-slate-800/80 border-slate-700 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
-                }
-            `}
-        >
-            {label}
-        </button>
+        <div className="border border-zinc-800 bg-[#0b0b0b] p-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">{label}</p>
+            <p className={`mt-1 w-fit border px-2 py-1 text-2xl font-black ${tones[tone]}`}>{value}</p>
+            <p className="mt-2 text-[11px] text-zinc-500">{hint}</p>
+        </div>
     )
 }
 
-function OperationButton({
-    label, icon, onClick, locked
+function SidebarNavItem({
+    label,
+    icon,
+    onClick,
+    active,
+    disabled,
+    compact,
 }: {
-    label: string; icon: React.ReactNode; onClick: () => void; locked?: boolean;
+    label: string
+    icon?: React.ReactNode
+    onClick?: () => void
+    active?: boolean
+    disabled?: boolean
+    compact?: boolean
 }) {
     return (
         <button
             onClick={onClick}
-            title={label}
-            className={`
-                flex flex-col items-center justify-center gap-1 w-full py-2
-                rounded-md border-2 transition-none relative
-                ${!locked && label === 'ASIST.' ? 'bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white' : ''}
-                ${!locked && label !== 'ASIST.' ? 'bg-amber-500/10 border-amber-600/30 text-amber-500 hover:bg-amber-500/20 hover:border-amber-500/50' : ''}
-                ${locked ? 'bg-slate-800/50 border-slate-700/50 text-slate-500 hover:bg-slate-800 hover:text-slate-400' : ''}
-            `}
+            disabled={disabled}
+            className={[
+                'w-full flex items-center gap-2 rounded-md text-left transition-colors',
+                compact ? 'px-2 py-1.5 text-sm' : 'px-2 py-2 text-sm',
+                active
+                    ? 'bg-zinc-100 text-black'
+                    : 'text-zinc-300 hover:bg-zinc-900 hover:text-white',
+                disabled ? 'cursor-not-allowed opacity-40 hover:bg-transparent hover:text-zinc-500' : '',
+            ].join(' ')}
         >
-            {icon}
-            <span className="text-[9px] font-bold uppercase tracking-widest">{label}</span>
-            {locked && <Lock className="w-3 h-3 absolute top-1 right-1 text-slate-600" />}
+            {icon ? <span className="shrink-0">{icon}</span> : <span className="w-4" />}
+            <span className="leading-none">{label}</span>
         </button>
-    );
+    )
 }
 
 function CartRow({
@@ -1043,7 +1201,7 @@ function CartRow({
             {/* Delete button (shows on hover) */}
             <button
                 onClick={onRemove}
-                className="absolute -left-2 top-1/2 -translate-y-1/2 bg-red-500 text-white p-1 rounded-sm opacity-0 group-hover:opacity-100 transition-none"
+                className="absolute -left-2 top-1/2 -translate-y-1/2 bg-black text-white p-1 opacity-0 transition-none group-hover:opacity-100"
             >
                 <Trash2 className="w-4 h-4" />
             </button>
@@ -1060,10 +1218,10 @@ function CartRow({
 
             {/* Controls */}
             <div className="w-20 flex flex-col items-center shrink-0">
-                <div className="flex items-center bg-slate-200 border border-slate-300 rounded-sm">
+                <div className="flex items-center rounded-md border border-zinc-400 bg-zinc-100">
                     <button
                         onClick={onDecrement}
-                        className="px-1.5 py-1 text-slate-600 hover:bg-slate-300 hover:text-slate-900 border-r border-slate-300 transition-none"
+                        className="border-r border-zinc-400 px-1.5 py-1 text-zinc-700 transition-none hover:bg-zinc-200 hover:text-black"
                     >
                         <Minus className="w-3 h-3" />
                     </button>
@@ -1073,7 +1231,7 @@ function CartRow({
                     <button
                         onClick={onIncrement}
                         disabled={isMaxed}
-                        className="px-1.5 py-1 text-slate-600 hover:bg-slate-300 hover:text-slate-900 border-l border-slate-300 disabled:opacity-30 transition-none"
+                        className="border-l border-zinc-400 px-1.5 py-1 text-zinc-700 transition-none hover:bg-zinc-200 hover:text-black disabled:opacity-30"
                     >
                         <Plus className="w-3 h-3" />
                     </button>
@@ -1091,6 +1249,37 @@ function CartRow({
                         currency: 'PEN',
                         minimumFractionDigits: 2,
                     }).format(subtotal)}
+                </span>
+            </div>
+        </div>
+    )
+}
+
+function PlayzoneChargeRow({
+    charge,
+}: {
+    charge: import('@/store/playzoneTicketStore').PlayzoneChargeLine
+}) {
+    return (
+        <div className="flex items-center gap-2 border-b border-zinc-300 bg-zinc-50 p-2">
+            <div className="flex-1 flex flex-col justify-center min-w-0 pr-1">
+                <p className="text-xs font-bold text-slate-800 leading-tight uppercase truncate">
+                    {charge.label}
+                </p>
+                <p className="text-[10px] font-mono text-amber-700">
+                    {formatCurrency(charge.unitPrice)} UN.
+                </p>
+            </div>
+
+            <div className="w-20 flex flex-col items-center shrink-0">
+                <span className="w-16 rounded-md border border-amber-300 bg-amber-100 py-1 text-center text-xs font-black font-mono text-slate-900">
+                    {charge.qty}
+                </span>
+            </div>
+
+            <div className="w-20 text-right shrink-0">
+                <span className="text-sm font-black font-mono text-slate-900 tracking-tighter">
+                    {formatCurrency(charge.total)}
                 </span>
             </div>
         </div>

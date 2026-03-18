@@ -6,11 +6,17 @@ import { useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LogIn, Clock } from 'lucide-react'
 import { PinPad } from '@/components/PinPad'
+import { CashOpeningModal } from '@/components/CashOpeningModal'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
+import { useCashDrawerStore } from '@/store/cashDrawerStore'
 import type { AttendanceResult } from '@/types'
 
 type Mode = 'idle' | 'attendance' | 'unlock'
+type PostUnlockMode = 'none' | 'cash-opening'
 
 interface ToastState {
     type: 'success' | 'error' | 'info'
@@ -19,12 +25,15 @@ interface ToastState {
 
 export function LoginScreen() {
     const { tenantId, setWorker } = useAuthStore()
+    const { setOpening } = useCashDrawerStore()
     const navigate = useNavigate()
 
     const [mode, setMode] = useState<Mode>('idle')
+    const [postUnlockMode, setPostUnlockMode] = useState<PostUnlockMode>('none')
     const [loading, setLoading] = useState(false)
     const [hasError, setHasError] = useState(false)
     const [toast, setToast] = useState<ToastState | null>(null)
+    const [nextWorker, setNextWorker] = useState<any | null>(null)
     const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     // ── helpers ────────────────────────────────────────────────
@@ -83,13 +92,19 @@ export function LoginScreen() {
                     setWorker(worker)
                     showToast({ type: 'success', message: `Bienvenido, ${worker.name}!` })
 
-                    setTimeout(() => {
-                        if (worker.role.name === 'ADMIN' || worker.role.name === 'ADMINISTRADOR') {
-                            navigate('/admin')
-                        } else {
+                    // Check if this is a cashier role and if they need to open the cash drawer
+                    const isCashier = worker.role.name === 'CAJERO' || worker.role.name === 'CASHIER'
+                    
+                    if (isCashier) {
+                        // Store the worker and show cash opening modal
+                        setNextWorker(worker)
+                        setPostUnlockMode('cash-opening')
+                    } else {
+                        // Non-cashier goes directly to POS
+                        setTimeout(() => {
                             navigate('/pos')
-                        }
-                    }, 800)
+                        }, 800)
+                    }
                 }
             } catch {
                 triggerError()
@@ -98,7 +113,7 @@ export function LoginScreen() {
                 setLoading(false)
             }
         },
-        [loading, mode, tenantId, setWorker, triggerError, showToast],
+        [loading, mode, tenantId, setWorker, setNextWorker, triggerError, showToast],
     )
 
     // ── mode selection ─────────────────────────────────────────
@@ -119,27 +134,43 @@ export function LoginScreen() {
                 : 'Selecciona una opción para continuar'
 
     return (
-        <div className="relative min-h-screen flex flex-col items-center justify-center bg-surface-900 overflow-hidden">
+        <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4">
+            {/* ── Cash Opening Modal ── */}
+            {postUnlockMode === 'cash-opening' && (
+                <CashOpeningModal
+                    onConfirm={(amount: number) => {
+                        if (tenantId && nextWorker) {
+                            setOpening(tenantId, nextWorker.id, amount)
+                            setPostUnlockMode('none')
+                            setTimeout(() => {
+                                navigate('/pos')
+                            }, 1000)
+                        }
+                    }}
+                    isLoading={loading}
+                />
+            )}
+
             {/* ── Background glow ── */}
-            <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-brand-700/20 blur-[120px]" />
-                <div className="absolute bottom-0 right-0 w-80 h-80 rounded-full bg-brand-900/30 blur-[80px]" />
+            <div className="pointer-events-none absolute inset-0">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(99,102,241,0.1),transparent_38%),radial-gradient(circle_at_85%_85%,rgba(56,189,248,0.08),transparent_40%)]" />
             </div>
 
             {/* ── Card ── */}
-            <div className="relative z-10 flex flex-col items-center gap-8 w-full max-w-sm px-6 py-10 rounded-3xl bg-slate-800/50 border border-white/8 shadow-2xl backdrop-blur-sm">
+            <Card className="relative z-10 w-full max-w-sm border-white/10 bg-card/90 backdrop-blur">
+                <CardContent className="flex flex-col items-center gap-8 px-6 py-10">
 
                 {/* Logo / title */}
                 <div className="flex flex-col items-center gap-2 text-center">
-                    <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-600 shadow-lg shadow-brand-900/50 mb-1">
+                    <div className="mb-1 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/20 text-primary ring-1 ring-primary/30">
                         <span className="text-3xl" role="img" aria-label="Wonka">❤</span>
                     </div>
-                    <h1 className="text-3xl font-extrabold tracking-tight text-white">Wonka</h1>
-                    <p className="text-sm text-slate-400 font-medium">Sistema de Punto de Venta</p>
+                    <h1 className="text-3xl font-extrabold tracking-tight">Wonka</h1>
+                    <p className="text-sm font-medium text-muted-foreground">Sistema de Punto de Venta</p>
                 </div>
 
                 {/* Subtitle / instruction */}
-                <p className="text-sm text-slate-400 text-center min-h-5 transition-all duration-200">
+                <p className="min-h-5 text-center text-sm text-muted-foreground transition-all duration-200">
                     {subtitle}
                 </p>
 
@@ -156,48 +187,39 @@ export function LoginScreen() {
 
                 {/* Action buttons */}
                 <div className="flex flex-col gap-3 w-full">
-                    <button
+                    <Button
                         onClick={() => selectMode('attendance')}
                         disabled={loading}
+                        variant={mode === 'attendance' ? 'default' : 'secondary'}
                         className={`
               flex items-center justify-center gap-3
-              h-14 rounded-2xl font-semibold text-base
-              transition-all duration-200 active:scale-[0.98]
-              focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400
-              disabled:opacity-50 disabled:cursor-not-allowed
-              ${mode === 'attendance'
-                                ? 'bg-brand-600 text-white shadow-lg shadow-brand-900/50'
-                                : 'bg-slate-700/70 text-slate-200 hover:bg-slate-600/80 border border-white/5'
-                            }
+              h-14 rounded-xl text-base
+              transition-all duration-200
             `}
                     >
                         <Clock className="w-5 h-5 flex-shrink-0" />
                         {mode === 'attendance' && loading ? 'Registrando...' : 'Registrar Asistencia'}
-                    </button>
+                    </Button>
 
-                    <button
+                    <Button
                         onClick={() => selectMode('unlock')}
                         disabled={loading}
+                        variant={mode === 'unlock' ? 'default' : 'secondary'}
                         className={`
               flex items-center justify-center gap-3
-              h-14 rounded-2xl font-semibold text-base
-              transition-all duration-200 active:scale-[0.98]
-              focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400
-              disabled:opacity-50 disabled:cursor-not-allowed
-              ${mode === 'unlock'
-                                ? 'bg-brand-600 text-white shadow-lg shadow-brand-900/50'
-                                : 'bg-slate-700/70 text-slate-200 hover:bg-slate-600/80 border border-white/5'
-                            }
+              h-14 rounded-xl text-base
+              transition-all duration-200
             `}
                     >
                         <LogIn className="w-5 h-5 flex-shrink-0" />
                         {mode === 'unlock' && loading ? 'Verificando...' : 'Desbloquear POS'}
-                    </button>
+                    </Button>
                 </div>
 
                 {/* Tenant badge */}
-                <p className="text-xs text-slate-600 font-mono">{tenantId}</p>
-            </div>
+                <Badge variant="outline" className="font-mono text-[10px] tracking-wide">{tenantId}</Badge>
+                </CardContent>
+            </Card>
 
             {/* ── Toast notification ── */}
             {toast && (
@@ -211,10 +233,10 @@ export function LoginScreen() {
             border backdrop-blur-md
             transition-all duration-300 animate-fade-in
             ${toast.type === 'success'
-                            ? 'bg-green-900/80 border-green-700/50 text-green-200'
+                            ? 'bg-emerald-900/70 border-emerald-500/30 text-emerald-100'
                             : toast.type === 'error'
-                                ? 'bg-red-900/80 border-red-700/50 text-red-200'
-                                : 'bg-slate-700/80 border-slate-600/50 text-slate-200'
+                                ? 'bg-red-900/70 border-red-500/30 text-red-100'
+                                : 'bg-muted border-border text-foreground'
                         }
           `}
                 >

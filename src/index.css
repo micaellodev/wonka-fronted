@@ -1,153 +1,144 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
-/* ── Design tokens ─────────────────────────────────────────── */
-@theme {
-  /* Brand palette: Strict Blue/Gray scale for a serious industrial look */
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-200: #bfdbfe;
-  --color-brand-300: #93c5fd;
-  --color-brand-400: #60a5fa;
-  --color-brand-500: #3b82f6;
-  --color-brand-600: #2563eb;
-  /* Primary Action */
-  --color-brand-700: #1d4ed8;
-  --color-brand-800: #1e40af;
-  --color-brand-900: #1e3a8a;
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
 
-  /* Surface colours: High Contrast Dark Mode (Deep Slate / Charcoal) */
-  --color-surface-50: #f8fafc;
-  --color-surface-100: #f1f5f9;
-  --color-surface-800: #1e293b;
-  /* Charcoal */
-  --color-surface-850: #172033;
-  --color-surface-900: #0f172a;
-  /* Deep Slate */
-  --color-surface-950: #020617;
-  /* Slate 950 for extreme contrast */
+@custom-variant dark (&:is(.dark *));
 
-  /* Accents (Strict Semantic) */
-  --color-success: #059669;
-  /* Emerald Green */
-  --color-warning: #d97706;
-  /* Amber 600 */
-  --color-danger: #dc2626;
-  /* Crimson Red */
-  --color-inactive: #475569;
-  /* Muted Gray */
-
-  /* Typography */
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
-  /* Stronger monospace choice if available, fallback to Courier */
-
-  /* Touch-friendly sizes */
-  --spacing-touch: 3.5rem;
-  /* 56px min touch target */
+:root {
+  --background: oklch(0.985 0.002 260);
+  --foreground: oklch(100% 0.00011 271.152);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(100% 0.00011 271.152);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(100% 0.00011 271.152);
+  --primary: oklch(0.33 0.06 257);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.95 0.01 260);
+  --secondary-foreground: oklch(0.3 0.01 260);
+  --muted: oklch(0.94 0.008 260);
+  --muted-foreground: oklch(0.52 0.01 260);
+  --accent: oklch(0.93 0.015 248);
+  --accent-foreground: oklch(0.28 0.03 252);
+  --destructive: oklch(0.61 0.19 27);
+  --border: oklch(0.88 0.008 260);
+  --input: oklch(0.9 0.008 260);
+  --ring: oklch(0.61 0.08 254);
+  --radius: 0.75rem;
 }
 
-/* ── Google Fonts ──────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap');
-
-/* ── Global resets ─────────────────────────────────────────── */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-  /* Disable smooth transitions on borders/bg by default for a "snappy" hardware feel, 
-     allow it only when explicitly requested by tailwind classes */
+.dark {
+  --background: oklch(0.15 0.01 260);
+  --foreground: oklch(0.96 0.004 260);
+  --card: oklch(0.2 0.012 260);
+  --card-foreground: oklch(0.96 0.004 260);
+  --popover: oklch(0.2 0.012 260);
+  --popover-foreground: oklch(0.96 0.004 260);
+  --primary: oklch(0.75 0.06 252);
+  --primary-foreground: oklch(0.17 0.01 260);
+  --secondary: oklch(0.24 0.012 260);
+  --secondary-foreground: oklch(0.9 0.004 260);
+  --muted: oklch(0.24 0.012 260);
+  --muted-foreground: oklch(0.72 0.01 260);
+  --accent: oklch(0.3 0.04 248);
+  --accent-foreground: oklch(0.95 0.004 260);
+  --destructive: oklch(0.71 0.15 24);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.7 0.05 252);
 }
 
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  font-family: var(--font-sans);
-  background-color: var(--color-surface-900);
-  color: #f1f5f9;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  user-select: none;
+@theme inline {
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* Hardcode monospace classes to use JetBrains */
-.font-mono {
-  font-family: var(--font-mono);
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html,
+  body,
+  #root {
+    @apply min-h-full;
+  }
+
+  html {
+    @apply font-sans;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
 }
 
-/* ── Scrollbar styling (Blocky, High Contrast) ─────────────── */
-::-webkit-scrollbar {
-  width: 8px;
-  /* Slightly wider for touch */
-}
-
-::-webkit-scrollbar-track {
-  background: var(--color-surface-900);
-  border-left: 1px solid var(--color-surface-800);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--color-surface-800);
-  border-radius: 0;
-  /* Square scrollbar */
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #475569;
-}
-
-/* ── Animations ────────────────────────────────────────────── */
 @keyframes shake {
-  0% {
-    transform: translateX(0);
-  }
-
-  15% {
-    transform: translateX(-6px);
-  }
-
-  30% {
-    transform: translateX(6px);
-  }
-
-  45% {
-    transform: translateX(-5px);
-  }
-
-  60% {
-    transform: translateX(5px);
-  }
-
-  75% {
-    transform: translateX(-3px);
-  }
-
-  90% {
-    transform: translateX(3px);
-  }
-
-  100% {
-    transform: translateX(0);
-  }
-}
-
-@keyframes flash-bg {
-  0% {
-    background-color: rgba(255, 255, 255, 0.1);
-  }
-
-  100% {
-    background-color: transparent;
-  }
+  0% { transform: translateX(0); }
+  15% { transform: translateX(-6px); }
+  30% { transform: translateX(6px); }
+  45% { transform: translateX(-5px); }
+  60% { transform: translateX(5px); }
+  75% { transform: translateX(-3px); }
+  90% { transform: translateX(3px); }
+  100% { transform: translateX(0); }
 }
 
 .animate-shake {
   animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 
-.animate-flash {
-  animation: flash-bg 0.15s ease-out both;
+.no-rounded-ui [class*="rounded"] {
+  border-radius: 0 !important;
+}
+
+.monochrome-ui [class*="bg-slate"],
+.monochrome-ui [class*="bg-card"],
+.monochrome-ui [class*="bg-background"] {
+  background-color: #171717 !important;
+  background-image: none !important;
+}
+
+.monochrome-ui [class*="bg-white"] {
+  background-color: #0d0d0d !important;
+}
+
+.monochrome-ui [class*="border-slate"],
+.monochrome-ui [class*="border-white"] {
+  border-color: #262626 !important;
+}
+
+.monochrome-ui [class*="bg-brand"] {
+  background-color: #f5f5f5 !important;
+  color: #000 !important;
+}
+
+.monochrome-ui [class*="text-brand"] {
+  color: #fafafa !important;
+}
+
+.monochrome-ui [class*="shadow"] {
+  box-shadow: none !important;
 }
