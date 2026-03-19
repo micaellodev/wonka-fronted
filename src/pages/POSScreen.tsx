@@ -141,12 +141,12 @@ function CheckoutModal({
 
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl flex flex-col overflow-hidden">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl flex flex-col overflow-hidden">
 
                 {/* Header */}
-                <div className="flex items-center justify-between px-5 py-4 bg-slate-800 border-b border-slate-700">
+                <div className="flex items-center justify-between px-5 py-4 bg-zinc-800/60 border-b border-zinc-800">
                     <div>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                             {step === 1 ? 'PASO 1 DE 2' : 'PASO 2 DE 2'}
                         </p>
                         <h2 className="text-base font-black text-white uppercase tracking-widest">
@@ -154,7 +154,7 @@ function CheckoutModal({
                         </h2>
                     </div>
                     <div className="text-right">
-                        <p className="text-[10px] text-slate-500 font-mono uppercase">TOTAL</p>
+                        <p className="text-[10px] text-zinc-500 font-mono uppercase">TOTAL</p>
                         <p className="text-xl font-black text-green-400 font-mono">{formatCurrency(total)}</p>
                     </div>
                 </div>
@@ -174,8 +174,8 @@ function CheckoutModal({
                                     onClick={() => setPaymentMethod(m.id)}
                                     className={`flex flex-col items-center justify-center gap-2 py-4 rounded-xl border-2 font-black text-xs tracking-widest transition-none ${
                                         paymentMethod === m.id
-                                            ? 'bg-brand-600 border-brand-500 text-white'
-                                            : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white'
+                                            ? 'bg-brand-500 border-brand-400 text-white'
+                                            : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-white'
                                     }`}
                                 >
                                     {m.icon}
@@ -187,9 +187,9 @@ function CheckoutModal({
                         {/* Efectivo */}
                         {paymentMethod === 'efectivo' && (
                             <div className="flex flex-col gap-3">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">¿Cuánto entrega el cliente?</label>
+                                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">¿Cuánto entrega el cliente?</label>
                                 <div className="relative">
-                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">S/</span>
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 font-bold text-lg">S/</span>
                                     <input
                                         type="number"
                                         min={total}
@@ -198,7 +198,7 @@ function CheckoutModal({
                                         onChange={e => setCashGiven(e.target.value)}
                                         placeholder={total.toFixed(2)}
                                         autoFocus
-                                        className="w-full bg-slate-800 border-2 border-slate-600 focus:border-green-500 rounded-xl pl-10 pr-4 py-3 text-2xl font-black text-white font-mono placeholder:text-slate-600 focus:outline-none transition-colors"
+                                        className="w-full bg-zinc-800 border-2 border-zinc-600 focus:border-emerald-500 rounded-xl pl-10 pr-4 py-3 text-2xl font-black text-white font-mono placeholder:text-zinc-600 focus:outline-none transition-colors"
                                     />
                                 </div>
                                 {/* Quick amounts */}
@@ -207,7 +207,7 @@ function CheckoutModal({
                                         <button
                                             key={v}
                                             onClick={() => setCashGiven(String(v))}
-                                            className="py-2 bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white rounded-lg text-xs font-bold font-mono transition-none"
+                                            className="py-2 bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-white rounded-lg text-xs font-bold font-mono transition-none"
                                         >
                                             S/ {v}
                                         </button>
@@ -234,7 +234,7 @@ function CheckoutModal({
                         {/* Yape */}
                         {paymentMethod === 'yape' && (
                             <div className="flex flex-col gap-3">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Código de seguridad Yape (3 dígitos)</label>
+                                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Código de seguridad Yape (3 dígitos)</label>
                                 <input
                                     type="text"
                                     inputMode="numeric"
@@ -243,7 +243,7 @@ function CheckoutModal({
                                     onChange={e => setYapeCode(e.target.value.replace(/\D/g, '').slice(0, 3))}
                                     placeholder="···"
                                     autoFocus
-                                    className="w-full bg-slate-800 border-2 border-slate-600 focus:border-purple-500 rounded-xl px-4 py-4 text-4xl font-black text-white font-mono text-center tracking-[1rem] placeholder:text-slate-600 focus:outline-none transition-colors"
+                                    className="w-full bg-zinc-800 border-2 border-zinc-600 focus:border-purple-500 rounded-xl px-4 py-4 text-4xl font-black text-white font-mono text-center tracking-[1rem] placeholder:text-zinc-600 focus:outline-none transition-colors"
                                 />
                                 <div className="flex justify-center gap-1.5 mt-1">
                                     {[0, 1, 2].map(i => (
@@ -259,14 +259,14 @@ function CheckoutModal({
                         {/* Tarjeta */}
                         {paymentMethod === 'tarjeta' && (
                             <div className="flex flex-col gap-3">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Código de referencia / aprobación</label>
+                                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Código de referencia / aprobación</label>
                                 <input
                                     type="text"
                                     value={referenceCode}
                                     onChange={e => setReferenceCode(e.target.value.toUpperCase())}
                                     placeholder="Ej. TXN-123456"
                                     autoFocus
-                                    className="w-full bg-slate-800 border-2 border-slate-600 focus:border-blue-500 rounded-xl px-4 py-3 text-lg font-black text-white font-mono placeholder:text-slate-600 focus:outline-none transition-colors"
+                                    className="w-full bg-zinc-800 border-2 border-zinc-600 focus:border-blue-500 rounded-xl px-4 py-3 text-lg font-black text-white font-mono placeholder:text-zinc-600 focus:outline-none transition-colors"
                                 />
                                 <p className="text-xs text-slate-500 text-center">Ingresa el código que aparece en el POS / voucher de la tarjeta</p>
                             </div>
@@ -276,14 +276,14 @@ function CheckoutModal({
                         <div className="flex gap-2 mt-2">
                             <button
                                 onClick={onCancel}
-                                className="flex-[0.4] py-3 bg-slate-800 border border-slate-700 text-slate-400 hover:text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-none"
+                                className="flex-[0.4] py-3 bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-none"
                             >
                                 Cancelar
                             </button>
                             <button
                                 onClick={() => setStep(2)}
                                 disabled={!canGoNext()}
-                                className="flex-1 flex items-center justify-center gap-2 py-3 bg-brand-600 hover:bg-brand-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-sm uppercase tracking-widest rounded-xl transition-none"
+                                className="flex-1 flex items-center justify-center gap-2 py-3 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-sm uppercase tracking-widest rounded-xl transition-none"
                             >
                                 Siguiente <ChevronRight className="w-4 h-4" />
                             </button>
@@ -295,7 +295,7 @@ function CheckoutModal({
                 {step === 2 && (
                     <div className="p-5 flex flex-col gap-4">
                         {/* Payment summary */}
-                        <div className="flex items-center gap-3 px-4 py-3 bg-slate-800 rounded-xl border border-slate-700">
+                        <div className="flex items-center gap-3 px-4 py-3 bg-zinc-800 rounded-xl border border-zinc-700">
                             {paymentMethod === 'efectivo' && <BanknoteIcon className="w-5 h-5 text-green-400" />}
                             {paymentMethod === 'yape' && <Smartphone className="w-5 h-5 text-purple-400" />}
                             {paymentMethod === 'tarjeta' && <CreditCard className="w-5 h-5 text-blue-400" />}
@@ -317,7 +317,7 @@ function CheckoutModal({
                         </div>
 
                         {/* Invoice selector */}
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Tipo de comprobante</label>
+                        <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Tipo de comprobante</label>
                         <div className="flex flex-col gap-2">
                             {([
                                 { id: 'boleta', label: 'Boleta', desc: 'Sin datos del cliente', icon: <Receipt className="w-5 h-5" /> },
@@ -329,8 +329,8 @@ function CheckoutModal({
                                     onClick={() => setInvoiceType(inv.id)}
                                     className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-none ${
                                         invoiceType === inv.id
-                                            ? 'bg-brand-600/20 border-brand-500 text-white'
-                                            : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600 hover:text-white'
+                                            ? 'bg-brand-500/20 border-brand-500 text-white'
+                                            : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-600 hover:text-white'
                                     }`}
                                 >
                                     {inv.icon}
@@ -346,7 +346,7 @@ function CheckoutModal({
                         {/* DNI field */}
                         {invoiceType === 'boleta_dni' && (
                             <div>
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">DNI del cliente</label>
+                                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">DNI del cliente</label>
                                 <input
                                     type="text"
                                     inputMode="numeric"
@@ -355,7 +355,7 @@ function CheckoutModal({
                                     onChange={e => setClientDni(e.target.value.replace(/\D/g, '').slice(0, 8))}
                                     placeholder="12345678"
                                     autoFocus
-                                    className="mt-2 w-full bg-slate-800 border-2 border-slate-600 focus:border-brand-500 rounded-xl px-4 py-3 text-xl font-black text-white font-mono placeholder:text-slate-600 focus:outline-none transition-colors"
+                                    className="mt-2 w-full bg-zinc-800 border-2 border-zinc-600 focus:border-brand-500 rounded-xl px-4 py-3 text-xl font-black text-white font-mono placeholder:text-zinc-600 focus:outline-none transition-colors"
                                 />
                             </div>
                         )}
@@ -364,7 +364,7 @@ function CheckoutModal({
                         {invoiceType === 'factura' && (
                             <div className="flex flex-col gap-3">
                                 <div>
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">RUC</label>
+                                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">RUC</label>
                                     <input
                                         type="text"
                                         inputMode="numeric"
@@ -373,17 +373,17 @@ function CheckoutModal({
                                         onChange={e => setClientRuc(e.target.value.replace(/\D/g, '').slice(0, 11))}
                                         placeholder="20123456789"
                                         autoFocus
-                                        className="mt-2 w-full bg-slate-800 border-2 border-slate-600 focus:border-brand-500 rounded-xl px-4 py-3 text-lg font-black text-white font-mono placeholder:text-slate-600 focus:outline-none transition-colors"
+                                        className="mt-2 w-full bg-zinc-800 border-2 border-zinc-600 focus:border-brand-500 rounded-xl px-4 py-3 text-lg font-black text-white font-mono placeholder:text-zinc-600 focus:outline-none transition-colors"
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Razón Social</label>
+                                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Razón Social</label>
                                     <input
                                         type="text"
                                         value={clientName}
                                         onChange={e => setClientName(e.target.value)}
                                         placeholder="Empresa S.A.C."
-                                        className="mt-2 w-full bg-slate-800 border-2 border-slate-600 focus:border-brand-500 rounded-xl px-4 py-3 text-base font-bold text-white placeholder:text-slate-600 focus:outline-none transition-colors"
+                                        className="mt-2 w-full bg-zinc-800 border-2 border-zinc-600 focus:border-brand-500 rounded-xl px-4 py-3 text-base font-bold text-white placeholder:text-zinc-600 focus:outline-none transition-colors"
                                     />
                                 </div>
                             </div>
@@ -393,7 +393,7 @@ function CheckoutModal({
                         <div className="flex gap-2 mt-2">
                             <button
                                 onClick={() => setStep(1)}
-                                className="flex-[0.4] flex items-center justify-center gap-1 py-3 bg-slate-800 border border-slate-700 text-slate-400 hover:text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-none"
+                                className="flex-[0.4] flex items-center justify-center gap-1 py-3 bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-none"
                             >
                                 <ChevronLeft className="w-4 h-4" /> Atrás
                             </button>
@@ -896,9 +896,9 @@ export function POSScreen() {
                             </div>
 
                             {loading && (
-                                <div className="flex flex-col items-center justify-center h-64 gap-4 text-slate-500">
-                                    <RefreshCw className="w-8 h-8 animate-spin text-brand-600" />
-                                    <p className="text-sm font-mono font-bold uppercase tracking-widest">Sincronizando DB...</p>
+                                <div className="flex flex-col items-center justify-center h-64 gap-4 text-zinc-600">
+                                    <RefreshCw className="w-8 h-8 animate-spin text-brand-500" />
+                                    <p className="text-sm font-mono font-bold uppercase tracking-widest text-zinc-500">Sincronizando DB...</p>
                                 </div>
                             )}
 
@@ -968,9 +968,8 @@ export function POSScreen() {
 
                         <aside className="flex min-h-0 flex-col rounded-xl border border-zinc-800 bg-[#070707]">
                             <div className="border-b border-zinc-800 px-4 py-4">
-                                <h2 className="text-lg font-black text-slate-100 uppercase tracking-widest">Ticket Wonka</h2>
-                                <p className="mt-1 text-[10px] font-mono font-bold text-zinc-500">{dateStr} - {timeStr}</p>
-                                <p className="text-[10px] font-mono font-bold text-zinc-500">Cajero: {activeWorker?.name}</p>
+                                <h2 className="text-sm font-bold text-white tracking-widest uppercase">Ticket</h2>
+                                <p className="mt-0.5 text-[10px] font-mono text-zinc-500">{dateStr} · {timeStr} · {activeWorker?.name}</p>
                             </div>
 
                             {hasSomethingToCharge && (
@@ -981,10 +980,10 @@ export function POSScreen() {
                                 </div>
                             )}
 
-                            <div className="flex-1 overflow-y-auto bg-white p-2">
+                            <div className="flex-1 overflow-y-auto bg-zinc-950 p-2">
                                 {!hasSomethingToCharge ? (
-                                    <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-400 py-12">
-                                        <ShoppingCart className="w-10 h-10 opacity-30 text-slate-400" />
+                                    <div className="flex flex-col items-center justify-center h-full gap-3 text-zinc-600 py-12">
+                                        <ShoppingCart className="w-10 h-10 opacity-30 text-zinc-600" />
                                         <p className="text-xs font-bold uppercase tracking-widest text-center">
                                             Ticket vacio<br />Esperando...
                                         </p>
@@ -1028,8 +1027,8 @@ export function POSScreen() {
                                             flex-[0.4] flex items-center justify-center
                                             h-14 rounded-lg font-black text-xs uppercase tracking-widest
                                             focus:outline-none focus:ring-0
-                                            bg-slate-800 border border-slate-700
-                                            text-slate-300 hover:bg-slate-700 hover:text-white
+                                            bg-zinc-800 border border-zinc-700
+                                            text-zinc-300 hover:bg-zinc-700 hover:text-white
                                             disabled:opacity-50 disabled:cursor-not-allowed
                                             transition-none
                                         "
@@ -1047,8 +1046,8 @@ export function POSScreen() {
                                             disabled:opacity-50 disabled:cursor-not-allowed
                                             transition-none
                                             ${hasSomethingToCharge && !paying
-                                                ? 'bg-green-600 hover:bg-green-700 text-white shadow-none'
-                                                : 'bg-slate-800 text-slate-500 border border-slate-700'
+                                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-none'
+                                                : 'bg-zinc-800 text-zinc-500 border border-zinc-700'
                                             }
                                         `}
                                     >
@@ -1078,14 +1077,14 @@ export function POSScreen() {
                     aria-live="polite"
                     className={`
                         fixed bottom-8 left-1/2 -translate-x-1/2
-                        flex items-center gap-3 px-6 py-4
-                        rounded-sm text-sm font-bold uppercase tracking-widest shadow-none
-                        border-2 z-50
+                        flex items-center gap-3 px-5 py-3
+                        rounded-xl text-sm font-medium backdrop-blur-md
+                        border z-50 animate-fade-in
                         ${toast.type === 'success'
-                            ? 'bg-green-600 border-green-800 text-white'
+                            ? 'bg-emerald-950/90 border-emerald-800/60 text-emerald-300'
                             : toast.type === 'error'
-                                ? 'bg-red-600 border-red-800 text-white'
-                                : 'bg-slate-800 border-slate-900 text-white'
+                                ? 'bg-red-950/90 border-red-800/60 text-red-300'
+                                : 'bg-zinc-900 border-zinc-800 text-zinc-300'
                         }
                     `}
                 >
@@ -1197,41 +1196,41 @@ function CartRow({
     const isMaxed = item.quantity >= item.product.stock
 
     return (
-        <div className="flex items-center gap-2 p-2 border-b border-slate-200 hover:bg-slate-50 relative group">
+        <div className="flex items-center gap-2 px-2 py-2 border-b border-zinc-800 hover:bg-zinc-900/50 relative group">
             {/* Delete button (shows on hover) */}
             <button
                 onClick={onRemove}
-                className="absolute -left-2 top-1/2 -translate-y-1/2 bg-black text-white p-1 opacity-0 transition-none group-hover:opacity-100"
+                className="absolute -left-1 top-1/2 -translate-y-1/2 bg-red-600 text-white p-1 rounded opacity-0 transition-opacity group-hover:opacity-100"
             >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-3 h-3" />
             </button>
 
             {/* Product Desc */}
             <div className="flex-1 flex flex-col justify-center min-w-0 pr-1">
-                <p className="text-xs font-bold text-slate-800 leading-tight uppercase truncate">
+                <p className="text-xs font-bold text-zinc-100 leading-tight uppercase truncate">
                     {item.product.name}
                 </p>
-                <p className="text-[10px] font-mono text-slate-500">
+                <p className="text-[10px] font-mono text-zinc-500">
                     {formatCurrency(item.product.price)} UN.
                 </p>
             </div>
 
             {/* Controls */}
             <div className="w-20 flex flex-col items-center shrink-0">
-                <div className="flex items-center rounded-md border border-zinc-400 bg-zinc-100">
+                <div className="flex items-center rounded-md border border-zinc-700 bg-zinc-800">
                     <button
                         onClick={onDecrement}
-                        className="border-r border-zinc-400 px-1.5 py-1 text-zinc-700 transition-none hover:bg-zinc-200 hover:text-black"
+                        className="border-r border-zinc-700 px-1.5 py-1 text-zinc-400 transition-none hover:bg-zinc-700 hover:text-white"
                     >
                         <Minus className="w-3 h-3" />
                     </button>
-                    <span className="w-6 text-center text-xs font-black font-mono text-slate-900 py-1">
+                    <span className="w-6 text-center text-xs font-black font-mono text-white py-1">
                         {item.quantity}
                     </span>
                     <button
                         onClick={onIncrement}
                         disabled={isMaxed}
-                        className="border-l border-zinc-400 px-1.5 py-1 text-zinc-700 transition-none hover:bg-zinc-200 hover:text-black disabled:opacity-30"
+                        className="border-l border-zinc-700 px-1.5 py-1 text-zinc-400 transition-none hover:bg-zinc-700 hover:text-white disabled:opacity-30"
                     >
                         <Plus className="w-3 h-3" />
                     </button>
@@ -1243,7 +1242,7 @@ function CartRow({
 
             {/* Subtotal */}
             <div className="w-20 text-right shrink-0">
-                <span className="text-sm font-black font-mono text-slate-900 tracking-tighter">
+                <span className="text-sm font-black font-mono text-emerald-400 tracking-tighter">
                     {new Intl.NumberFormat('es-PE', {
                         style: 'currency',
                         currency: 'PEN',
@@ -1261,24 +1260,24 @@ function PlayzoneChargeRow({
     charge: import('@/store/playzoneTicketStore').PlayzoneChargeLine
 }) {
     return (
-        <div className="flex items-center gap-2 border-b border-zinc-300 bg-zinc-50 p-2">
+        <div className="flex items-center gap-2 border-b border-zinc-800 bg-zinc-900/60 px-2 py-2">
             <div className="flex-1 flex flex-col justify-center min-w-0 pr-1">
-                <p className="text-xs font-bold text-slate-800 leading-tight uppercase truncate">
+                <p className="text-xs font-bold text-zinc-100 leading-tight uppercase truncate">
                     {charge.label}
                 </p>
-                <p className="text-[10px] font-mono text-amber-700">
+                <p className="text-[10px] font-mono text-amber-500">
                     {formatCurrency(charge.unitPrice)} UN.
                 </p>
             </div>
 
             <div className="w-20 flex flex-col items-center shrink-0">
-                <span className="w-16 rounded-md border border-amber-300 bg-amber-100 py-1 text-center text-xs font-black font-mono text-slate-900">
+                <span className="w-16 rounded-md border border-amber-800/50 bg-amber-900/30 py-1 text-center text-xs font-black font-mono text-amber-300">
                     {charge.qty}
                 </span>
             </div>
 
             <div className="w-20 text-right shrink-0">
-                <span className="text-sm font-black font-mono text-slate-900 tracking-tighter">
+                <span className="text-sm font-black font-mono text-emerald-400 tracking-tighter">
                     {formatCurrency(charge.total)}
                 </span>
             </div>

@@ -1,6 +1,6 @@
-// ============================================================
-//  PlayZoneScreen — CRM + Time Tracking (Child-Centric UI)
-//  Industrial flat design · Wonka POS
+﻿// ============================================================
+//  PlayZoneScreen â€” CRM + Time Tracking (Child-Centric UI)
+//  Industrial flat design Â· Wonka POS
 // ============================================================
 
 import { useEffect, useState, useCallback } from 'react'
@@ -14,22 +14,22 @@ import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
 import { usePlayzoneTicketStore } from '@/store/playzoneTicketStore'
 
-// ── Constants ─────────────────────────────────────────────────
+// â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const RATE_PER_MIN = 0.50
 const DURATION_OPTIONS = [
-    { label: '1 Min', minutes: 1,   price: 2.00 },
-    { label: '15 Min', minutes: 15,   price: 15.00 },
-    { label: '30 Min', minutes: 30,   price: 20.00 },
-    { label: '1 Hora', minutes: 60,   price: 40.00 },
-    { label: '∞ Libre', minutes: null, price: null },
+    { label: '1 Min', minutes: 1, price: 2.00 },
+    { label: '15 Min', minutes: 15, price: 15.00 },
+    { label: '30 Min', minutes: 30, price: 20.00 },
+    { label: '1 Hora', minutes: 60, price: 40.00 },
+    { label: 'âˆž Libre', minutes: null, price: null },
 ] as const
 
-// ── Types ─────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type DurationOpt = typeof DURATION_OPTIONS[number]
 
-interface Child    { id: string; fullName: string; dni: string | null; age: number | null; gender: string | null; guardianId: string; tenantId: string; createdAt: string; updatedAt: string }
+interface Child { id: string; fullName: string; dni: string | null; age: number | null; gender: string | null; guardianId: string; tenantId: string; createdAt: string; updatedAt: string }
 interface Guardian { id: string; dni: string; phone: string | null; fullName: string; tenantId: string; createdAt: string; children: Child[] }
 
 interface ActiveSession {
@@ -68,15 +68,15 @@ interface SessionCheckoutTicket {
 type PanelMode =
     | { type: 'IDLE' }
     | { type: 'SEARCHING' }
-    | { type: 'FOUND';    guardian: Guardian }
+    | { type: 'FOUND'; guardian: Guardian }
     | { type: 'NOT_FOUND'; q: string }
     | { type: 'REGISTERING' } // manual entry button
 
-// ── Helpers ───────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function fmtTime(m: number) {
     const h = Math.floor(m / 60); const min = m % 60
-    return h ? `${h}h ${String(min).padStart(2,'0')}m` : `${m}m`
+    return h ? `${h}h ${String(min).padStart(2, '0')}m` : `${m}m`
 }
 
 function fmtPrice(price: number | null) {
@@ -98,10 +98,10 @@ function getApiErrorMessage(err: unknown, fallback: string) {
     )
 }
 
-// ── Sub-Components ────────────────────────────────────────────
+// â”€â”€ Sub-Components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function SectionLabel({ children, className }: { children: React.ReactNode; className?: string }) {
-    return <p className={`text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 ${className || ''}`}>{children}</p>
+    return <p className={`text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1 ${className || ''}`}>{children}</p>
 }
 
 function SessionCard({
@@ -120,7 +120,7 @@ function SessionCard({
     const border = isOverdue ? 'border-red-600' : isWarning ? 'border-amber-500' : 'border-green-600'
     const codeCls = isOverdue ? 'text-red-400' : isWarning ? 'text-amber-400' : 'text-green-400'
     const bannerBg = isOverdue ? 'bg-red-700' : isWarning ? 'bg-amber-600' : 'bg-green-700'
-    const label = isOverdue ? '¡TIEMPO!' : isWarning ? '< 5 MIN' : 'EN JUEGO'
+    const label = isOverdue ? 'Â¡TIEMPO!' : isWarning ? '< 5 MIN' : 'EN JUEGO'
 
     // use nowTick to force re-render
     void nowTick
@@ -129,11 +129,11 @@ function SessionCard({
     const price = opt ? opt.price : session.durationMinutes !== null ? session.durationMinutes * RATE_PER_MIN : null
 
     return (
-        <div className={`flex flex-col bg-slate-800 border-2 ${border} rounded-md overflow-hidden relative group`}>
+        <div className={`flex flex-col bg-zinc-800 border-2 ${border} rounded-md overflow-hidden relative group`}>
             <div className={`${bannerBg} px-3 py-1 flex items-center justify-between`}>
                 <span className="text-[10px] font-black text-white uppercase tracking-widest">{label}</span>
                 <span className="text-[10px] font-mono text-white/60">
-                    {new Date(session.startTime).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'})}
+                    {new Date(session.startTime).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
                 </span>
             </div>
 
@@ -146,37 +146,37 @@ function SessionCard({
                     <div className="flex flex-col items-end gap-1 mt-1">
                         {isOverdue ? <XCircle className="w-6 h-6 text-red-500" />
                             : isWarning ? <AlertTriangle className="w-6 h-6 text-amber-400" />
-                            : <CheckCircle2 className="w-6 h-6 text-green-500" />}
-                        <span className="text-[10px] font-black font-mono text-slate-400 border border-slate-700 bg-slate-900 px-1.5 py-0.5 rounded-sm">
+                                : <CheckCircle2 className="w-6 h-6 text-green-500" />}
+                        <span className="text-[10px] font-black font-mono text-zinc-400 border border-zinc-700 bg-zinc-900 px-1.5 py-0.5 rounded-sm">
                             {fmtPrice(price)}
                         </span>
                     </div>
                 </div>
 
                 {/* Names */}
-                <div className="border-t border-slate-700 pt-2 flex flex-col gap-1">
+                <div className="border-t border-zinc-700 pt-2 flex flex-col gap-1">
                     <div className="flex items-center gap-1.5">
-                        <Baby className="w-3.5 h-3.5 text-brand-400 shrink-0" />
+                        <Baby className="w-3.5 h-3.5 text-violet-400 shrink-0" />
                         <span className="text-sm font-bold text-white truncate">{session.childName}</span>
-                        {session.childAge && <span className="text-[10px] text-slate-500 font-mono">({session.childAge}a, {session.childGender})</span>}
+                        {session.childAge && <span className="text-[10px] text-zinc-500 font-mono">({session.childAge}a, {session.childGender})</span>}
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <Shield className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                        <span className="text-xs text-slate-400 truncate">{session.guardianName} ({session.guardianDni})</span>
+                        <Shield className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                        <span className="text-xs text-zinc-400 truncate">{session.guardianName} ({session.guardianDni})</span>
                     </div>
                 </div>
 
                 {/* Timer bar */}
-                <div className="flex items-center justify-between bg-slate-900 border border-slate-700 rounded-sm px-2.5 py-1.5">
+                <div className="flex items-center justify-between bg-zinc-900 border border-zinc-700 rounded-sm px-2.5 py-1.5">
                     <div className="flex flex-col">
-                        <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">Elapsed</span>
-                        <span className="text-xs font-mono font-bold text-slate-300">{fmtTime(elapsed)}</span>
+                        <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold">Elapsed</span>
+                        <span className="text-xs font-mono font-bold text-zinc-300">{fmtTime(elapsed)}</span>
                     </div>
                     <span className="text-slate-700">|</span>
                     <div className="flex flex-col items-end">
-                        <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">Restante</span>
+                        <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold">Restante</span>
                         {session.isUnlimited
-                            ? <InfinityIcon className="w-4 h-4 text-brand-400" />
+                            ? <InfinityIcon className="w-4 h-4 text-violet-400" />
                             : <span className={`text-xs font-mono font-bold ${isOverdue ? 'text-red-400' : isWarning ? 'text-amber-400' : 'text-green-400'}`}>
                                 {fmtTime(remaining ?? 0)}
                             </span>
@@ -187,7 +187,7 @@ function SessionCard({
                 <button
                     onClick={() => onCheckout(session.id)}
                     disabled={checking}
-                    className="flex items-center justify-center gap-1.5 w-full py-2 bg-slate-700 border border-slate-600 hover:bg-red-700 hover:border-red-600 text-slate-300 hover:text-white font-bold text-[11px] uppercase tracking-widest rounded-sm transition-none disabled:opacity-40"
+                    className="flex items-center justify-center gap-1.5 w-full py-2 bg-zinc-700 border border-zinc-600 hover:bg-red-700 hover:border-red-600 text-zinc-300 hover:text-white font-bold text-[11px] uppercase tracking-widest rounded-sm transition-none disabled:opacity-40"
                 >
                     <LogOut className="w-3.5 h-3.5" /> Finalizar
                 </button>
@@ -196,13 +196,13 @@ function SessionCard({
     )
 }
 
-// ── Main Screen ───────────────────────────────────────────────
+// â”€â”€ Main Screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function PlayZoneScreen() {
     const { tenantId } = useAuthStore()
     const { upsertExtraCharge } = usePlayzoneTicketStore()
 
-    // ── left panel state ──
+    // â”€â”€ left panel state â”€â”€
     const [mode, setMode] = useState<PanelMode>({ type: 'IDLE' })
     const [searchQ, setSearchQ] = useState('')
     const [searching, setSearching] = useState(false)
@@ -228,30 +228,30 @@ export function PlayZoneScreen() {
     const [newChildGender, setNewChildGender] = useState<'M' | 'F' | ''>('')
     const [addingChild, setAddingChild] = useState(false)
 
-    // ── selected child + session start ──
+    // â”€â”€ selected child + session start â”€â”€
     const [selectedChild, setSelectedChild] = useState<(Child & { guardianName: string }) | null>(null)
     const [selectedDuration, setSelectedDuration] = useState<DurationOpt>(DURATION_OPTIONS[1])
     const [starting, setStarting] = useState(false)
     const [lastCode, setLastCode] = useState<{ code: string; price: number | null; childName: string } | null>(null)
 
-    // ── active sessions ──
+    // â”€â”€ active sessions â”€â”€
     const [sessions, setSessions] = useState<ActiveSession[]>([])
     const [loadingSessions, setLoadingSessions] = useState(true)
     const [checkingOut, setCheckingOut] = useState<string | null>(null)
     const [nowTick, setNowTick] = useState(0)
 
-    // ── search by wristband code ──
+    // â”€â”€ search by wristband code â”€â”€
     const [codeSearch, setCodeSearch] = useState('')
     const [codeResult, setCodeResult] = useState<ActiveSession | 'not_found' | null>(null)
     const [codeSearching, setCodeSearching] = useState(false)
 
-    // ── timer tick ────────────────────────────────────────────
+    // â”€â”€ timer tick â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     useEffect(() => {
         const id = setInterval(() => setNowTick(n => n + 1), 60_000)
         return () => clearInterval(id)
     }, [])
 
-    // ── fetch sessions ────────────────────────────────────────
+    // â”€â”€ fetch sessions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const fetchSessions = useCallback(async () => {
         try {
             const res = await (api.playzone.sessions as any).get({ query: { tenantId } })
@@ -265,7 +265,7 @@ export function PlayZoneScreen() {
         return () => clearInterval(id)
     }, [fetchSessions])
 
-    // ── guardian lookup ───────────────────────────────────────
+    // â”€â”€ guardian lookup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const handleSearch = async () => {
         const q = searchQ.trim()
         if (!q) return
@@ -287,7 +287,7 @@ export function PlayZoneScreen() {
                 setGuardianName('')
                 setGuardianPhone('')
             }
-        } catch { setSearchError('Error de conexión.') }
+        } catch { setSearchError('Error de conexiÃ³n.') }
         finally { setSearching(false) }
     }
 
@@ -304,11 +304,11 @@ export function PlayZoneScreen() {
         setLastCode(null)
     }
 
-    // ── register guardian + child ─────────────────────────────
+    // â”€â”€ register guardian + child â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const handleRegister = async () => {
         if (registering) return
         if (!tenantId) {
-            alert('No hay tenant activo. Vuelve a iniciar sesión.')
+            alert('No hay tenant activo. Vuelve a iniciar sesiÃ³n.')
             return
         }
 
@@ -318,13 +318,13 @@ export function PlayZoneScreen() {
 
         if (!dni || !gName || !cName) return
         if (dni.length < 7 || dni.length > 15) {
-            alert('El DNI del apoderado debe tener entre 7 y 15 dígitos.')
+            alert('El DNI del apoderado debe tener entre 7 y 15 dÃ­gitos.')
             return
         }
         if (childAge) {
             const ageNum = Number(childAge)
             if (!Number.isInteger(ageNum) || ageNum < 1 || ageNum > 17) {
-                alert('La edad del niño debe estar entre 1 y 17.')
+                alert('La edad del niÃ±o debe estar entre 1 y 17.')
                 return
             }
         }
@@ -349,11 +349,11 @@ export function PlayZoneScreen() {
             } else {
                 alert(getApiErrorMessage(res.error, 'Error al registrar.'))
             }
-        } catch (err) { alert(getApiErrorMessage(err, 'Error de conexión.')) }
+        } catch (err) { alert(getApiErrorMessage(err, 'Error de conexiÃ³n.')) }
         finally { setRegistering(false) }
     }
 
-    // ── add child to existing guardian ────────────────────────
+    // â”€â”€ add child to existing guardian â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const handleAddChild = async (guardianId: string) => {
         if (!newChildName || addingChild) return
         setAddingChild(true)
@@ -372,13 +372,13 @@ export function PlayZoneScreen() {
                 }
                 setNewChildName(''); setNewChildAge(''); setNewChildDni(''); setNewChildGender(''); setShowAddChild(false)
             } else {
-                alert((res.error.value as any)?.message ?? 'Error al agregar niño.')
+                alert((res.error.value as any)?.message ?? 'Error al agregar niÃ±o.')
             }
-        } catch { alert('Error de conexión.') }
+        } catch { alert('Error de conexiÃ³n.') }
         finally { setAddingChild(false) }
     }
 
-    // ── start session ─────────────────────────────────────────
+    // â”€â”€ start session â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const handleStart = async () => {
         if (!selectedChild || starting) return
         setStarting(true)
@@ -394,16 +394,16 @@ export function PlayZoneScreen() {
                 setSelectedDuration(DURATION_OPTIONS[1])
                 fetchSessions()
             } else {
-                alert((res.error.value as any)?.message ?? 'Error al iniciar sesión.')
+                alert((res.error.value as any)?.message ?? 'Error al iniciar sesiÃ³n.')
             }
-        } catch { alert('Error de conexión.') }
+        } catch { alert('Error de conexiÃ³n.') }
         finally { setStarting(false) }
     }
 
-    // ── checkout ──────────────────────────────────────────────
+    // â”€â”€ checkout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const handleCheckout = async (sessionId: string) => {
         if (!tenantId) {
-            alert('No hay tenant activo. Vuelve a iniciar sesión.')
+            alert('No hay tenant activo. Vuelve a iniciar sesiÃ³n.')
             return
         }
         setCheckingOut(sessionId)
@@ -429,14 +429,14 @@ export function PlayZoneScreen() {
                     })
                 }
             } else {
-                alert(getApiErrorMessage(res.error, 'No se pudo finalizar la sesión.'))
+                alert(getApiErrorMessage(res.error, 'No se pudo finalizar la sesiÃ³n.'))
             }
         } catch (err) {
-            alert(getApiErrorMessage(err, 'Error de conexión al finalizar sesión.'))
+            alert(getApiErrorMessage(err, 'Error de conexiÃ³n al finalizar sesiÃ³n.'))
         } finally { setCheckingOut(null) }
     }
 
-    // ── code search ───────────────────────────────────────────
+    // â”€â”€ code search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const handleCodeSearch = async () => {
         const code = codeSearch.padStart(3, '0')
         if (!/^\d{3}$/.test(code)) return
@@ -449,46 +449,46 @@ export function PlayZoneScreen() {
         finally { setCodeSearching(false) }
     }
 
-    // ── render ────────────────────────────────────────────────
+    // â”€â”€ render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     return (
-        <div className="flex flex-col h-screen bg-slate-900 overflow-hidden rounded-sm">
+        <div className="flex flex-col h-screen bg-zinc-900 overflow-hidden rounded-sm">
 
             {/* HEADER */}
-            <header className="flex items-center justify-between px-5 py-3 bg-slate-900 border-b border-slate-700 flex-shrink-0">
+            <header className="flex items-center justify-between px-5 py-3 bg-zinc-900 border-b border-zinc-700 flex-shrink-0">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 flex items-center justify-center bg-slate-800 border-2 border-slate-600 rounded-md">
-                            <Baby className="w-6 h-6 text-brand-400" />
+                        <div className="w-10 h-10 flex items-center justify-center bg-zinc-800 border-2 border-zinc-600 rounded-md">
+                            <Baby className="w-6 h-6 text-violet-400" />
                         </div>
                         <div>
                             <h1 className="text-lg font-black text-white uppercase tracking-wider leading-none">JUEGOS INFANTILES</h1>
-                            <p className="text-[11px] text-slate-500 font-mono uppercase tracking-widest mt-0.5">
+                            <p className="text-[11px] text-zinc-500 font-mono uppercase tracking-widest mt-0.5">
                                 {sessions.length} activo{sessions.length !== 1 ? 's' : ''}
                             </p>
                         </div>
                     </div>
                 </div>
                 <button onClick={fetchSessions} disabled={loadingSessions}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 border border-slate-700 text-slate-400 hover:text-white font-bold text-xs uppercase tracking-widest rounded-sm disabled:opacity-50 transition-none">
+                    className="flex items-center gap-1.5 px-3 py-2 bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white font-bold text-xs uppercase tracking-widest rounded-sm disabled:opacity-50 transition-none">
                     <RefreshCw className={`w-3.5 h-3.5 ${loadingSessions ? 'animate-spin' : ''}`} /> SYNC
                 </button>
             </header>
 
             <div className="flex flex-1 overflow-hidden">
 
-                {/* ═══════════════════════════════════════════
-                    LEFT PANEL — CRM (320px) — CHILD FIRST
-                ═══════════════════════════════════════════ */}
-                <aside className="flex flex-col w-[320px] flex-shrink-0 border-r border-slate-700 overflow-y-auto bg-slate-900">
+                {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+                    LEFT PANEL â€” CRM (320px) â€” CHILD FIRST
+                â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+                <aside className="flex flex-col w-[320px] flex-shrink-0 border-r border-zinc-700 overflow-y-auto bg-zinc-900">
 
-                    <div className="flex gap-2 p-3 bg-slate-800 border-b border-slate-700">
+                    <div className="flex gap-2 p-3 bg-zinc-800 border-b border-zinc-700">
                         <button onClick={openRegistering}
-                            className="flex-1 flex items-center justify-center gap-2 py-3 bg-brand-600 hover:bg-brand-500 text-white font-black text-xs uppercase tracking-widest rounded-sm transition-none">
-                            <Plus className="w-4 h-4" /> Nuevo Niño
+                            className="flex-1 flex items-center justify-center gap-2 py-3 bg-violet-600 hover:bg-violet-600 text-white font-black text-xs uppercase tracking-widest rounded-sm transition-none">
+                            <Plus className="w-4 h-4" /> Nuevo niño
                         </button>
                     </div>
 
-                    <div className="p-4 border-b border-slate-700">
+                    <div className="p-4 border-b border-zinc-700">
                         <SectionLabel>Ya es cliente? (DNI padre)</SectionLabel>
                         <div className="flex gap-2">
                             <input
@@ -497,23 +497,23 @@ export function PlayZoneScreen() {
                                 onChange={e => setSearchQ(e.target.value.replace(/\D/g, ''))}
                                 onKeyDown={e => e.key === 'Enter' && handleSearch()}
                                 placeholder="DNI apoderado"
-                                className="flex-1 bg-slate-800 border-2 border-slate-700 focus:border-brand-500 rounded-sm px-3 py-2.5 text-sm font-bold text-white font-mono placeholder:text-slate-600 focus:outline-none transition-colors"
+                                className="flex-1 bg-zinc-800 border-2 border-zinc-700 focus:border-violet-500 rounded-sm px-3 py-2.5 text-sm font-bold text-white font-mono placeholder:text-slate-600 focus:outline-none transition-colors"
                             />
                             <button onClick={handleSearch} disabled={searching || !searchQ}
-                                className="px-3 py-2.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 text-white font-bold text-xs uppercase tracking-widest rounded-sm transition-none">
+                                className="px-3 py-2.5 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-40 text-white font-bold text-xs uppercase tracking-widest rounded-sm transition-none">
                                 {searching ? '...' : <Search className="w-4 h-4" />}
                             </button>
                         </div>
                         {searchError && <p className="mt-2 text-[10px] text-red-400 font-bold uppercase">{searchError}</p>}
                     </div>
 
-                    {/* ── FOUND state: children + guardian info ── */}
+                    {/* â”€â”€ FOUND state: children + guardian info â”€â”€ */}
                     {mode.type === 'FOUND' && (
                         <div className="flex flex-col p-4 gap-3">
                             <div className="flex items-center justify-between mb-1">
-                                <SectionLabel className="mb-0">Elige un niño</SectionLabel>
+                                <SectionLabel className="mb-0">Elige un niÃ±o</SectionLabel>
                                 <button onClick={() => { setMode({ type: 'IDLE' }); setSearchQ(''); setSelectedChild(null) }}
-                                    className="text-slate-500 hover:text-white transition-none border border-slate-700 px-2 py-1 bg-slate-800 text-[10px] font-bold uppercase rounded-sm">
+                                    className="text-zinc-500 hover:text-white transition-none border border-zinc-700 px-2 py-1 bg-zinc-800 text-[10px] font-bold uppercase rounded-sm">
                                     Cerrar
                                 </button>
                             </div>
@@ -531,11 +531,10 @@ export function PlayZoneScreen() {
                                                 setLastCode(null)
                                             }}
                                             disabled={isActive}
-                                            className={`flex items-center justify-between px-3 py-2.5 rounded-sm border-2 text-left transition-none ${
-                                                isSel ? 'bg-brand-600 border-brand-500 text-white'
-                                                : isActive ? 'bg-slate-800 border-slate-700 text-slate-600 cursor-not-allowed'
-                                                : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500 hover:text-white'
-                                            }`}
+                                            className={`flex items-center justify-between px-3 py-2.5 rounded-sm border-2 text-left transition-none ${isSel ? 'bg-violet-600 border-violet-500 text-white'
+                                                    : isActive ? 'bg-zinc-800 border-zinc-700 text-slate-600 cursor-not-allowed'
+                                                        : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:border-slate-500 hover:text-white'
+                                                }`}
                                         >
                                             <div className="flex items-center gap-2">
                                                 <Baby className="w-4 h-4 shrink-0" />
@@ -551,7 +550,7 @@ export function PlayZoneScreen() {
                                             {isActive
                                                 ? <span className="text-[9px] font-black text-green-400 border border-green-600 bg-green-600/10 px-1.5 py-0.5 rounded-sm uppercase tracking-widest">Activo</span>
                                                 : isSel ? <CheckCircle2 className="w-4 h-4 shrink-0" />
-                                                : <ChevronRight className="w-4 h-4 shrink-0 opacity-50" />}
+                                                    : <ChevronRight className="w-4 h-4 shrink-0 opacity-50" />}
                                         </button>
                                     )
                                 })}
@@ -560,38 +559,38 @@ export function PlayZoneScreen() {
                             {/* Add child inline */}
                             {!showAddChild ? (
                                 <button onClick={() => setShowAddChild(true)}
-                                    className="flex items-center justify-center gap-2 w-full py-2.5 mt-1 bg-slate-800 border border-dashed border-slate-600 hover:border-slate-500 text-slate-400 hover:text-white font-bold text-xs uppercase tracking-widest rounded-sm transition-none">
-                                    <Plus className="w-3.5 h-3.5" /> Otro niño ({mode.guardian.fullName.split(' ')[0]})
+                                    className="flex items-center justify-center gap-2 w-full py-2.5 mt-1 bg-zinc-800 border border-dashed border-zinc-600 hover:border-slate-500 text-zinc-400 hover:text-white font-bold text-xs uppercase tracking-widest rounded-sm transition-none">
+                                    <Plus className="w-3.5 h-3.5" /> Otro niÃ±o ({mode.guardian.fullName.split(' ')[0]})
                                 </button>
                             ) : (
-                                <div className="flex flex-col gap-2 p-3 bg-slate-800 border-2 border-slate-600 rounded-sm mt-1">
-                                    <SectionLabel>Nuevo Niño</SectionLabel>
+                                <div className="flex flex-col gap-2 p-3 bg-zinc-800 border-2 border-zinc-600 rounded-sm mt-1">
+                                    <SectionLabel>Nuevo NiÃ±o</SectionLabel>
                                     <input type="text" value={newChildName} onChange={e => setNewChildName(e.target.value)}
-                                        placeholder="Nombre del niño *"
-                                        className="bg-slate-900 border border-slate-700 focus:border-brand-500 rounded-sm px-2.5 py-2 text-sm font-bold text-white placeholder:text-slate-600 focus:outline-none" />
+                                        placeholder="Nombre del niÃ±o *"
+                                        className="bg-zinc-900 border border-zinc-700 focus:border-violet-500 rounded-sm px-2.5 py-2 text-sm font-bold text-white placeholder:text-slate-600 focus:outline-none" />
                                     <div className="grid grid-cols-2 gap-2">
                                         <input type="number" value={newChildAge} onChange={e => setNewChildAge(e.target.value)}
                                             placeholder="Edad" min={1} max={17}
-                                            className="bg-slate-900 border border-slate-700 focus:border-brand-500 rounded-sm px-2.5 py-2 text-sm font-bold text-white placeholder:text-slate-600 focus:outline-none" />
+                                            className="bg-zinc-900 border border-zinc-700 focus:border-violet-500 rounded-sm px-2.5 py-2 text-sm font-bold text-white placeholder:text-slate-600 focus:outline-none" />
                                         <select value={newChildGender} onChange={e => setNewChildGender(e.target.value as any)}
-                                            className="bg-slate-900 border border-slate-700 focus:border-brand-500 rounded-sm px-2.5 py-2 text-sm font-bold text-white focus:outline-none appearance-none">
+                                            className="bg-zinc-900 border border-zinc-700 focus:border-violet-500 rounded-sm px-2.5 py-2 text-sm font-bold text-white focus:outline-none appearance-none">
                                             <option value="">Sexo</option>
                                             <option value="M">Masculino</option>
                                             <option value="F">Femenino</option>
                                         </select>
                                     </div>
-                                    <input type="text" value={newChildDni} onChange={e => setNewChildDni(e.target.value.replace(/\D/g,''))}
-                                        placeholder="DNI Niño (opcional)" maxLength={8}
-                                        className="bg-slate-900 border border-slate-700 focus:border-brand-500 rounded-sm px-2.5 py-2 text-sm font-bold text-white font-mono placeholder:text-slate-600 focus:outline-none" />
-                                    
+                                    <input type="text" value={newChildDni} onChange={e => setNewChildDni(e.target.value.replace(/\D/g, ''))}
+                                        placeholder="DNI NiÃ±o (opcional)" maxLength={8}
+                                        className="bg-zinc-900 border border-zinc-700 focus:border-violet-500 rounded-sm px-2.5 py-2 text-sm font-bold text-white font-mono placeholder:text-slate-600 focus:outline-none" />
+
                                     <div className="flex gap-2 mt-1">
                                         <button onClick={() => { setShowAddChild(false); setNewChildName(''); setNewChildAge(''); setNewChildDni(''); setNewChildGender('') }}
-                                            className="flex-1 py-2 bg-slate-700 border border-slate-600 text-slate-300 font-bold text-xs uppercase tracking-widest rounded-sm hover:bg-slate-600 transition-none">
+                                            className="flex-1 py-2 bg-zinc-700 border border-zinc-600 text-zinc-300 font-bold text-xs uppercase tracking-widest rounded-sm hover:bg-zinc-600 transition-none">
                                             Cancelar
                                         </button>
                                         <button onClick={() => handleAddChild(mode.guardian.id)}
                                             disabled={!newChildName || addingChild}
-                                            className="flex-1 py-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-40 text-white font-bold text-xs uppercase tracking-widest rounded-sm transition-none">
+                                            className="flex-1 py-2 bg-violet-600 hover:bg-violet-600 disabled:opacity-40 text-white font-bold text-xs uppercase tracking-widest rounded-sm transition-none">
                                             {addingChild ? '...' : 'Guardar'}
                                         </button>
                                     </div>
@@ -599,11 +598,11 @@ export function PlayZoneScreen() {
                             )}
 
                             {/* Guardian info */}
-                            <div className="mt-4 pt-4 border-t border-slate-700 text-slate-500 flex flex-col gap-1">
+                            <div className="mt-4 pt-4 border-t border-zinc-700 text-zinc-500 flex flex-col gap-1">
                                 <SectionLabel>Apoderado</SectionLabel>
                                 <div className="flex items-center gap-2">
                                     <Shield className="w-3.5 h-3.5" />
-                                    <span className="text-xs text-slate-300 font-bold">{mode.guardian.fullName}</span>
+                                    <span className="text-xs text-zinc-300 font-bold">{mode.guardian.fullName}</span>
                                 </div>
                                 <div className="flex items-center gap-4 mt-1">
                                     <div className="flex items-center gap-1 opacity-70">
@@ -619,37 +618,37 @@ export function PlayZoneScreen() {
                         </div>
                     )}
 
-                    {/* ── NOT_FOUND or MANUAL REGISTER: child-first form ── */}
+                    {/* â”€â”€ NOT_FOUND or MANUAL REGISTER: child-first form â”€â”€ */}
                     {(mode.type === 'NOT_FOUND' || mode.type === 'REGISTERING') && (
-                        <div className="flex flex-col p-4 gap-4 bg-slate-800/50">
+                        <div className="flex flex-col p-4 gap-4 bg-zinc-800/50">
                             <div className="flex items-center justify-between">
-                                <p className="text-[11px] font-black text-brand-400 uppercase tracking-widest">
-                                    {mode.type === 'NOT_FOUND' ? 'No existe — crear perfil' : 'Registrar Nuevo Perfil'}
+                                <p className="text-[11px] font-black text-violet-400 uppercase tracking-widest">
+                                    {mode.type === 'NOT_FOUND' ? 'No existe â€” crear perfil' : 'Registrar Nuevo Perfil'}
                                 </p>
                                 <button onClick={() => { setMode({ type: 'IDLE' }); setSearchQ('') }}
-                                    className="text-slate-500 hover:text-white transition-none">
+                                    className="text-zinc-500 hover:text-white transition-none">
                                     <XCircle className="w-5 h-5" />
                                 </button>
                             </div>
 
                             <div className="flex flex-col gap-3">
                                 {/* CHILD INFO */}
-                                <div className="p-3 bg-slate-800 border-2 border-brand-800 rounded-sm">
+                                <div className="p-3 bg-zinc-800 border-2 border-brand-800 rounded-sm">
                                     <div className="flex items-center gap-1.5 mb-3">
-                                        <Baby className="w-4 h-4 text-brand-400" />
-                                        <SectionLabel className="mb-0 text-brand-400">Datos del Niño</SectionLabel>
+                                        <Baby className="w-4 h-4 text-violet-400" />
+                                        <SectionLabel className="mb-0 text-violet-400">Datos del NiÃ±o</SectionLabel>
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         <input type="text" value={childName} onChange={e => setChildName(e.target.value)}
                                             placeholder="Nombre completo *"
-                                            className="w-full bg-slate-900 border border-slate-700 focus:border-brand-500 rounded-sm px-3 py-2 text-sm font-bold text-white placeholder:text-slate-600 focus:outline-none transition-colors" />
-                                        
+                                            className="w-full bg-zinc-900 border border-zinc-700 focus:border-violet-500 rounded-sm px-3 py-2 text-sm font-bold text-white placeholder:text-slate-600 focus:outline-none transition-colors" />
+
                                         <div className="grid grid-cols-2 gap-2">
                                             <input type="number" value={childAge} onChange={e => setChildAge(e.target.value)}
                                                 placeholder="Edad" min={1} max={17}
-                                                className="w-full bg-slate-900 border border-slate-700 focus:border-brand-500 rounded-sm px-3 py-2 text-sm font-bold text-white placeholder:text-slate-600 focus:outline-none transition-colors" />
+                                                className="w-full bg-zinc-900 border border-zinc-700 focus:border-violet-500 rounded-sm px-3 py-2 text-sm font-bold text-white placeholder:text-slate-600 focus:outline-none transition-colors" />
                                             <select value={childGender} onChange={e => setChildGender(e.target.value as any)}
-                                                className="w-full bg-slate-900 border border-slate-700 focus:border-brand-500 rounded-sm px-3 py-2 text-sm font-bold text-slate-300 focus:outline-none transition-colors appearance-none">
+                                                className="w-full bg-zinc-900 border border-zinc-700 focus:border-violet-500 rounded-sm px-3 py-2 text-sm font-bold text-zinc-300 focus:outline-none transition-colors appearance-none">
                                                 <option value="">Sexo</option>
                                                 <option value="M">Masculino</option>
                                                 <option value="F">Femenino</option>
@@ -657,35 +656,35 @@ export function PlayZoneScreen() {
                                         </div>
 
                                         <input type="text" value={childDni} onChange={e => setChildDni(e.target.value.replace(/\D/g, ''))}
-                                            placeholder="DNI Niño (opcional)" maxLength={8}
-                                            className="w-full bg-slate-900 border border-slate-700 focus:border-brand-500 rounded-sm px-3 py-2 text-sm font-bold text-white font-mono placeholder:text-slate-600 focus:outline-none transition-colors" />
+                                            placeholder="DNI NiÃ±o (opcional)" maxLength={8}
+                                            className="w-full bg-zinc-900 border border-zinc-700 focus:border-violet-500 rounded-sm px-3 py-2 text-sm font-bold text-white font-mono placeholder:text-slate-600 focus:outline-none transition-colors" />
                                     </div>
                                 </div>
 
                                 {/* GUARDIAN INFO */}
-                                <div className="p-3 bg-slate-800 border-2 border-slate-700 rounded-sm">
+                                <div className="p-3 bg-zinc-800 border-2 border-zinc-700 rounded-sm">
                                     <div className="flex items-center gap-1.5 mb-3">
-                                        <User className="w-4 h-4 text-slate-400" />
-                                        <SectionLabel className="mb-0 text-slate-400">Datos del Apoderado</SectionLabel>
+                                        <User className="w-4 h-4 text-zinc-400" />
+                                        <SectionLabel className="mb-0 text-zinc-400">Datos del Apoderado</SectionLabel>
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         <input type="text" value={guardianName} onChange={e => setGuardianName(e.target.value)}
                                             placeholder="Nombre completo *"
-                                            className="w-full bg-slate-900 border border-slate-700 focus:border-brand-500 rounded-sm px-3 py-2 text-sm font-bold text-white placeholder:text-slate-600 focus:outline-none transition-colors" />
-                                        
-                                        <input type="text" inputMode="numeric" value={guardianDni} onChange={e => setGuardianDni(e.target.value.replace(/\D/g,''))}
+                                            className="w-full bg-zinc-900 border border-zinc-700 focus:border-violet-500 rounded-sm px-3 py-2 text-sm font-bold text-white placeholder:text-slate-600 focus:outline-none transition-colors" />
+
+                                        <input type="text" inputMode="numeric" value={guardianDni} onChange={e => setGuardianDni(e.target.value.replace(/\D/g, ''))}
                                             placeholder="DNI Apoderado *" maxLength={15}
-                                            className="w-full bg-slate-900 border border-slate-700 focus:border-brand-500 rounded-sm px-3 py-2 text-sm font-bold text-white font-mono placeholder:text-slate-600 focus:outline-none transition-colors" />
-                                            
-                                        <input type="text" inputMode="numeric" value={guardianPhone} onChange={e => setGuardianPhone(e.target.value.replace(/\D/g,''))}
-                                            placeholder="Teléfono (opcional)" maxLength={15}
-                                            className="w-full bg-slate-900 border border-slate-700 focus:border-brand-500 rounded-sm px-3 py-2 text-sm font-bold text-white font-mono placeholder:text-slate-600 focus:outline-none transition-colors" />
+                                            className="w-full bg-zinc-900 border border-zinc-700 focus:border-violet-500 rounded-sm px-3 py-2 text-sm font-bold text-white font-mono placeholder:text-slate-600 focus:outline-none transition-colors" />
+
+                                        <input type="text" inputMode="numeric" value={guardianPhone} onChange={e => setGuardianPhone(e.target.value.replace(/\D/g, ''))}
+                                            placeholder="TelÃ©fono (opcional)" maxLength={15}
+                                            className="w-full bg-zinc-900 border border-zinc-700 focus:border-violet-500 rounded-sm px-3 py-2 text-sm font-bold text-white font-mono placeholder:text-slate-600 focus:outline-none transition-colors" />
                                     </div>
                                 </div>
 
                                 <button onClick={handleRegister}
                                     disabled={!guardianDni || !guardianName || !childName || registering}
-                                    className="flex items-center justify-center gap-2 w-full py-4 mt-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-xs uppercase tracking-widest rounded-sm transition-none">
+                                    className="flex items-center justify-center gap-2 w-full py-4 mt-2 bg-violet-600 hover:bg-violet-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-xs uppercase tracking-widest rounded-sm transition-none">
                                     <UserPlus className="w-5 h-5" />
                                     {registering ? 'Guardando...' : 'Guardar y Seleccionar'}
                                 </button>
@@ -695,7 +694,7 @@ export function PlayZoneScreen() {
 
                     {/* IDLE state text (if not in child list or form) */}
                     {mode.type === 'IDLE' && (
-                        <div className="flex flex-col items-center justify-center flex-1 gap-3 text-slate-700 p-8 text-center bg-slate-900/50">
+                        <div className="flex flex-col items-center justify-center flex-1 gap-3 text-slate-700 p-8 text-center bg-zinc-900/50">
                             <Baby className="w-12 h-12 text-slate-800" />
                             <p className="text-xs font-bold uppercase tracking-widest text-slate-600">
                                 Busca un apoderado o registra un nuevo niño
@@ -704,18 +703,18 @@ export function PlayZoneScreen() {
                     )}
 
                     {/* Wristband search (bottom of side panel) */}
-                    <div className="mt-auto p-4 border-t border-slate-800 bg-slate-900">
-                        <SectionLabel>Código de Pulsera (Búsqueda local)</SectionLabel>
+                    <div className="mt-auto p-4 border-t border-zinc-800 bg-zinc-900">
+                        <SectionLabel>CÃ³digo de Pulsera (BÃºsqueda local)</SectionLabel>
                         <div className="flex gap-2">
                             <input type="text" inputMode="numeric" maxLength={3}
                                 value={codeSearch}
-                                onChange={e => setCodeSearch(e.target.value.replace(/\D/g,'').slice(0,3))}
+                                onChange={e => setCodeSearch(e.target.value.replace(/\D/g, '').slice(0, 3))}
                                 onKeyDown={e => e.key === 'Enter' && handleCodeSearch()}
-                                placeholder="···"
-                                className="flex-1 bg-slate-800 border-2 border-slate-700 focus:border-slate-500 rounded-sm px-3 py-2 text-xl font-black text-white font-mono text-center tracking-[0.6rem] placeholder:text-slate-700 focus:outline-none" />
+                                placeholder="Â·Â·Â·"
+                                className="flex-1 bg-zinc-800 border-2 border-zinc-700 focus:border-slate-500 rounded-sm px-3 py-2 text-xl font-black text-white font-mono text-center tracking-[0.6rem] placeholder:text-slate-700 focus:outline-none" />
                             <button onClick={handleCodeSearch} disabled={!codeSearch || codeSearching}
-                                className="px-3 bg-slate-700 border border-slate-600 hover:bg-slate-600 text-white font-bold text-xs uppercase tracking-widest rounded-sm disabled:opacity-40 transition-none">
-                                {codeSearching ? '...' : <Search className="w-4 h-4"/>}
+                                className="px-3 bg-zinc-700 border border-zinc-600 hover:bg-zinc-600 text-white font-bold text-xs uppercase tracking-widest rounded-sm disabled:opacity-40 transition-none">
+                                {codeSearching ? '...' : <Search className="w-4 h-4" />}
                             </button>
                         </div>
                         {codeResult && codeResult !== 'not_found' && (
@@ -726,18 +725,18 @@ export function PlayZoneScreen() {
                         )}
                         {codeResult === 'not_found' && codeSearch.length === 3 && (
                             <p className="mt-2 text-xs font-bold text-red-400 text-center border border-red-700 bg-red-700/10 rounded-sm py-1.5 uppercase tracking-widest">
-                                Código incorrecto o inactivo
+                                CÃ³digo incorrecto o inactivo
                             </p>
                         )}
                     </div>
                 </aside>
 
-                {/* ═══════════════════════════════════════════
-                    MIDDLE PANEL — Session Start (260px)
-                ═══════════════════════════════════════════ */}
-                <section className="flex flex-col w-[260px] flex-shrink-0 border-r border-slate-700 bg-slate-900/60 overflow-y-auto shadow-xl z-10 relative">
-                    <div className="p-4 border-b border-slate-700">
-                        <div className="flex items-center gap-2 text-slate-300">
+                {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+                    MIDDLE PANEL â€” Session Start (260px)
+                â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+                <section className="flex flex-col w-[260px] flex-shrink-0 border-r border-zinc-700 bg-zinc-900/60 overflow-y-auto shadow-xl z-10 relative">
+                    <div className="p-4 border-b border-zinc-700">
+                        <div className="flex items-center gap-2 text-zinc-300">
                             <Timer className="w-4 h-4" />
                             <h2 className="text-xs font-black uppercase tracking-widest mt-0.5">Asignar Tiempo</h2>
                         </div>
@@ -747,23 +746,23 @@ export function PlayZoneScreen() {
                         <div className="flex flex-col items-center justify-center flex-1 gap-3 text-slate-700 p-8 text-center">
                             <Clock className="w-10 h-10 opacity-30" />
                             <p className="text-xs font-bold uppercase tracking-widest text-slate-600 mt-2">
-                                Elija al niño a la izquierda
+                                Elija al niÃ±o a la izquierda
                             </p>
                         </div>
                     ) : (
                         <div className="flex flex-col gap-4">
                             {/* Selected child header */}
                             <div className="px-4 py-3 bg-brand-900/30 border-b border-brand-800">
-                                <SectionLabel className="text-brand-400">Niño Seleccionado</SectionLabel>
+                                <SectionLabel className="text-violet-400">NiÃ±o Seleccionado</SectionLabel>
                                 <div className="flex items-start justify-between">
                                     <div>
                                         <p className="text-sm font-black text-white">{selectedChild.fullName}</p>
                                         <p className="text-[10px] text-brand-300 font-mono mt-0.5">
-                                            {selectedChild.age && `${selectedChild.age}A `}{selectedChild.gender} {selectedChild.dni && `· DNI: ${selectedChild.dni}`}
+                                            {selectedChild.age && `${selectedChild.age}A `}{selectedChild.gender} {selectedChild.dni && `Â· DNI: ${selectedChild.dni}`}
                                         </p>
                                     </div>
-                                    <button onClick={() => setSelectedChild(null)} className="text-slate-500 hover:text-white transition-none p-1">
-                                        <XCircle className="w-4 h-4"/>
+                                    <button onClick={() => setSelectedChild(null)} className="text-zinc-500 hover:text-white transition-none p-1">
+                                        <XCircle className="w-4 h-4" />
                                     </button>
                                 </div>
                             </div>
@@ -776,14 +775,13 @@ export function PlayZoneScreen() {
                                         const isSel = selectedDuration.label === opt.label
                                         return (
                                             <button key={opt.label} onClick={() => setSelectedDuration(opt)}
-                                                className={`flex flex-col items-center justify-center py-3 rounded-sm border-2 transition-none ${
-                                                    isSel ? 'bg-brand-600 border-brand-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white'
-                                                }`}>
+                                                className={`flex flex-col items-center justify-center py-3 rounded-sm border-2 transition-none ${isSel ? 'bg-violet-600 border-violet-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-slate-500 hover:text-white'
+                                                    }`}>
                                                 <div className="flex items-center gap-1 text-[11px] font-black uppercase tracking-widest">
                                                     {opt.minutes === null ? <InfinityIcon className="w-4 h-4" /> : <Clock className="w-3 h-3" />}
                                                     {opt.label}
                                                 </div>
-                                                <span className={`text-[11px] font-black font-mono mt-1 ${isSel ? 'text-white/80' : 'text-brand-400'}`}>
+                                                <span className={`text-[11px] font-black font-mono mt-1 ${isSel ? 'text-white/80' : 'text-violet-400'}`}>
                                                     {opt.price !== null ? `S/ ${opt.price.toFixed(2)}` : 'libre'}
                                                 </span>
                                             </button>
@@ -795,7 +793,7 @@ export function PlayZoneScreen() {
                             {/* Start action */}
                             <div className="px-4 pb-4">
                                 <button onClick={handleStart} disabled={starting}
-                                    className="flex items-center justify-center gap-2 w-full py-4 bg-brand-600 hover:bg-brand-500 disabled:opacity-40 text-white font-black text-sm uppercase tracking-widest rounded-sm transition-none relative overflow-hidden group">
+                                    className="flex items-center justify-center gap-2 w-full py-4 bg-violet-600 hover:bg-violet-600 disabled:opacity-40 text-white font-black text-sm uppercase tracking-widest rounded-sm transition-none relative overflow-hidden group">
                                     <span className="absolute inset-0 w-full h-full bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform"></span>
                                     <Timer className="w-5 h-5 relative z-10" />
                                     <span className="relative z-10">
@@ -806,16 +804,16 @@ export function PlayZoneScreen() {
 
                             {/* Last generated code alert */}
                             {lastCode && (
-                                <div className="mt-auto p-4 pt-6 border-t border-slate-700 bg-slate-800">
+                                <div className="mt-auto p-4 pt-6 border-t border-zinc-700 bg-zinc-800">
                                     <p className="text-[10px] text-green-400 font-black uppercase tracking-widest text-center mb-2">
-                                        Código Generado: Escribir en pulsera
+                                        CÃ³digo Generado: Escribir en pulsera
                                     </p>
-                                    <div className="bg-slate-900 border-2 border-green-600 rounded-sm p-4 text-center shadow-inner">
+                                    <div className="bg-zinc-900 border-2 border-green-600 rounded-sm p-4 text-center shadow-inner">
                                         <span className="text-6xl font-black font-mono text-green-400 tracking-widest">
                                             {lastCode.code}
                                         </span>
                                     </div>
-                                    <div className="flex items-center justify-between mt-3 text-slate-300">
+                                    <div className="flex items-center justify-between mt-3 text-zinc-300">
                                         <span className="text-[10px] font-bold uppercase tracking-widest truncate max-w-[120px]">{lastCode.childName}</span>
                                         <span className="text-sm font-black font-mono text-green-400">{fmtPrice(lastCode.price)}</span>
                                     </div>
@@ -825,16 +823,16 @@ export function PlayZoneScreen() {
                     )}
                 </section>
 
-                {/* ═══════════════════════════════════════════
-                    RIGHT PANEL — Active Sessions Grid
-                ═══════════════════════════════════════════ */}
-                <main className="flex-1 overflow-y-auto p-4 bg-slate-900">
-                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
-                        <p className="text-xs font-bold font-mono text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                            <Baby className="w-4 h-4"/> 
-                            {sessions.length} Niños Jugando
+                {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+                    RIGHT PANEL â€” Active Sessions Grid
+                â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+                <main className="flex-1 overflow-y-auto p-4 bg-zinc-900">
+                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-zinc-800">
+                        <p className="text-xs font-bold font-mono text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                            <Baby className="w-4 h-4" />
+                            {sessions.length} NiÃ±os Jugando
                         </p>
-                        <div className="flex items-center gap-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-800 px-3 py-1.5 rounded-sm">
+                        <div className="flex items-center gap-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest bg-zinc-800 px-3 py-1.5 rounded-sm">
                             <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500" /> Todo OK</span>
                             <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500" /> &lt;5 min</span>
                             <span className="flex items-center gap-1.5 origin-center animate-pulse"><span className="w-2 h-2 rounded-full bg-red-500" /> Tiempo Terminado</span>
@@ -851,7 +849,7 @@ export function PlayZoneScreen() {
                     {!loadingSessions && sessions.length === 0 && (
                         <div className="flex flex-col items-center justify-center h-64 gap-4 text-slate-700">
                             <Timer className="w-16 h-16 opacity-10" />
-                            <p className="text-sm font-bold uppercase tracking-widest">La zona de juegos está vacía</p>
+                            <p className="text-sm font-bold uppercase tracking-widest">La zona de juegos estÃ¡ vacÃ­a</p>
                         </div>
                     )}
 
@@ -869,3 +867,4 @@ export function PlayZoneScreen() {
         </div>
     )
 }
+

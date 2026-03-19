@@ -1,5 +1,5 @@
 // ============================================================
-//  PinPad — Touch-friendly 5-digit PIN entry component
+//  PinPad — Minimalist dark redesign
 // ============================================================
 
 import { useState, useCallback } from 'react'
@@ -10,7 +10,6 @@ const PIN_LENGTH = 5
 interface PinPadProps {
     onComplete: (pin: string) => void
     disabled?: boolean
-    /** If true, shows a shake animation on the dots (for invalid PIN) */
     hasError?: boolean
 }
 
@@ -23,21 +22,12 @@ export function PinPad({ onComplete, disabled = false, hasError = false }: PinPa
     const handleKey = useCallback(
         (key: KeyValue) => {
             if (disabled) return
-            if (key === 'clear') {
-                setPin('')
-                return
-            }
-            if (key === 'del') {
-                setPin((prev) => prev.slice(0, -1))
-                return
-            }
+            if (key === 'clear') { setPin(''); return }
+            if (key === 'del') { setPin((prev) => prev.slice(0, -1)); return }
             setPin((prev) => {
                 if (prev.length >= PIN_LENGTH) return prev
                 const next = prev + key
-                if (next.length === PIN_LENGTH) {
-                    // Defer so state settles before calling parent
-                    setTimeout(() => onComplete(next), 0)
-                }
+                if (next.length === PIN_LENGTH) setTimeout(() => onComplete(next), 0)
                 return next
             })
         },
@@ -45,10 +35,10 @@ export function PinPad({ onComplete, disabled = false, hasError = false }: PinPa
     )
 
     return (
-        <div className="flex flex-col items-center gap-6 select-none">
-            {/* PIN dots indicator */}
+        <div className="flex flex-col items-center gap-5 select-none">
+            {/* PIN dots */}
             <div
-                className={`flex gap-4 ${hasError ? 'animate-shake' : ''}`}
+                className={`flex gap-3 ${hasError ? 'animate-shake' : ''}`}
                 aria-label={`PIN entered: ${pin.length} of ${PIN_LENGTH} digits`}
                 role="status"
             >
@@ -56,19 +46,22 @@ export function PinPad({ onComplete, disabled = false, hasError = false }: PinPa
                     <div
                         key={i}
                         className={`
-              w-4 h-4 rounded-full border-2 transition-all duration-200
-              ${i < pin.length
-                                ? 'bg-primary border-primary scale-110'
-                                : 'bg-transparent border-border'
+                            w-3.5 h-3.5 rounded-full border-2 transition-all duration-200
+                            ${i < pin.length
+                                ? hasError
+                                    ? 'bg-red-500 border-red-500 scale-110'
+                                    : 'bg-brand-500 border-brand-500 scale-110'
+                                : hasError
+                                    ? 'bg-transparent border-red-500/60'
+                                    : 'bg-transparent border-zinc-600'
                             }
-              ${hasError ? 'border-red-500 bg-red-500' : ''}
-            `}
+                        `}
                     />
                 ))}
             </div>
 
-            {/* Keypad grid */}
-            <div className="grid grid-cols-3 gap-3 w-full max-w-xs">
+            {/* Keypad */}
+            <div className="grid grid-cols-3 gap-2 w-full max-w-[260px]">
                 {KEYS.map((key) => {
                     const isClear = key === 'clear'
                     const isDel = key === 'del'
@@ -79,21 +72,20 @@ export function PinPad({ onComplete, disabled = false, hasError = false }: PinPa
                             key={key}
                             onClick={() => handleKey(key)}
                             disabled={disabled}
-                            aria-label={isClear ? 'Clear PIN' : isDel ? 'Delete last digit' : `Digit ${key}`}
+                            aria-label={isClear ? 'Limpiar PIN' : isDel ? 'Borrar dígito' : `Dígito ${key}`}
                             className={`
-                relative flex items-center justify-center
-                h-16 rounded-2xl text-xl font-semibold
-                transition-all duration-150 active:scale-95
-                                focus:outline-none focus-visible:ring-2 focus-visible:ring-ring
-                disabled:opacity-40 disabled:cursor-not-allowed
-                ${isSpecial
-                                                                        ? 'bg-muted text-muted-foreground hover:bg-accent text-sm'
-                                                                        : 'bg-card text-card-foreground border border-border hover:bg-accent active:bg-accent/80'
+                                relative flex items-center justify-center
+                                h-14 rounded-xl text-lg font-semibold
+                                transition-all duration-100 active:scale-95
+                                focus:outline-none
+                                disabled:opacity-40 disabled:cursor-not-allowed
+                                ${isSpecial
+                                    ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 text-sm'
+                                    : 'bg-zinc-800 text-zinc-100 border border-zinc-700 hover:bg-zinc-700 hover:border-zinc-600 active:bg-zinc-600'
                                 }
-                                shadow-sm
-              `}
+                            `}
                         >
-                            {isClear ? <X className="w-5 h-5" /> : isDel ? <Delete className="w-5 h-5" /> : key}
+                            {isClear ? <X className="w-4 h-4" /> : isDel ? <Delete className="w-4 h-4" /> : key}
                         </button>
                     )
                 })}

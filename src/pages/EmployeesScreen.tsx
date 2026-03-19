@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+﻿import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Users, Plus, UserCheck, UserX, Clock, BarChart2 } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -178,7 +178,7 @@ export function EmployeesScreen() {
         const record = todayRecords.find(r => r.worker.id === workerId)
         if (!record) {
             const now = new Date()
-            if (now.getHours() < 17) return { label: 'PENDIENTE', color: 'text-slate-400 bg-slate-500/10' }
+            if (now.getHours() < 17) return { label: 'PENDIENTE', color: 'text-zinc-400 bg-slate-500/10' }
             return { label: 'FALTA', color: 'text-red-400 bg-red-500/10' }
         }
 
@@ -218,7 +218,7 @@ export function EmployeesScreen() {
         try {
             setUploadingImage(true)
 
-            // Usamos un FormData standard o el body de la petición, Elysia Eden lo convierte automáticamente
+            // Usamos un FormData standard o el body de la peticiÃ³n, Elysia Eden lo convierte automÃ¡ticamente
             const res = await api.upload.post({
                 tenantId,
                 file,
@@ -276,19 +276,19 @@ export function EmployeesScreen() {
     }
 
     return (
-        <div className="min-h-screen bg-surface-900 text-slate-200 flex flex-col">
-            <header className="px-6 py-4 bg-slate-800/80 border-b border-white/5 shadow-md flex items-center justify-between shrink-0">
+        <div className="min-h-screen bg-zinc-950 text-zinc-200 flex flex-col">
+            <header className="px-6 py-4 bg-zinc-800/80 border-b border-white/5 shadow-md flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-4">
-                    <button onClick={() => navigate('/pos')} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 transition-colors rounded-xl font-medium text-white">Volver</button>
+                    <button onClick={() => navigate('/pos')} className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 transition-colors rounded-xl font-medium text-white">Volver</button>
                     <div>
                         <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-                            <Users className="w-5 h-5 text-brand-400" /> Empleados y Asistencia
+                            <Users className="w-5 h-5 text-violet-400" /> Empleados y Asistencia
                         </h1>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
                     {activeTab === 'empleados' && (
-                        <button onClick={openCreateModal} className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-500 rounded-xl font-medium text-white transition-all active:scale-95">
+                        <button onClick={openCreateModal} className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-600 rounded-xl font-medium text-white transition-all active:scale-95">
                             <Plus className="w-4 h-4" /> Nuevo Empleado
                         </button>
                     )}
@@ -296,47 +296,47 @@ export function EmployeesScreen() {
             </header>
 
             <div className="px-6 pt-6 shrink-0 flex items-center justify-between">
-                <div className="flex space-x-2 bg-171717 p-1.5 rounded-xl w-fit border border-slate-700/50">
+                <div className="flex space-x-2 bg-171717 p-1.5 rounded-xl w-fit border border-zinc-700/50">
                     <button
                         onClick={() => setActiveTab('empleados')}
-                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'empleados' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'empleados' ? 'bg-violet-600 text-white shadow' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50'
                             }`}
                     >
                         <Users className="w-4 h-4" /> Directorio
                     </button>
                     <button
                         onClick={() => setActiveTab('asistencia')}
-                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'asistencia' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'asistencia' ? 'bg-violet-600 text-white shadow' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50'
                             }`}
                     >
                         <Clock className="w-4 h-4" /> Asistencia de Hoy
                     </button>
                     <button
                         onClick={() => setActiveTab('historial')}
-                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'historial' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'historial' ? 'bg-violet-600 text-white shadow' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50'
                             }`}
                     >
-                        <BarChart2 className="w-4 h-4" /> Historial y Métricas
+                        <BarChart2 className="w-4 h-4" /> Historial y MÃ©tricas
                     </button>
                 </div>
 
                 {activeTab === 'asistencia' && (
-                    <div className="text-sm text-slate-400 font-medium">
+                    <div className="text-sm text-zinc-400 font-medium">
                         Fecha: {new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                     </div>
                 )}
 
                 {activeTab === 'historial' && (
-                    <div className="flex bg-slate-800 border border-slate-700/50 rounded-lg p-1">
+                    <div className="flex bg-zinc-800 border border-zinc-700/50 rounded-lg p-1">
                         <button
                             onClick={() => setHistoryPeriod('semana')}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${historyPeriod === 'semana' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${historyPeriod === 'semana' ? 'bg-zinc-700 text-white shadow' : 'text-zinc-400 hover:text-white'}`}
                         >
                             Esta Semana
                         </button>
                         <button
                             onClick={() => setHistoryPeriod('mes')}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${historyPeriod === 'mes' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${historyPeriod === 'mes' ? 'bg-zinc-700 text-white shadow' : 'text-zinc-400 hover:text-white'}`}
                         >
                             Este Mes
                         </button>
@@ -345,12 +345,12 @@ export function EmployeesScreen() {
             </div>
 
             <main className="flex-1 p-6 flex flex-col gap-6 overflow-hidden">
-                <div className="flex-1 bg-slate-800/40 border border-white/5 rounded-2xl overflow-hidden flex flex-col">
+                <div className="flex-1 bg-zinc-800/40 border border-white/5 rounded-2xl overflow-hidden flex flex-col">
                     <div className="overflow-x-auto flex-1">
                         {activeTab === 'empleados' && (
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="bg-slate-800/80 text-slate-400 text-sm border-b border-white/5 uppercase tracking-wider">
+                                    <tr className="bg-zinc-800/80 text-zinc-400 text-sm border-b border-white/5 uppercase tracking-wider">
                                         <th className="px-4 py-3 font-semibold">Nombre</th>
                                         <th className="px-4 py-3 font-semibold">Rol</th>
                                         <th className="px-4 py-3 font-semibold text-center">Estado</th>
@@ -360,26 +360,26 @@ export function EmployeesScreen() {
                                 <tbody className="divide-y divide-white/5">
                                     {loading ? (
                                         <tr>
-                                            <td colSpan={4} className="p-8 text-center text-slate-400">Cargando empleados...</td>
+                                            <td colSpan={4} className="p-8 text-center text-zinc-400">Cargando empleados...</td>
                                         </tr>
                                     ) : workers.length === 0 ? (
                                         <tr>
-                                            <td colSpan={4} className="p-8 text-center text-slate-400">No hay empleados registrados.</td>
+                                            <td colSpan={4} className="p-8 text-center text-zinc-400">No hay empleados registrados.</td>
                                         </tr>
                                     ) : (
                                         workers.map((w) => (
-                                            <tr key={w.id} className="hover:bg-slate-800/40 transition-colors">
+                                            <tr key={w.id} className="hover:bg-zinc-800/40 transition-colors">
                                                 <td className="px-4 py-3 text-sm font-medium text-white flex items-center gap-2">
-                                                    <div className="w-8 h-8 rounded-full bg-slate-700 overflow-hidden border border-slate-600">
+                                                    <div className="w-8 h-8 rounded-full bg-zinc-700 overflow-hidden border border-zinc-600">
                                                         <img src={w.avatarUrl || `https://api.dicebear.com/7.x/notionists/svg?seed=${w.name}`} className="w-full h-full object-cover" alt="avatar" />
                                                     </div>
                                                     <div>
                                                         <div className="font-semibold">{w.name}</div>
-                                                        {w.dni && <div className="text-xs text-slate-400 font-mono">DNI: {w.dni}</div>}
+                                                        {w.dni && <div className="text-xs text-zinc-400 font-mono">DNI: {w.dni}</div>}
                                                     </div>
                                                 </td>
-                                                <td className="px-4 py-3 text-sm text-slate-400">
-                                                    <span className="bg-slate-700/50 px-2 py-0.5 rounded-full text-xs">{w.role.name}</span>
+                                                <td className="px-4 py-3 text-sm text-zinc-400">
+                                                    <span className="bg-zinc-700/50 px-2 py-0.5 rounded-full text-xs">{w.role.name}</span>
                                                 </td>
                                                 <td className="px-4 py-3 text-center">
                                                     {w.isActive ? (
@@ -387,13 +387,13 @@ export function EmployeesScreen() {
                                                             <UserCheck className="w-3.5 h-3.5" /> Activo
                                                         </span>
                                                     ) : (
-                                                        <span className="inline-flex items-center gap-1 text-slate-400 text-xs font-medium px-2 py-1 bg-slate-500/10 rounded-full">
+                                                        <span className="inline-flex items-center gap-1 text-zinc-400 text-xs font-medium px-2 py-1 bg-slate-500/10 rounded-full">
                                                             <UserX className="w-3.5 h-3.5" /> Inactivo
                                                         </span>
                                                     )}
                                                 </td>
                                                 <td className="px-4 py-3 text-right">
-                                                    <button onClick={() => openEditModal(w)} className="text-sm font-medium text-brand-400 hover:text-brand-300">Editar</button>
+                                                    <button onClick={() => openEditModal(w)} className="text-sm font-medium text-violet-400 hover:text-brand-300">Editar</button>
                                                 </td>
                                             </tr>
                                         ))
@@ -405,22 +405,22 @@ export function EmployeesScreen() {
                         {activeTab === 'asistencia' && (
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="bg-slate-800/80 text-slate-400 text-sm border-b border-white/5 uppercase tracking-wider">
+                                    <tr className="bg-zinc-800/80 text-zinc-400 text-sm border-b border-white/5 uppercase tracking-wider">
                                         <th className="px-4 py-3 font-semibold">Empleado</th>
                                         <th className="px-4 py-3 font-semibold text-center">Estado (Hoy)</th>
                                         <th className="px-4 py-3 font-semibold">Hora de Entrada</th>
                                         <th className="px-4 py-3 font-semibold">Hora de Salida</th>
-                                        <th className="px-4 py-3 font-semibold text-right">Duración de Turno</th>
+                                        <th className="px-4 py-3 font-semibold text-right">DuraciÃ³n de Turno</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
                                     {loading ? (
                                         <tr>
-                                            <td colSpan={5} className="p-8 text-center text-slate-400">Cargando registros...</td>
+                                            <td colSpan={5} className="p-8 text-center text-zinc-400">Cargando registros...</td>
                                         </tr>
                                     ) : workers.length === 0 ? (
                                         <tr>
-                                            <td colSpan={5} className="p-8 text-center text-slate-400">No hay empleados registrados.</td>
+                                            <td colSpan={5} className="p-8 text-center text-zinc-400">No hay empleados registrados.</td>
                                         </tr>
                                     ) : (
                                         workers.map((w) => {
@@ -428,9 +428,9 @@ export function EmployeesScreen() {
                                             const status = getAttendanceStatus(w.id)
 
                                             return (
-                                                <tr key={w.id} className="hover:bg-slate-800/40 transition-colors">
+                                                <tr key={w.id} className="hover:bg-zinc-800/40 transition-colors">
                                                     <td className="px-4 py-3 text-sm font-medium text-white flex items-center gap-2">
-                                                        <div className="w-8 h-8 rounded-full bg-slate-700 overflow-hidden border border-slate-600">
+                                                        <div className="w-8 h-8 rounded-full bg-zinc-700 overflow-hidden border border-zinc-600">
                                                             <img src={w.avatarUrl || `https://api.dicebear.com/7.x/notionists/svg?seed=${w.name}`} className="w-full h-full object-cover" alt="avatar" />
                                                         </div>
                                                         {w.name}
@@ -440,15 +440,15 @@ export function EmployeesScreen() {
                                                             {status.label}
                                                         </span>
                                                     </td>
-                                                    <td className="px-4 py-3 text-sm text-slate-300 font-mono">
+                                                    <td className="px-4 py-3 text-sm text-zinc-300 font-mono">
                                                         {record?.checkIn ? formatDate(record.checkIn) : '-'}
                                                     </td>
-                                                    <td className="px-4 py-3 text-sm text-slate-300 font-mono">
+                                                    <td className="px-4 py-3 text-sm text-zinc-300 font-mono">
                                                         {record?.checkOut ? formatDate(record.checkOut) : (
                                                             record ? <span className="text-amber-400 text-xs font-semibold bg-amber-500/10 px-2 py-1 rounded">EN TURNO</span> : '-'
                                                         )}
                                                     </td>
-                                                    <td className="px-4 py-3 text-sm text-right font-medium text-slate-400">
+                                                    <td className="px-4 py-3 text-sm text-right font-medium text-zinc-400">
                                                         {record ? getDuration(record.checkIn, record.checkOut) : '-'}
                                                     </td>
                                                 </tr>
@@ -462,7 +462,7 @@ export function EmployeesScreen() {
                         {activeTab === 'historial' && (
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="bg-slate-800/80 text-slate-400 text-sm border-b border-white/5 uppercase tracking-wider">
+                                    <tr className="bg-zinc-800/80 text-zinc-400 text-sm border-b border-white/5 uppercase tracking-wider">
                                         <th className="px-4 py-3 font-semibold">Empleado</th>
                                         <th className="px-4 py-3 font-semibold text-center">Horas Trabajadas</th>
                                         <th className="px-4 py-3 font-semibold text-center">Tardanzas</th>
@@ -472,31 +472,31 @@ export function EmployeesScreen() {
                                 <tbody className="divide-y divide-white/5">
                                     {loading ? (
                                         <tr>
-                                            <td colSpan={4} className="p-8 text-center text-slate-400">Calculando métricas...</td>
+                                            <td colSpan={4} className="p-8 text-center text-zinc-400">Calculando mÃ©tricas...</td>
                                         </tr>
                                     ) : historyData.length === 0 ? (
                                         <tr>
-                                            <td colSpan={4} className="p-8 text-center text-slate-400">No hay datos suficientes en este periodo.</td>
+                                            <td colSpan={4} className="p-8 text-center text-zinc-400">No hay datos suficientes en este periodo.</td>
                                         </tr>
                                     ) : (
                                         historyData.map((h) => (
-                                            <tr key={h.worker.id} className="hover:bg-slate-800/40 transition-colors">
+                                            <tr key={h.worker.id} className="hover:bg-zinc-800/40 transition-colors">
                                                 <td className="px-4 py-4 text-sm font-medium text-white flex items-center gap-2">
-                                                    <div className="w-8 h-8 rounded-full bg-slate-700 overflow-hidden border border-slate-600 shrink-0">
+                                                    <div className="w-8 h-8 rounded-full bg-zinc-700 overflow-hidden border border-zinc-600 shrink-0">
                                                         <img src={h.worker.avatarUrl || `https://api.dicebear.com/7.x/notionists/svg?seed=${h.worker.name}`} className="w-full h-full object-cover" alt="avatar" />
                                                     </div>
                                                     {h.worker.name}
                                                 </td>
                                                 <td className="px-4 py-3 text-center">
-                                                    <span className="text-lg font-bold text-brand-400">{h.totalHours.toFixed(1)} <span className="text-xs text-slate-400 font-normal">hrs</span></span>
+                                                    <span className="text-lg font-bold text-violet-400">{h.totalHours.toFixed(1)} <span className="text-xs text-zinc-400 font-normal">hrs</span></span>
                                                 </td>
                                                 <td className="px-4 py-3 text-center">
-                                                    <span className={`text-lg font-bold ${h.tardanzas > 0 ? 'text-amber-400' : 'text-slate-400'}`}>
+                                                    <span className={`text-lg font-bold ${h.tardanzas > 0 ? 'text-amber-400' : 'text-zinc-400'}`}>
                                                         {h.tardanzas}
                                                     </span>
                                                 </td>
                                                 <td className="px-4 py-3 text-center">
-                                                    <span className={`text-lg font-bold ${h.faltas > 0 ? 'text-red-400' : 'text-slate-400'}`}>
+                                                    <span className={`text-lg font-bold ${h.faltas > 0 ? 'text-red-400' : 'text-zinc-400'}`}>
                                                         {h.faltas}
                                                     </span>
                                                 </td>
@@ -513,9 +513,9 @@ export function EmployeesScreen() {
             {/* Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                    <div className="bg-slate-800 border border-slate-700 rounded-3xl w-full max-w-md p-6 shadow-2xl flex flex-col gap-6">
+                    <div className="bg-zinc-800 border border-zinc-700 rounded-2xl w-full max-w-md p-6 shadow-2xl flex flex-col gap-6">
                         <div className="flex items-center gap-4">
-                            <label className="w-16 h-16 rounded-2xl bg-slate-700 overflow-hidden shadow-inner shrink-0 cursor-pointer relative group">
+                            <label className="w-16 h-16 rounded-2xl bg-zinc-700 overflow-hidden shadow-inner shrink-0 cursor-pointer relative group">
                                 <img src={formData.avatarUrl || `https://api.dicebear.com/7.x/notionists/svg?seed=${formData.name || 'default'}`} className={`w-full h-full object-cover ${uploadingImage ? 'opacity-50' : ''}`} alt="avatar prep" />
                                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                     <span className="text-[10px] font-bold text-white text-center px-1 uppercase tracking-wider">Subir Foto</span>
@@ -524,40 +524,40 @@ export function EmployeesScreen() {
                             </label>
                             <div>
                                 <h2 className="text-xl font-bold text-white tracking-tight">{editingWorker ? 'Editar Empleado' : 'Nuevo Empleado'}</h2>
-                                <p className="text-sm text-slate-400">{editingWorker ? 'Modifica los datos y acceso.' : 'Crea un nuevo perfil para el local.'}</p>
+                                <p className="text-sm text-zinc-400">{editingWorker ? 'Modifica los datos y acceso.' : 'Crea un nuevo perfil para el local.'}</p>
                             </div>
                         </div>
 
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-semibold text-slate-300 mb-1 ml-1">Nombre Completo</label>
+                                    <label className="block text-sm font-semibold text-zinc-300 mb-1 ml-1">Nombre Completo</label>
                                     <input
                                         type="text"
                                         value={formData.name}
                                         onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white placeholder:text-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
+                                        className="w-full bg-zinc-900/50 border border-zinc-700 rounded-xl px-4 py-2.5 text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
                                         placeholder="Ej. Carlos Mendoza"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-semibold text-slate-300 mb-1 ml-1">DNI / Documento</label>
+                                    <label className="block text-sm font-semibold text-zinc-300 mb-1 ml-1">DNI / Documento</label>
                                     <input
                                         type="text"
                                         value={formData.dni}
                                         onChange={e => setFormData({ ...formData, dni: e.target.value.replace(/\D/g, '') })}
-                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white placeholder:text-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
+                                        className="w-full bg-zinc-900/50 border border-zinc-700 rounded-xl px-4 py-2.5 text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
                                         placeholder="Opcional"
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-semibold text-slate-300 mb-1 ml-1">Rol u Ocupación</label>
+                                <label className="block text-sm font-semibold text-zinc-300 mb-1 ml-1">Rol u OcupaciÃ³n</label>
                                 <select
                                     value={formData.roleId}
                                     onChange={e => setFormData({ ...formData, roleId: e.target.value })}
-                                    className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-500 transition-colors"
+                                    className="w-full bg-zinc-900/50 border border-zinc-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-violet-500 transition-colors"
                                 >
                                     {roles.map(r => (
                                         <option key={r.id} value={r.id}>{r.name}</option>
@@ -566,14 +566,14 @@ export function EmployeesScreen() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-semibold text-slate-300 mb-1 ml-1">PIN de Acceso (5 dígitos)</label>
+                                <label className="block text-sm font-semibold text-zinc-300 mb-1 ml-1">PIN de Acceso (5 dÃ­gitos)</label>
                                 <input
                                     type="text"
                                     maxLength={5}
                                     value={formData.pin}
                                     onChange={e => setFormData({ ...formData, pin: e.target.value.replace(/\D/g, '') })}
-                                    className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white placeholder:text-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
-                                    placeholder={editingWorker ? "En blanco si no desea cambiarlo" : "Máximo 5 dígitos"}
+                                    className="w-full bg-zinc-900/50 border border-zinc-700 rounded-xl px-4 py-2.5 text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
+                                    placeholder={editingWorker ? "En blanco si no desea cambiarlo" : "MÃ¡ximo 5 dÃ­gitos"}
                                 />
                             </div>
 
@@ -584,9 +584,9 @@ export function EmployeesScreen() {
                                         id="active-chk"
                                         checked={formData.isActive}
                                         onChange={e => setFormData({ ...formData, isActive: e.target.checked })}
-                                        className="w-5 h-5 rounded border-slate-700 bg-slate-900/50 text-brand-500 focus:ring-brand-500 focus:ring-offset-slate-800"
+                                        className="w-5 h-5 rounded border-zinc-700 bg-zinc-900/50 text-brand-500 focus:ring-brand-500 focus:ring-offset-slate-800"
                                     />
-                                    <label htmlFor="active-chk" className="text-sm font-medium text-slate-300">Empleado con cuenta activa (Puede entrar)</label>
+                                    <label htmlFor="active-chk" className="text-sm font-medium text-zinc-300">Empleado con cuenta activa (Puede entrar)</label>
                                 </div>
                             )}
                         </div>
@@ -594,14 +594,14 @@ export function EmployeesScreen() {
                         <div className="flex gap-3 mt-2">
                             <button
                                 onClick={() => setIsModalOpen(false)}
-                                className="flex-1 py-3 font-semibold text-slate-300 bg-slate-700 hover:bg-slate-600 rounded-xl transition-colors"
+                                className="flex-1 py-3 font-semibold text-zinc-300 bg-zinc-700 hover:bg-zinc-600 rounded-xl transition-colors"
                             >
                                 Cancelar
                             </button>
                             <button
                                 onClick={handleSaveWorker}
                                 disabled={saving || !formData.name}
-                                className="flex-1 py-3 font-semibold text-white bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors"
+                                className="flex-1 py-3 font-semibold text-white bg-violet-600 hover:bg-violet-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors"
                             >
                                 {saving ? "Guardando..." : "Guardar Empleado"}
                             </button>
@@ -612,3 +612,4 @@ export function EmployeesScreen() {
         </div>
     )
 }
+

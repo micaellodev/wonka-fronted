@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { check } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
 import { invoke } from '@tauri-apps/api/core'
@@ -13,7 +13,7 @@ export function SplashScreen() {
       try {
         const update = await check()
         if (update) {
-          setStatus(`Actualizando a la versión ${update.version}...`)
+          setStatus(`Actualizando a la versiÃ³n ${update.version}...`)
           let downloaded = 0
           let contentLength = 0
           
@@ -21,26 +21,26 @@ export function SplashScreen() {
             switch (event.event) {
               case 'Started':
                 contentLength = event.data.contentLength || 0
-                setStatus(`Descargando actualización (0%)...`)
+                setStatus(`Descargando actualizaciÃ³n (0%)...`)
                 break
               case 'Progress':
                 downloaded += event.data.chunkLength
                 if (contentLength > 0) {
                   const percent = Math.round((downloaded / contentLength) * 100)
                   setProgress(percent)
-                  setStatus(`Descargando actualización (${percent}%)...`)
+                  setStatus(`Descargando actualizaciÃ³n (${percent}%)...`)
                 } else {
                   // Fallback si el servidor no da Content-Length
-                  setStatus(`Descargando actualización (${(downloaded / 1024 / 1024).toFixed(2)} MB)...`)
+                  setStatus(`Descargando actualizaciÃ³n (${(downloaded / 1024 / 1024).toFixed(2)} MB)...`)
                 }
                 break
               case 'Finished':
-                setStatus('Instalación terminada. Reiniciando...')
+                setStatus('InstalaciÃ³n terminada. Reiniciando...')
                 break
             }
           })
 
-          setStatus('Reiniciando aplicación...')
+          setStatus('Reiniciando aplicaciÃ³n...')
           await relaunch()
         } else {
           // No hay update, cerrar splash y abrir main
@@ -51,7 +51,7 @@ export function SplashScreen() {
         }
       } catch (error) {
         console.error('Error verificando actualizaciones:', error)
-        // En desarrollo siempre dará error porque no hay archivo o endpoint en Railway aun.
+        // En desarrollo siempre darÃ¡ error porque no hay archivo o endpoint en Railway aun.
         // Mostramos un texto mas amigable en lugar de "Error" para que no asuste.
         setStatus('Buscando actualizaciones...')
         
@@ -65,7 +65,7 @@ export function SplashScreen() {
       }
     }
 
-    // Pequeño delay de grácia para que la UI cargue
+    // PequeÃ±o delay de grÃ¡cia para que la UI cargue
     const timer = setTimeout(() => {
       checkForUpdates()
     }, 500)
@@ -106,3 +106,4 @@ export function SplashScreen() {
     </div>
   )
 }
+

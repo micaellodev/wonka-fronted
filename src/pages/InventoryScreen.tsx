@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+﻿import { useEffect, useState, useCallback, useRef } from 'react'
 import {
     Package, Plus, Search, Edit2, Layers, Upload, X, ImageIcon, CheckCircle, XCircle,
     ZoomIn, ZoomOut, RotateCw, Crop
@@ -7,7 +7,7 @@ import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
 import type { Product, Category } from '@/types'
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function formatCurrency(v: number) {
     return new Intl.NumberFormat('es-PE', {
@@ -17,11 +17,11 @@ function formatCurrency(v: number) {
 
 function Spinner() {
     return (
-        <div className="w-5 h-5 border-2 border-slate-500 border-t-brand-400 rounded-full animate-spin" />
+        <div className="w-5 h-5 border-2 border-zinc-500 border-t-brand-400 rounded-full animate-spin" />
     )
 }
 
-// ── Image Crop Modal ─────────────────────────────────────────────────────────
+// â”€â”€ Image Crop Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface ImageCropModalProps {
     imageSrc: string
@@ -122,14 +122,14 @@ function ImageCropModal({ imageSrc, onConfirm, onCancel, aspectRatio = 1 }: Imag
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[60]">
-            <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md p-6 shadow-2xl flex flex-col gap-5">
+            <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-md p-6 shadow-2xl flex flex-col gap-5">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <Crop className="w-5 h-5 text-brand-400" />
+                        <Crop className="w-5 h-5 text-violet-400" />
                         <h2 className="text-lg font-bold text-white">Ajustar imagen</h2>
                     </div>
-                    <button onClick={onCancel} className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-colors">
+                    <button onClick={onCancel} className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-xl transition-colors">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -137,7 +137,7 @@ function ImageCropModal({ imageSrc, onConfirm, onCancel, aspectRatio = 1 }: Imag
                 {/* Canvas preview */}
                 <div
                     ref={containerRef}
-                    className="relative rounded-2xl overflow-hidden border border-slate-700 select-none bg-[repeating-conic-gradient(#334155_0%_25%,#1e293b_0%_50%)] bg-[length:16px_16px] cursor-grab active:cursor-grabbing"
+                    className="relative rounded-2xl overflow-hidden border border-zinc-700 select-none bg-[repeating-conic-gradient(#334155_0%_25%,#1e293b_0%_50%)] bg-[length:16px_16px] cursor-grab active:cursor-grabbing"
                     style={{ width: '100%', paddingBottom: `${(CANVAS_H / CANVAS_W) * 100}%`, position: 'relative' }}
                     onMouseDown={onMouseDown}
                     onMouseMove={onMouseMove}
@@ -161,7 +161,7 @@ function ImageCropModal({ imageSrc, onConfirm, onCancel, aspectRatio = 1 }: Imag
                         <line x1="0" y1={(CANVAS_H / 3) * 2} x2={CANVAS_W} y2={(CANVAS_H / 3) * 2} stroke="white" strokeWidth="0.5" />
                     </svg>
                     <p className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-white/50 bg-black/40 px-2 py-0.5 rounded-full pointer-events-none">
-                        Arrastra · Rueda = zoom
+                        Arrastra Â· Rueda = zoom
                     </p>
                 </div>
 
@@ -169,7 +169,7 @@ function ImageCropModal({ imageSrc, onConfirm, onCancel, aspectRatio = 1 }: Imag
                 <div className="flex flex-col gap-3">
                     {/* Zoom slider */}
                     <div className="flex items-center gap-3">
-                        <button onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <button onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-lg transition-colors">
                             <ZoomOut className="w-4 h-4" />
                         </button>
                         <div className="flex-1 flex flex-col gap-1">
@@ -177,21 +177,21 @@ function ImageCropModal({ imageSrc, onConfirm, onCancel, aspectRatio = 1 }: Imag
                                 type="range" min="20" max="500" step="1"
                                 value={Math.round(zoom * 100)}
                                 onChange={e => setZoom(Number(e.target.value) / 100)}
-                                className="w-full accent-brand-500 h-1.5"
+                                className="w-full accent-violet-500 h-1.5"
                             />
-                            <div className="flex justify-between text-[10px] text-slate-500">
+                            <div className="flex justify-between text-[10px] text-zinc-500">
                                 <span>Zoom</span>
                                 <span className="font-mono">{Math.round(zoom * 100)}%</span>
                             </div>
                         </div>
-                        <button onClick={() => setZoom(z => Math.min(5, z + 0.1))} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <button onClick={() => setZoom(z => Math.min(5, z + 0.1))} className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-lg transition-colors">
                             <ZoomIn className="w-4 h-4" />
                         </button>
                     </div>
 
                     {/* Rotation slider */}
                     <div className="flex items-center gap-3">
-                        <button onClick={() => setRotation(r => r - 90)} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <button onClick={() => setRotation(r => r - 90)} className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-lg transition-colors">
                             <RotateCw className="w-4 h-4 scale-x-[-1]" />
                         </button>
                         <div className="flex-1 flex flex-col gap-1">
@@ -201,12 +201,12 @@ function ImageCropModal({ imageSrc, onConfirm, onCancel, aspectRatio = 1 }: Imag
                                 onChange={e => setRotation(Number(e.target.value))}
                                 className="w-full accent-purple-500 h-1.5"
                             />
-                            <div className="flex justify-between text-[10px] text-slate-500">
-                                <span>Rotación</span>
-                                <span className="font-mono">{rotation}°</span>
+                            <div className="flex justify-between text-[10px] text-zinc-500">
+                                <span>RotaciÃ³n</span>
+                                <span className="font-mono">{rotation}Â°</span>
                             </div>
                         </div>
-                        <button onClick={() => setRotation(r => r + 90)} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <button onClick={() => setRotation(r => r + 90)} className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-lg transition-colors">
                             <RotateCw className="w-4 h-4" />
                         </button>
                     </div>
@@ -214,9 +214,9 @@ function ImageCropModal({ imageSrc, onConfirm, onCancel, aspectRatio = 1 }: Imag
                     {/* Reset */}
                     <button
                         onClick={() => { setZoom(1); setRotation(0); setOffset({ x: 0, y: 0 }) }}
-                        className="text-xs text-slate-500 hover:text-slate-300 transition-colors text-center"
+                        className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors text-center"
                     >
-                        ↺ Restablecer posición
+                        â†º Restablecer posiciÃ³n
                     </button>
                 </div>
 
@@ -224,13 +224,13 @@ function ImageCropModal({ imageSrc, onConfirm, onCancel, aspectRatio = 1 }: Imag
                 <div className="flex gap-3">
                     <button
                         onClick={onCancel}
-                        className="flex-1 py-3 font-semibold text-slate-300 bg-slate-700 hover:bg-slate-600 rounded-xl transition-colors"
+                        className="flex-1 py-3 font-semibold text-zinc-300 bg-zinc-700 hover:bg-zinc-600 rounded-xl transition-colors"
                     >
                         Cancelar
                     </button>
                     <button
                         onClick={handleConfirm}
-                        className="flex-1 py-3 font-semibold text-white bg-brand-600 hover:bg-brand-500 rounded-xl transition-colors"
+                        className="flex-1 py-3 font-semibold text-white bg-violet-600 hover:bg-violet-500 rounded-xl transition-colors"
                     >
                         Usar esta imagen
                     </button>
@@ -240,7 +240,7 @@ function ImageCropModal({ imageSrc, onConfirm, onCancel, aspectRatio = 1 }: Imag
     )
 }
 
-// ── Category Modal ───────────────────────────────────────────────────────────
+// â”€â”€ Category Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface CategoryModalProps {
     tenantId: string
@@ -303,7 +303,7 @@ function CategoryModal({ tenantId, editing, onClose, onSaved }: CategoryModalPro
             }
             onSaved()
         } catch {
-            alert('Error guardando la categoría.')
+            alert('Error guardando la categorÃ­a.')
         } finally {
             setSaving(false)
         }
@@ -311,20 +311,20 @@ function CategoryModal({ tenantId, editing, onClose, onSaved }: CategoryModalPro
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-slate-800 border border-slate-700 rounded-3xl w-full max-w-sm p-6 shadow-2xl flex flex-col gap-5">
+            <div className="bg-zinc-800 border border-zinc-700 rounded-2xl w-full max-w-sm p-6 shadow-2xl flex flex-col gap-5">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h2 className="text-xl font-bold text-white">{editing ? 'Editar Categoría' : 'Nueva Categoría'}</h2>
-                        <p className="text-sm text-slate-400 mt-0.5">{editing ? 'Modifica nombre o imagen.' : 'Crea una nueva categoría de productos.'}</p>
+                        <h2 className="text-xl font-bold text-white">{editing ? 'Editar CategorÃ­a' : 'Nueva CategorÃ­a'}</h2>
+                        <p className="text-sm text-zinc-400 mt-0.5">{editing ? 'Modifica nombre o imagen.' : 'Crea una nueva categorÃ­a de productos.'}</p>
                     </div>
-                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-colors">
+                    <button onClick={onClose} className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-xl transition-colors">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 {/* Image Upload */}
-                <label className="relative w-full h-36 rounded-2xl overflow-hidden border-2 border-dashed border-slate-600 hover:border-brand-500 transition-colors cursor-pointer group bg-slate-900/40 flex items-center justify-center">
+                <label className="relative w-full h-36 rounded-2xl overflow-hidden border-2 border-dashed border-zinc-600 hover:border-violet-500 transition-colors cursor-pointer group bg-zinc-900/40 flex items-center justify-center">
                     {imageUrl ? (
                         <>
                             <img src={imageUrl} className="absolute inset-0 w-full h-full object-cover" alt="preview" />
@@ -334,8 +334,8 @@ function CategoryModal({ tenantId, editing, onClose, onSaved }: CategoryModalPro
                             </div>
                         </>
                     ) : (
-                        <div className="flex flex-col items-center gap-2 text-slate-500 group-hover:text-brand-400 transition-colors">
-                            {uploading ? <Spinner /> : <><ImageIcon className="w-8 h-8" /><span className="text-sm font-medium">Subir imagen de categoría</span></>}
+                        <div className="flex flex-col items-center gap-2 text-zinc-500 group-hover:text-violet-400 transition-colors">
+                            {uploading ? <Spinner /> : <><ImageIcon className="w-8 h-8" /><span className="text-sm font-medium">Subir imagen de categorÃ­a</span></>}
                         </div>
                     )}
                     {uploading && (
@@ -358,12 +358,12 @@ function CategoryModal({ tenantId, editing, onClose, onSaved }: CategoryModalPro
 
                 {/* Name Field */}
                 <div>
-                    <label className="block text-sm font-semibold text-slate-300 mb-1.5">Nombre de la Categoría</label>
+                    <label className="block text-sm font-semibold text-zinc-300 mb-1.5">Nombre de la CategorÃ­a</label>
                     <input
                         type="text"
                         value={name}
                         onChange={e => setName(e.target.value)}
-                        className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white placeholder:text-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
+                        className="w-full bg-zinc-900/50 border border-zinc-700 rounded-xl px-4 py-2.5 text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
                         placeholder="Ej. Chocolates, Caramelos..."
                         onKeyDown={e => e.key === 'Enter' && handleSave()}
                     />
@@ -373,14 +373,14 @@ function CategoryModal({ tenantId, editing, onClose, onSaved }: CategoryModalPro
                 <div className="flex gap-3">
                     <button
                         onClick={onClose}
-                        className="flex-1 py-3 font-semibold text-slate-300 bg-slate-700 hover:bg-slate-600 rounded-xl transition-colors"
+                        className="flex-1 py-3 font-semibold text-zinc-300 bg-zinc-700 hover:bg-zinc-600 rounded-xl transition-colors"
                     >
                         Cancelar
                     </button>
                     <button
                         onClick={handleSave}
                         disabled={saving || !name.trim() || uploading}
-                        className="flex-1 py-3 font-semibold text-white bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors"
+                        className="flex-1 py-3 font-semibold text-white bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors"
                     >
                         {saving ? 'Guardando...' : 'Guardar'}
                     </button>
@@ -390,7 +390,7 @@ function CategoryModal({ tenantId, editing, onClose, onSaved }: CategoryModalPro
     )
 }
 
-// ── Product Modal ────────────────────────────────────────────────────────────
+// â”€â”€ Product Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface ProductModalProps {
     tenantId: string
@@ -448,52 +448,52 @@ function StockEntryModal({ tenantId, products, onClose, onSaved }: StockEntryMod
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-slate-800 border border-slate-700 rounded-3xl w-full max-w-md p-6 shadow-2xl flex flex-col gap-5">
+            <div className="bg-zinc-800 border border-zinc-700 rounded-2xl w-full max-w-md p-6 shadow-2xl flex flex-col gap-5">
                 <div className="flex items-center justify-between">
                     <div>
                         <h2 className="text-xl font-bold text-white">Entrada de Productos</h2>
-                        <p className="text-sm text-slate-400 mt-0.5">Suma unidades al stock actual del inventario.</p>
+                        <p className="text-sm text-zinc-400 mt-0.5">Suma unidades al stock actual del inventario.</p>
                     </div>
-                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-colors">
+                    <button onClick={onClose} className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-xl transition-colors">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 <div>
-                    <label className="block text-sm font-semibold text-slate-300 mb-1.5">Producto</label>
+                    <label className="block text-sm font-semibold text-zinc-300 mb-1.5">Producto</label>
                     <select
                         value={productId}
                         onChange={(e) => setProductId(e.target.value)}
-                        className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-500 transition-colors"
+                        className="w-full bg-zinc-900/50 border border-zinc-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-violet-500 transition-colors"
                     >
                         {products.map((p) => (
-                            <option key={p.id} value={p.id}>{p.name} · {p.sku}</option>
+                            <option key={p.id} value={p.id}>{p.name} Â· {p.sku}</option>
                         ))}
                     </select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                     <div>
-                        <label className="block text-sm font-semibold text-slate-300 mb-1.5">Cantidad de entrada</label>
+                        <label className="block text-sm font-semibold text-zinc-300 mb-1.5">Cantidad de entrada</label>
                         <input
                             type="number"
                             min="1"
                             value={qty}
                             onChange={(e) => setQty(e.target.value)}
-                            className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white placeholder:text-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
+                            className="w-full bg-zinc-900/50 border border-zinc-700 rounded-xl px-4 py-2.5 text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
                             placeholder="1"
                         />
                     </div>
                     <div className="flex items-end">
-                        <div className="w-full bg-slate-900/40 border border-slate-700/50 rounded-xl px-4 py-2.5">
-                            <span className="text-xs text-slate-500 block mb-0.5">Stock actual</span>
-                            <span className="text-sm font-bold text-slate-200">{selectedProduct?.stock ?? 0}</span>
+                        <div className="w-full bg-zinc-900/40 border border-zinc-700/50 rounded-xl px-4 py-2.5">
+                            <span className="text-xs text-zinc-500 block mb-0.5">Stock actual</span>
+                            <span className="text-sm font-bold text-zinc-200">{selectedProduct?.stock ?? 0}</span>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-slate-900/40 border border-slate-700/50 rounded-xl px-4 py-3">
-                    <span className="text-xs text-slate-500 block mb-1">Nuevo stock proyectado</span>
+                <div className="bg-zinc-900/40 border border-zinc-700/50 rounded-xl px-4 py-3">
+                    <span className="text-xs text-zinc-500 block mb-1">Nuevo stock proyectado</span>
                     <span className="text-lg font-black text-green-400">
                         {(selectedProduct?.stock ?? 0) + Math.max(0, parseInt(qty, 10) || 0)}
                     </span>
@@ -502,7 +502,7 @@ function StockEntryModal({ tenantId, products, onClose, onSaved }: StockEntryMod
                 <div className="flex gap-3">
                     <button
                         onClick={onClose}
-                        className="flex-1 py-3 font-semibold text-slate-300 bg-slate-700 hover:bg-slate-600 rounded-xl transition-colors"
+                        className="flex-1 py-3 font-semibold text-zinc-300 bg-zinc-700 hover:bg-zinc-600 rounded-xl transition-colors"
                     >
                         Cancelar
                     </button>
@@ -566,7 +566,7 @@ function ProductModal({ tenantId, categories, editing, onClose, onSaved }: Produ
         if (!form.name.trim() || !form.sku.trim() || !form.categoryId) return
         const price = parseFloat(form.price)
         const cost = parseFloat(form.cost)
-        if (isNaN(price) || isNaN(cost)) { alert('Precio y costo deben ser números válidos.'); return }
+        if (isNaN(price) || isNaN(cost)) { alert('Precio y costo deben ser nÃºmeros vÃ¡lidos.'); return }
         setSaving(true)
         try {
             if (editing) {
@@ -605,20 +605,20 @@ function ProductModal({ tenantId, categories, editing, onClose, onSaved }: Produ
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-slate-800 border border-slate-700 rounded-3xl w-full max-w-lg p-6 shadow-2xl flex flex-col gap-5 max-h-[90vh] overflow-y-auto">
+            <div className="bg-zinc-800 border border-zinc-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl flex flex-col gap-5 max-h-[90vh] overflow-y-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
                         <h2 className="text-xl font-bold text-white">{editing ? 'Editar Producto' : 'Nuevo Producto'}</h2>
-                        <p className="text-sm text-slate-400 mt-0.5">{editing ? 'Modifica los datos del producto.' : 'Registra un nuevo producto en el inventario.'}</p>
+                        <p className="text-sm text-zinc-400 mt-0.5">{editing ? 'Modifica los datos del producto.' : 'Registra un nuevo producto en el inventario.'}</p>
                     </div>
-                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-colors">
+                    <button onClick={onClose} className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-xl transition-colors">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 {/* Image Upload */}
-                <label className="relative w-full h-32 rounded-2xl overflow-hidden border-2 border-dashed border-slate-600 hover:border-brand-500 transition-colors cursor-pointer group bg-slate-900/40 flex items-center justify-center shrink-0">
+                <label className="relative w-full h-32 rounded-2xl overflow-hidden border-2 border-dashed border-zinc-600 hover:border-violet-500 transition-colors cursor-pointer group bg-zinc-900/40 flex items-center justify-center shrink-0">
                     {form.imageUrl ? (
                         <>
                             <img src={form.imageUrl} className="absolute inset-0 w-full h-full object-cover" alt="preview" />
@@ -628,7 +628,7 @@ function ProductModal({ tenantId, categories, editing, onClose, onSaved }: Produ
                             </div>
                         </>
                     ) : (
-                        <div className="flex flex-col items-center gap-2 text-slate-500 group-hover:text-brand-400 transition-colors">
+                        <div className="flex flex-col items-center gap-2 text-zinc-500 group-hover:text-violet-400 transition-colors">
                             {uploading ? <Spinner /> : <><ImageIcon className="w-7 h-7" /><span className="text-sm font-medium">Subir foto del producto</span></>}
                         </div>
                     )}
@@ -653,34 +653,34 @@ function ProductModal({ tenantId, categories, editing, onClose, onSaved }: Produ
                 {/* Form Fields */}
                 <div className="grid grid-cols-2 gap-4">
                     <div className="col-span-2">
-                        <label className="block text-sm font-semibold text-slate-300 mb-1.5">Nombre del Producto</label>
+                        <label className="block text-sm font-semibold text-zinc-300 mb-1.5">Nombre del Producto</label>
                         <input
                             type="text"
                             value={form.name}
                             onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                            className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white placeholder:text-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
+                            className="w-full bg-zinc-900/50 border border-zinc-700 rounded-xl px-4 py-2.5 text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
                             placeholder="Ej. Chocolate Wonka Negro"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-semibold text-slate-300 mb-1.5">SKU</label>
+                        <label className="block text-sm font-semibold text-zinc-300 mb-1.5">SKU</label>
                         <input
                             type="text"
                             value={form.sku}
                             onChange={e => setForm(p => ({ ...p, sku: e.target.value.toUpperCase() }))}
                             disabled={!!editing}
-                            className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white placeholder:text-slate-500 focus:outline-none focus:border-brand-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-mono"
+                            className="w-full bg-zinc-900/50 border border-zinc-700 rounded-xl px-4 py-2.5 text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-mono"
                             placeholder="Ej. WONKA-001"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-semibold text-slate-300 mb-1.5">Categoría</label>
+                        <label className="block text-sm font-semibold text-zinc-300 mb-1.5">CategorÃ­a</label>
                         <select
                             value={form.categoryId}
                             onChange={e => setForm(p => ({ ...p, categoryId: e.target.value }))}
-                            className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-500 transition-colors"
+                            className="w-full bg-zinc-900/50 border border-zinc-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-violet-500 transition-colors"
                         >
                             {categories.map(c => (
                                 <option key={c.id} value={c.id}>{c.name}</option>
@@ -689,55 +689,54 @@ function ProductModal({ tenantId, categories, editing, onClose, onSaved }: Produ
                     </div>
 
                     <div>
-                        <label className="block text-sm font-semibold text-slate-300 mb-1.5">Precio de Venta (S/)</label>
+                        <label className="block text-sm font-semibold text-zinc-300 mb-1.5">Precio de Venta (S/)</label>
                         <input
                             type="number"
                             min="0"
                             value={form.price}
                             onChange={e => setForm(p => ({ ...p, price: e.target.value }))}
-                            className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white placeholder:text-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
+                            className="w-full bg-zinc-900/50 border border-zinc-700 rounded-xl px-4 py-2.5 text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
                             placeholder="0"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-semibold text-slate-300 mb-1.5">Costo Unitario (S/)</label>
+                        <label className="block text-sm font-semibold text-zinc-300 mb-1.5">Costo Unitario (S/)</label>
                         <input
                             type="number"
                             min="0"
                             value={form.cost}
                             onChange={e => setForm(p => ({ ...p, cost: e.target.value }))}
-                            className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white placeholder:text-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
+                            className="w-full bg-zinc-900/50 border border-zinc-700 rounded-xl px-4 py-2.5 text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
                             placeholder="0"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-semibold text-slate-300 mb-1.5">Stock Inicial</label>
+                        <label className="block text-sm font-semibold text-zinc-300 mb-1.5">Stock Inicial</label>
                         <input
                             type="number"
                             min="0"
                             value={form.stock}
                             onChange={e => setForm(p => ({ ...p, stock: e.target.value }))}
-                            className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white placeholder:text-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
+                            className="w-full bg-zinc-900/50 border border-zinc-700 rounded-xl px-4 py-2.5 text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
                             placeholder="0"
                         />
                     </div>
 
                     {/* Margin preview */}
                     <div className="flex items-end pb-1">
-                        <div className="w-full bg-slate-900/40 border border-slate-700/50 rounded-xl px-4 py-2.5">
-                            <span className="text-xs text-slate-500 block mb-0.5">Margen estimado</span>
-                            <span className={`text-sm font-bold ${
-                                parseFloat(form.price) > 0 && parseFloat(form.cost) >= 0
+                        <div className="w-full bg-zinc-900/40 border border-zinc-700/50 rounded-xl px-4 py-2.5">
+                            <span className="text-xs text-zinc-500 block mb-0.5">Margen estimado</span>
+                            <span className={`text-sm font-bold ${parseFloat(form.price) > 0 && parseFloat(form.cost) >= 0
                                     ? ((parseFloat(form.price) - parseFloat(form.cost)) / parseFloat(form.price) * 100) >= 20
                                         ? 'text-green-400'
                                         : 'text-amber-400'
-                                    : 'text-slate-500'
-                            }`}>
+                                    : 'text-zinc-500'
+                                }`}>
                                 {parseFloat(form.price) > 0 && !isNaN(parseFloat(form.cost))
                                     ? `${(((parseFloat(form.price) - parseFloat(form.cost)) / parseFloat(form.price)) * 100).toFixed(1)}%`
-                                    : '—'
+                                    : 'â€”'
                                 }
                             </span>
                         </div>
@@ -746,15 +745,15 @@ function ProductModal({ tenantId, categories, editing, onClose, onSaved }: Produ
 
                 {/* Active toggle (edit only) */}
                 {editing && (
-                    <div className="flex items-center gap-3 bg-slate-900/30 rounded-xl px-4 py-3 border border-slate-700/50">
+                    <div className="flex items-center gap-3 bg-zinc-900/30 rounded-xl px-4 py-3 border border-zinc-700/50">
                         <button
                             type="button"
                             onClick={() => setForm(p => ({ ...p, isActive: !p.isActive }))}
-                            className={`w-11 h-6 rounded-full transition-colors relative ${form.isActive ? 'bg-brand-600' : 'bg-slate-600'}`}
+                            className={`w-11 h-6 rounded-full transition-colors relative ${form.isActive ? 'bg-violet-600' : 'bg-zinc-600'}`}
                         >
                             <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${form.isActive ? 'translate-x-5' : 'translate-x-0'}`} />
                         </button>
-                        <span className="text-sm font-medium text-slate-300">
+                        <span className="text-sm font-medium text-zinc-300">
                             {form.isActive ? 'Producto activo (visible en POS)' : 'Producto inactivo (oculto en POS)'}
                         </span>
                     </div>
@@ -764,14 +763,14 @@ function ProductModal({ tenantId, categories, editing, onClose, onSaved }: Produ
                 <div className="flex gap-3">
                     <button
                         onClick={onClose}
-                        className="flex-1 py-3 font-semibold text-slate-300 bg-slate-700 hover:bg-slate-600 rounded-xl transition-colors"
+                        className="flex-1 py-3 font-semibold text-zinc-300 bg-zinc-700 hover:bg-zinc-600 rounded-xl transition-colors"
                     >
                         Cancelar
                     </button>
                     <button
                         onClick={handleSave}
                         disabled={saving || !form.name.trim() || !form.sku.trim() || !form.categoryId || uploading}
-                        className="flex-1 py-3 font-semibold text-white bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors"
+                        className="flex-1 py-3 font-semibold text-white bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors"
                     >
                         {saving ? 'Guardando...' : editing ? 'Actualizar Producto' : 'Crear Producto'}
                     </button>
@@ -781,7 +780,7 @@ function ProductModal({ tenantId, categories, editing, onClose, onSaved }: Produ
     )
 }
 
-// ── Main Screen ──────────────────────────────────────────────────────────────
+// â”€â”€ Main Screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function InventoryScreen() {
     const { tenantId } = useAuthStore()
@@ -833,13 +832,13 @@ export function InventoryScreen() {
     )
 
     return (
-        <div className="min-h-screen bg-surface-900 text-slate-200 flex flex-col">
+        <div className="min-h-screen bg-surface-900 text-zinc-200 flex flex-col">
             {/* Header */}
-            <header className="px-6 py-4 bg-slate-800/80 border-b border-white/5 shadow-md flex items-center justify-between shrink-0 rounded-sm">
+            <header className="px-6 py-4 bg-zinc-800/80 border-b border-white/5 shadow-md flex items-center justify-between shrink-0 rounded-sm">
                 <div className="flex items-center gap-4">
                     <div>
                         <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-                            <Package className="w-5 h-5 text-brand-400" /> Inventario
+                            <Package className="w-5 h-5 text-violet-400" /> Inventario
                         </h1>
                     </div>
                 </div>
@@ -849,7 +848,7 @@ export function InventoryScreen() {
                             onClick={() => setCatModal({ open: true, editing: null })}
                             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl font-medium text-white transition-all active:scale-95"
                         >
-                            <Plus className="w-4 h-4" /> Nueva Categoría
+                            <Plus className="w-4 h-4" /> Nueva CategorÃ­a
                         </button>
                     )}
                     {activeTab === 'productos' && (
@@ -865,8 +864,8 @@ export function InventoryScreen() {
                             <button
                                 onClick={() => setProdModal({ open: true, editing: null })}
                                 disabled={categories.length === 0}
-                                className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-medium text-white transition-all active:scale-95"
-                                title={categories.length === 0 ? 'Crea al menos una categoría primero' : ''}
+                                className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-medium text-white transition-all active:scale-95"
+                                title={categories.length === 0 ? 'Crea al menos una categorÃ­a primero' : ''}
                             >
                                 <Plus className="w-4 h-4" /> Nuevo Producto
                             </button>
@@ -877,47 +876,47 @@ export function InventoryScreen() {
 
             {/* Tabs + Search */}
             <div className="px-6 pt-5 pb-0 shrink-0 flex items-center justify-between gap-4 flex-wrap">
-                <div className="flex space-x-2 bg-slate-800/50 p-1.5 rounded-xl w-fit border border-slate-700/50">
+                <div className="flex space-x-2 bg-zinc-800/50 p-1.5 rounded-xl w-fit border border-zinc-700/50">
                     <button
                         onClick={() => setActiveTab('productos')}
-                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'productos' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'}`}
+                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'productos' ? 'bg-violet-600 text-white shadow' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50'}`}
                     >
                         <Package className="w-4 h-4" /> Productos
                         <span className="text-xs bg-white/10 px-1.5 py-0.5 rounded-full">{products.length}</span>
                     </button>
                     <button
                         onClick={() => setActiveTab('categorias')}
-                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'categorias' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'}`}
+                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'categorias' ? 'bg-blue-600 text-white shadow' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50'}`}
                     >
-                        <Layers className="w-4 h-4" /> Categorías
+                        <Layers className="w-4 h-4" /> Categorias
                         <span className="text-xs bg-white/10 px-1.5 py-0.5 rounded-full">{categories.length}</span>
                     </button>
                 </div>
 
                 <div className="relative flex-1 max-w-sm">
-                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                     <input
                         type="text"
-                        placeholder={activeTab === 'productos' ? 'Buscar por nombre, SKU o categoría...' : 'Buscar categoría...'}
+                        placeholder={activeTab === 'productos' ? 'Buscar por nombre, SKU o categorÃ­a...' : 'Buscar categorÃ­a...'}
                         value={search}
                         onChange={e => setSearch(e.target.value)}
-                        className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-4 py-2.5 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm"
+                        className="w-full bg-zinc-800 border border-zinc-700 rounded-xl pl-9 pr-4 py-2.5 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm"
                     />
                 </div>
             </div>
 
             {/* Content */}
             <main className="flex-1 p-6 flex flex-col gap-4 overflow-hidden">
-                {/* ── PRODUCTOS TAB ── */}
+                {/* â”€â”€ PRODUCTOS TAB â”€â”€ */}
                 {activeTab === 'productos' && (
-                    <div className="flex-1 bg-slate-800/40 border border-white/5 rounded-2xl overflow-hidden flex flex-col">
+                    <div className="flex-1 bg-zinc-800/40 border border-white/5 rounded-2xl overflow-hidden flex flex-col">
                         <div className="overflow-x-auto flex-1">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="bg-slate-800/80 text-slate-400 text-xs border-b border-white/5 uppercase tracking-wider">
+                                    <tr className="bg-zinc-800/80 text-zinc-400 text-xs border-b border-white/5 uppercase tracking-wider">
                                         <th className="px-4 py-3 font-semibold">Producto</th>
                                         <th className="px-4 py-3 font-semibold">SKU</th>
-                                        <th className="px-4 py-3 font-semibold">Categoría</th>
+                                        <th className="px-4 py-3 font-semibold">CategorÃ­a</th>
                                         <th className="px-4 py-3 font-semibold text-right">Precio</th>
                                         <th className="px-4 py-3 font-semibold text-right">Costo</th>
                                         <th className="px-4 py-3 font-semibold text-right">Margen</th>
@@ -930,8 +929,8 @@ export function InventoryScreen() {
                                     {loading ? (
                                         <tr>
                                             <td colSpan={9} className="p-12 text-center">
-                                                <div className="flex flex-col items-center gap-3 text-slate-400">
-                                                    <div className="w-8 h-8 border-2 border-slate-600 border-t-brand-400 rounded-full animate-spin" />
+                                                <div className="flex flex-col items-center gap-3 text-zinc-400">
+                                                    <div className="w-8 h-8 border-2 border-zinc-600 border-t-brand-400 rounded-full animate-spin" />
                                                     Cargando productos...
                                                 </div>
                                             </td>
@@ -939,9 +938,9 @@ export function InventoryScreen() {
                                     ) : filteredProducts.length === 0 ? (
                                         <tr>
                                             <td colSpan={9} className="p-12 text-center">
-                                                <div className="flex flex-col items-center gap-3 text-slate-500">
+                                                <div className="flex flex-col items-center gap-3 text-zinc-500">
                                                     <Package className="w-10 h-10 opacity-30" />
-                                                    <p className="text-sm">{search ? 'No se encontraron productos con ese filtro.' : 'No hay productos registrados. ¡Crea el primero!'}</p>
+                                                    <p className="text-sm">{search ? 'No se encontraron productos con ese filtro.' : 'No hay productos registrados. Â¡Crea el primero!'}</p>
                                                 </div>
                                             </td>
                                         </tr>
@@ -949,28 +948,28 @@ export function InventoryScreen() {
                                         filteredProducts.map(p => {
                                             const margin = p.price > 0 ? ((p.price - p.cost) / p.price) * 100 : 0
                                             return (
-                                                <tr key={p.id} className="hover:bg-slate-800/40 transition-colors">
+                                                <tr key={p.id} className="hover:bg-zinc-800/40 transition-colors">
                                                     {/* Product name + image */}
                                                     <td className="px-4 py-3">
                                                         <div className="flex items-center gap-3">
-                                                            <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-700 border border-slate-600 shrink-0">
+                                                            <div className="w-10 h-10 rounded-xl overflow-hidden bg-zinc-700 border border-zinc-600 shrink-0">
                                                                 {p.imageUrl ? (
                                                                     <img src={p.imageUrl} className="w-full h-full object-cover" alt={p.name} />
                                                                 ) : (
                                                                     <div className="w-full h-full flex items-center justify-center">
-                                                                        <Package className="w-4 h-4 text-slate-500" />
+                                                                        <Package className="w-4 h-4 text-zinc-500" />
                                                                     </div>
                                                                 )}
                                                             </div>
                                                             <span className="text-sm font-medium text-white">{p.name}</span>
                                                         </div>
                                                     </td>
-                                                    <td className="px-4 py-3 text-sm font-mono text-slate-400">{p.sku}</td>
+                                                    <td className="px-4 py-3 text-sm font-mono text-zinc-400">{p.sku}</td>
                                                     <td className="px-4 py-3">
-                                                        <span className="bg-slate-700/60 px-2.5 py-1 rounded-full text-xs font-medium text-slate-300">{p.category.name}</span>
+                                                        <span className="bg-zinc-700/60 px-2.5 py-1 rounded-full text-xs font-medium text-zinc-300">{p.category.name}</span>
                                                     </td>
                                                     <td className="px-4 py-3 text-sm text-green-400 font-bold text-right">{formatCurrency(p.price)}</td>
-                                                    <td className="px-4 py-3 text-sm text-slate-400 text-right">{formatCurrency(p.cost)}</td>
+                                                    <td className="px-4 py-3 text-sm text-zinc-400 text-right">{formatCurrency(p.cost)}</td>
                                                     <td className="px-4 py-3 text-right">
                                                         <span className={`text-xs font-bold ${margin >= 30 ? 'text-green-400' : margin >= 15 ? 'text-amber-400' : 'text-red-400'}`}>
                                                             {margin.toFixed(1)}%
@@ -985,13 +984,13 @@ export function InventoryScreen() {
                                                         {p.isActive ? (
                                                             <CheckCircle className="w-4 h-4 text-green-400 inline-block drop-shadow-[0_0_6px_rgba(74,222,128,0.5)]" />
                                                         ) : (
-                                                            <XCircle className="w-4 h-4 text-slate-500 inline-block" />
+                                                            <XCircle className="w-4 h-4 text-zinc-500 inline-block" />
                                                         )}
                                                     </td>
                                                     <td className="px-4 py-3 text-right">
                                                         <button
                                                             onClick={() => setProdModal({ open: true, editing: p })}
-                                                            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+                                                            className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-lg transition-colors"
                                                             title="Editar"
                                                         >
                                                             <Edit2 className="w-4 h-4" />
@@ -1007,26 +1006,26 @@ export function InventoryScreen() {
                     </div>
                 )}
 
-                {/* ── CATEGORÍAS TAB ── */}
+                {/* â”€â”€ CATEGORÃAS TAB â”€â”€ */}
                 {activeTab === 'categorias' && (
                     loading ? (
                         <div className="flex-1 flex items-center justify-center">
-                            <div className="flex flex-col items-center gap-3 text-slate-400">
-                                <div className="w-8 h-8 border-2 border-slate-600 border-t-blue-400 rounded-full animate-spin" />
-                                Cargando categorías...
+                            <div className="flex flex-col items-center gap-3 text-zinc-400">
+                                <div className="w-8 h-8 border-2 border-zinc-600 border-t-blue-400 rounded-full animate-spin" />
+                                Cargando categorias...
                             </div>
                         </div>
                     ) : filteredCategories.length === 0 ? (
                         <div className="flex-1 flex items-center justify-center">
-                            <div className="flex flex-col items-center gap-4 text-slate-500">
+                            <div className="flex flex-col items-center gap-4 text-zinc-500">
                                 <Layers className="w-14 h-14 opacity-20" />
-                                <p className="text-base font-medium">{search ? 'Sin resultados para esa búsqueda.' : 'No hay categorías aún.'}</p>
+                                <p className="text-base font-medium">{search ? 'Sin resultados para esa bÃºsqueda.' : 'No hay categorias aÃºn.'}</p>
                                 {!search && (
                                     <button
                                         onClick={() => setCatModal({ open: true, editing: null })}
                                         className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl font-semibold text-white transition-all active:scale-95"
                                     >
-                                        <Plus className="w-4 h-4" /> Crear primera categoría
+                                        <Plus className="w-4 h-4" /> Crear primera categorÃ­a
                                     </button>
                                 )}
                             </div>
@@ -1038,10 +1037,10 @@ export function InventoryScreen() {
                                 return (
                                     <div
                                         key={cat.id}
-                                        className="group relative bg-slate-800/60 border border-white/5 rounded-2xl overflow-hidden hover:border-blue-500/30 hover:shadow-xl hover:shadow-blue-500/5 transition-all"
+                                        className="group relative bg-zinc-800/60 border border-white/5 rounded-2xl overflow-hidden hover:border-blue-500/30 hover:shadow-xl hover:shadow-blue-500/5 transition-all"
                                     >
                                         {/* Image */}
-                                        <div className="aspect-square w-full bg-slate-700/50 overflow-hidden">
+                                        <div className="aspect-square w-full bg-zinc-700/50 overflow-hidden">
                                             {cat.imageUrl ? (
                                                 <img
                                                     src={cat.imageUrl}
@@ -1050,20 +1049,20 @@ export function InventoryScreen() {
                                                 />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-700 to-slate-800">
-                                                    <Layers className="w-10 h-10 text-slate-500 opacity-50" />
+                                                    <Layers className="w-10 h-10 text-zinc-500 opacity-50" />
                                                 </div>
                                             )}
                                         </div>
                                         {/* Info */}
                                         <div className="p-3">
                                             <p className="text-sm font-bold text-white truncate">{cat.name}</p>
-                                            <p className="text-xs text-slate-500 mt-0.5">{count} {count === 1 ? 'producto' : 'productos'}</p>
+                                            <p className="text-xs text-zinc-500 mt-0.5">{count} {count === 1 ? 'producto' : 'productos'}</p>
                                         </div>
                                         {/* Edit button */}
                                         <button
                                             onClick={() => setCatModal({ open: true, editing: cat })}
-                                            className="absolute top-2 right-2 p-1.5 bg-slate-900/80 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                                            title="Editar categoría"
+                                            className="absolute top-2 right-2 p-1.5 bg-zinc-900/80 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                                            title="Editar categorÃ­a"
                                         >
                                             <Edit2 className="w-3.5 h-3.5" />
                                         </button>
@@ -1109,3 +1108,4 @@ export function InventoryScreen() {
         </div>
     )
 }
+

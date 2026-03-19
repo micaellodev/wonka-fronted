@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
@@ -170,10 +170,10 @@ export function CashCloseHistoryScreen() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-slate-300" />
+              <TrendingUp className="w-4 h-4 text-zinc-300" />
               Historial Detallado
             </CardTitle>
-            <CardDescription>Récord de cada cierre de caja por día</CardDescription>
+            <CardDescription>RÃ©cord de cada cierre de caja por dÃ­a</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -242,3 +242,4 @@ export function CashCloseHistoryScreen() {
     </div>
   )
 }
+
