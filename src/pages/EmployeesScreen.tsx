@@ -316,7 +316,7 @@ export function EmployeesScreen() {
                         className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'historial' ? 'bg-violet-600 text-white shadow' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50'
                             }`}
                     >
-                        <BarChart2 className="w-4 h-4" /> Historial y MÃ©tricas
+                        <BarChart2 className="w-4 h-4" /> Historial y Metricas
                     </button>
                 </div>
 
@@ -553,7 +553,7 @@ export function EmployeesScreen() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-semibold text-zinc-300 mb-1 ml-1">Rol u OcupaciÃ³n</label>
+                                <label className="block text-sm font-semibold text-zinc-300 mb-1 ml-1">Rol u Ocupacion</label>
                                 <select
                                     value={formData.roleId}
                                     onChange={e => setFormData({ ...formData, roleId: e.target.value })}
@@ -566,14 +566,14 @@ export function EmployeesScreen() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-semibold text-zinc-300 mb-1 ml-1">PIN de Acceso (5 dÃ­gitos)</label>
+                                <label className="block text-sm font-semibold text-zinc-300 mb-1 ml-1">PIN de Acceso (5 digitos)</label>
                                 <input
                                     type="text"
                                     maxLength={5}
                                     value={formData.pin}
                                     onChange={e => setFormData({ ...formData, pin: e.target.value.replace(/\D/g, '') })}
                                     className="w-full bg-zinc-900/50 border border-zinc-700 rounded-xl px-4 py-2.5 text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
-                                    placeholder={editingWorker ? "En blanco si no desea cambiarlo" : "MÃ¡ximo 5 dÃ­gitos"}
+                                    placeholder={editingWorker ? "En blanco si no desea cambiarlo" : "MÃ¡ximo 5 digitos"}
                                 />
                             </div>
 

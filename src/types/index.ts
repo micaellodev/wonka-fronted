@@ -57,6 +57,7 @@ export interface Product {
     price: number
     cost: number
     stock: number
+    trackStock: boolean
     isActive: boolean
     createdAt: string
     category: Pick<Category, 'id' | 'name'>

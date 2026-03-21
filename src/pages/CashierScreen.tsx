@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
@@ -211,7 +211,7 @@ export function CashierScreen() {
             <main className="flex-1 p-6 flex flex-col gap-4 overflow-y-auto">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <MetricCard
-                        label="Apertura del dÃ­a"
+                        label="Apertura del dia"
                         value={formatCurrency(openingBalance || 0)}
                         icon={<Banknote className="w-5 h-5 text-emerald-300" />}
                     />
@@ -226,7 +226,7 @@ export function CashierScreen() {
                         icon={<Banknote className="w-5 h-5 text-cyan-300" />}
                     />
                     <MetricCard
-                        label="Prom. tiempo/niÃ±o"
+                        label="Prom. tiempo/niño"
                         value={formatMinutes(playzoneSummary?.averageMinutesPerChild ?? 0)}
                         icon={<Users className="w-5 h-5 text-cyan-300" />}
                     />
@@ -234,7 +234,7 @@ export function CashierScreen() {
 
                 {todayEfectivoSales === 0 && (
                     <div className="rounded-lg border border-amber-700/50 bg-amber-900/20 px-4 py-3 text-sm text-amber-200">
-                        Sin ventas en efectivo registradas hoy. Se contarÃ¡ solo la apertura.
+                        Sin ventas en efectivo registradas hoy. Se contara solo la apertura.
                     </div>
                 )}
 
@@ -245,7 +245,7 @@ export function CashierScreen() {
                                 <Calculator className="w-4 h-4 text-amber-300" />
                                 Arqueo de Efectivo
                             </CardTitle>
-                            <CardDescription>Verifica el efectivo fÃ­sico en la caja</CardDescription>
+                            <CardDescription>Verifica el efectivo fisico en la caja</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="rounded-xl border border-zinc-700 bg-zinc-950 p-4 space-y-4">
@@ -299,7 +299,7 @@ export function CashierScreen() {
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-sm font-semibold text-zinc-300">Efectivo contado (fÃ­sica en caja)</label>
+                                <label className="text-sm font-semibold text-zinc-300">Efectivo contado (fisico en caja)</label>
                                 <input
                                     type="number"
                                     value={countedCash}
@@ -378,12 +378,12 @@ export function CashierScreen() {
                                 <Activity className="w-4 h-4 text-cyan-300" />
                                 Zona de Juegos
                             </CardTitle>
-                            <CardDescription>Impacto del Ã¡rea infantil</CardDescription>
+                            <CardDescription>Impacto del Area infantil</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-3">
                             <StatRow label="Sesiones activas" value={String(playzoneSummary?.activeSessions ?? 0)} />
                             <StatRow label="Sesiones completadas" value={String(playzoneSummary?.completedSessions ?? 0)} />
-                            <StatRow label="NiÃ±os atendidos" value={String(playzoneSummary?.uniqueChildren ?? 0)} />
+                            <StatRow label="Niños atendidos" value={String(playzoneSummary?.uniqueChildren ?? 0)} />
                             <StatRow label="Promedio/sesiÃ³n" value={formatMinutes(playzoneSummary?.averageMinutesPerSession ?? 0)} />
                             <StatRow label="Minutos extra" value={formatMinutes(playzoneSummary?.totalOvertimeMinutes ?? 0)} />
                             <div className="pt-2">
@@ -459,7 +459,7 @@ function CashCloseHistory({ onBack }: { onBack: () => void }) {
                     <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
                         <History className="w-5 h-5 text-blue-400" /> Historial de Cierres
                     </h1>
-                    <p className="text-xs text-zinc-500 uppercase tracking-widest">Ãšltimos 30 dÃ­as</p>
+                    <p className="text-xs text-zinc-500 uppercase tracking-widest">Ultimos 30 dias</p>
                 </div>
             </header>
 
@@ -478,7 +478,7 @@ function CashCloseHistory({ onBack }: { onBack: () => void }) {
                             <Card key={i}>
                                 <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
                                     <div>
-                                        <CardTitle>{close.closedDate}</CardTitle>
+                                        <CardTitle>{new Date(close.closedDate).toLocaleDateString('es-PE', { year: 'numeric', month: 'short', day: '2-digit' })}</CardTitle>
                                         <CardDescription>{close.worker.name}</CardDescription>
                                     </div>
                                     <Badge variant={close.difference === 0 ? "success" : "outline"}>

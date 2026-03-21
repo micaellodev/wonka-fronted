@@ -12,6 +12,7 @@ import { CashierScreen } from '@/pages/CashierScreen'
 import { CashCloseHistoryScreen } from '@/pages/CashCloseHistoryScreen'
 import { PlayZoneScreen } from '@/pages/PlayZoneScreen'
 import { SplashScreen } from '@/pages/Splash'
+import { BillingNotesScreen } from '@/pages/BillingNotesScreen'
 import { CashDrawerGuard } from '@/components/CashDrawerGuard'
 import { useAuthStore } from '@/store/authStore'
 import { useAdminStore } from '@/store/adminStore'
@@ -68,6 +69,7 @@ export default function App() {
         <Route path="/admin/cashier" element={<AdminGuard><CashierScreen /></AdminGuard>} />
         <Route path="/admin/cash-history" element={<AdminGuard><CashCloseHistoryScreen /></AdminGuard>} />
         <Route path="/admin/playzone" element={<WorkerGuard><PlayZoneScreen /></WorkerGuard>} />
+        <Route path="/admin/billing-notes" element={<AdminGuard><BillingNotesScreen /></AdminGuard>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

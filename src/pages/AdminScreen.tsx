@@ -3,7 +3,7 @@
 // ============================================================
 
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Users, Package, BarChart2, Banknote, Timer, Calendar } from 'lucide-react'
+import { LogOut, Users, Package, BarChart2, Banknote, Timer, Calendar, Receipt } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 
 export function AdminScreen() {
@@ -114,6 +114,17 @@ export function AdminScreen() {
                         <div>
                             <h3 className="text-lg font-bold text-white">Historial de Arqueos</h3>
                             <p className="text-sm text-slate-400 mt-1">Consulta todos los cierres diarios de caja.</p>
+                        </div>
+                    </div>
+
+                    {/* Notas C/D */}
+                    <div onClick={() => navigate('/admin/billing-notes')} className="group flex flex-col gap-3 p-6 rounded-3xl bg-slate-800/40 border border-white/5 hover:bg-slate-800/60 hover:border-pink-500/30 transition-all cursor-pointer">
+                        <div className="p-3 w-fit rounded-2xl bg-pink-500/10 text-pink-400 group-hover:scale-110 group-hover:bg-pink-500/20 transition-all">
+                            <Receipt className="w-8 h-8" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-white">Notas C/D</h3>
+                            <p className="text-sm text-slate-400 mt-1">Generar Notas de Crédito y Débito manuales.</p>
                         </div>
                     </div>
                 </div>

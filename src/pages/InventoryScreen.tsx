@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import {
     Package, Plus, Search, Edit2, Layers, Upload, X, ImageIcon, CheckCircle, XCircle,
     ZoomIn, ZoomOut, RotateCw, Crop
@@ -303,7 +303,7 @@ function CategoryModal({ tenantId, editing, onClose, onSaved }: CategoryModalPro
             }
             onSaved()
         } catch {
-            alert('Error guardando la categorÃ­a.')
+            alert('Error guardando la categoria.')
         } finally {
             setSaving(false)
         }
@@ -315,8 +315,8 @@ function CategoryModal({ tenantId, editing, onClose, onSaved }: CategoryModalPro
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h2 className="text-xl font-bold text-white">{editing ? 'Editar CategorÃ­a' : 'Nueva CategorÃ­a'}</h2>
-                        <p className="text-sm text-zinc-400 mt-0.5">{editing ? 'Modifica nombre o imagen.' : 'Crea una nueva categorÃ­a de productos.'}</p>
+                        <h2 className="text-xl font-bold text-white">{editing ? 'Editar Categoria' : 'Nueva Categoria'}</h2>
+                        <p className="text-sm text-zinc-400 mt-0.5">{editing ? 'Modifica nombre o imagen.' : 'Crea una nueva categoria de productos.'}</p>
                     </div>
                     <button onClick={onClose} className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-xl transition-colors">
                         <X className="w-5 h-5" />
@@ -335,7 +335,7 @@ function CategoryModal({ tenantId, editing, onClose, onSaved }: CategoryModalPro
                         </>
                     ) : (
                         <div className="flex flex-col items-center gap-2 text-zinc-500 group-hover:text-violet-400 transition-colors">
-                            {uploading ? <Spinner /> : <><ImageIcon className="w-8 h-8" /><span className="text-sm font-medium">Subir imagen de categorÃ­a</span></>}
+                            {uploading ? <Spinner /> : <><ImageIcon className="w-8 h-8" /><span className="text-sm font-medium">Subir imagen de categoria</span></>}
                         </div>
                     )}
                     {uploading && (
@@ -358,7 +358,7 @@ function CategoryModal({ tenantId, editing, onClose, onSaved }: CategoryModalPro
 
                 {/* Name Field */}
                 <div>
-                    <label className="block text-sm font-semibold text-zinc-300 mb-1.5">Nombre de la CategorÃ­a</label>
+                    <label className="block text-sm font-semibold text-zinc-300 mb-1.5">Nombre de la Categoria</label>
                     <input
                         type="text"
                         value={name}
@@ -528,6 +528,7 @@ function ProductModal({ tenantId, categories, editing, onClose, onSaved }: Produ
         price: editing?.price?.toString() ?? '',
         cost: editing?.cost?.toString() ?? '',
         stock: editing?.stock?.toString() ?? '0',
+        trackStock: editing?.trackStock ?? true,
         isActive: editing?.isActive ?? true,
     })
     const [uploading, setUploading] = useState(false)
@@ -579,6 +580,7 @@ function ProductModal({ tenantId, categories, editing, onClose, onSaved }: Produ
                         price,
                         cost,
                         stock: parseInt(form.stock) || 0,
+                        trackStock: form.trackStock,
                         isActive: form.isActive,
                     } as any,
                     { query: { tenantId } } as any
@@ -593,6 +595,7 @@ function ProductModal({ tenantId, categories, editing, onClose, onSaved }: Produ
                     price,
                     cost,
                     stock: parseInt(form.stock) || 0,
+                    trackStock: form.trackStock,
                 } as any)
             }
             onSaved()
@@ -676,7 +679,7 @@ function ProductModal({ tenantId, categories, editing, onClose, onSaved }: Produ
                     </div>
 
                     <div>
-                        <label className="block text-sm font-semibold text-zinc-300 mb-1.5">CategorÃ­a</label>
+                        <label className="block text-sm font-semibold text-zinc-300 mb-1.5">Categoria</label>
                         <select
                             value={form.categoryId}
                             onChange={e => setForm(p => ({ ...p, categoryId: e.target.value }))}
@@ -712,31 +715,49 @@ function ProductModal({ tenantId, categories, editing, onClose, onSaved }: Produ
                         />
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-semibold text-zinc-300 mb-1.5">Stock Inicial</label>
-                        <input
-                            type="number"
-                            min="0"
-                            value={form.stock}
-                            onChange={e => setForm(p => ({ ...p, stock: e.target.value }))}
-                            className="w-full bg-zinc-900/50 border border-zinc-700 rounded-xl px-4 py-2.5 text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
-                            placeholder="0"
-                        />
+                    <div className="flex flex-col gap-2 justify-center mt-2">
+                        <label className="block text-sm font-semibold text-zinc-300">Control de Stock</label>
+                        <div className="flex items-center gap-3 bg-zinc-900/30 rounded-xl px-4 py-2 border border-zinc-700/50">
+                            <button
+                                type="button"
+                                onClick={() => setForm(p => ({ ...p, trackStock: !p.trackStock }))}
+                                className={`w-11 h-6 rounded-full transition-colors relative shrink-0 ${form.trackStock ? 'bg-violet-600' : 'bg-zinc-600'}`}
+                            >
+                                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${form.trackStock ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
+                            <span className="text-sm font-medium text-zinc-300 leading-tight">
+                                {form.trackStock ? 'Con stock' : 'Sin stock'}
+                            </span>
+                        </div>
                     </div>
+
+                    {form.trackStock && (
+                        <div>
+                            <label className="block text-sm font-semibold text-zinc-300 mb-1.5">Stock Inicial</label>
+                            <input
+                                type="number"
+                                min="0"
+                                value={form.stock}
+                                onChange={e => setForm(p => ({ ...p, stock: e.target.value }))}
+                                className="w-full bg-zinc-900/50 border border-zinc-700 rounded-xl px-4 py-2.5 text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
+                                placeholder="0"
+                            />
+                        </div>
+                    )}
 
                     {/* Margin preview */}
                     <div className="flex items-end pb-1">
                         <div className="w-full bg-zinc-900/40 border border-zinc-700/50 rounded-xl px-4 py-2.5">
                             <span className="text-xs text-zinc-500 block mb-0.5">Margen estimado</span>
                             <span className={`text-sm font-bold ${parseFloat(form.price) > 0 && parseFloat(form.cost) >= 0
-                                    ? ((parseFloat(form.price) - parseFloat(form.cost)) / parseFloat(form.price) * 100) >= 20
-                                        ? 'text-green-400'
-                                        : 'text-amber-400'
-                                    : 'text-zinc-500'
+                                ? ((parseFloat(form.price) - parseFloat(form.cost)) / parseFloat(form.price) * 100) >= 20
+                                    ? 'text-green-400'
+                                    : 'text-amber-400'
+                                : 'text-zinc-500'
                                 }`}>
                                 {parseFloat(form.price) > 0 && !isNaN(parseFloat(form.cost))
                                     ? `${(((parseFloat(form.price) - parseFloat(form.cost)) / parseFloat(form.price)) * 100).toFixed(1)}%`
-                                    : 'â€”'
+                                    : '0%'
                                 }
                             </span>
                         </div>
@@ -848,7 +869,7 @@ export function InventoryScreen() {
                             onClick={() => setCatModal({ open: true, editing: null })}
                             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl font-medium text-white transition-all active:scale-95"
                         >
-                            <Plus className="w-4 h-4" /> Nueva CategorÃ­a
+                            <Plus className="w-4 h-4" /> Nueva Categoria
                         </button>
                     )}
                     {activeTab === 'productos' && (
@@ -865,7 +886,7 @@ export function InventoryScreen() {
                                 onClick={() => setProdModal({ open: true, editing: null })}
                                 disabled={categories.length === 0}
                                 className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-medium text-white transition-all active:scale-95"
-                                title={categories.length === 0 ? 'Crea al menos una categorÃ­a primero' : ''}
+                                title={categories.length === 0 ? 'Crea al menos una categoria primero' : ''}
                             >
                                 <Plus className="w-4 h-4" /> Nuevo Producto
                             </button>
@@ -897,7 +918,7 @@ export function InventoryScreen() {
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                     <input
                         type="text"
-                        placeholder={activeTab === 'productos' ? 'Buscar por nombre, SKU o categorÃ­a...' : 'Buscar categorÃ­a...'}
+                        placeholder={activeTab === 'productos' ? 'Buscar por nombre, SKU o categoria...' : 'Buscar categoria...'}
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                         className="w-full bg-zinc-800 border border-zinc-700 rounded-xl pl-9 pr-4 py-2.5 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm"
@@ -916,7 +937,7 @@ export function InventoryScreen() {
                                     <tr className="bg-zinc-800/80 text-zinc-400 text-xs border-b border-white/5 uppercase tracking-wider">
                                         <th className="px-4 py-3 font-semibold">Producto</th>
                                         <th className="px-4 py-3 font-semibold">SKU</th>
-                                        <th className="px-4 py-3 font-semibold">CategorÃ­a</th>
+                                        <th className="px-4 py-3 font-semibold">Categoria</th>
                                         <th className="px-4 py-3 font-semibold text-right">Precio</th>
                                         <th className="px-4 py-3 font-semibold text-right">Costo</th>
                                         <th className="px-4 py-3 font-semibold text-right">Margen</th>
@@ -1025,7 +1046,7 @@ export function InventoryScreen() {
                                         onClick={() => setCatModal({ open: true, editing: null })}
                                         className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl font-semibold text-white transition-all active:scale-95"
                                     >
-                                        <Plus className="w-4 h-4" /> Crear primera categorÃ­a
+                                        <Plus className="w-4 h-4" /> Crear primera categoria
                                     </button>
                                 )}
                             </div>
@@ -1062,7 +1083,7 @@ export function InventoryScreen() {
                                         <button
                                             onClick={() => setCatModal({ open: true, editing: cat })}
                                             className="absolute top-2 right-2 p-1.5 bg-zinc-900/80 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                                            title="Editar categorÃ­a"
+                                            title="Editar categoria"
                                         >
                                             <Edit2 className="w-3.5 h-3.5" />
                                         </button>

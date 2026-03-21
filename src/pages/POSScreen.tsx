@@ -48,6 +48,7 @@ import { CashierScreen } from '@/pages/CashierScreen'
 import { ReportsScreen } from '@/pages/ReportsScreen'
 import { EmployeesScreen } from '@/pages/EmployeesScreen'
 import { PlayZoneScreen } from '@/pages/PlayZoneScreen'
+import { BillingNotesScreen } from '@/pages/BillingNotesScreen'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -77,7 +78,7 @@ interface CheckoutDetails {
     clientName?: string     // factura: razón social
 }
 
-type ModuleView = 'pos' | 'inventory' | 'cashier' | 'reports' | 'employees' | 'playzone'
+type ModuleView = 'pos' | 'inventory' | 'cashier' | 'reports' | 'employees' | 'playzone' | 'billing-notes'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -506,6 +507,66 @@ function ProductCard({
     )
 }
 
+// ── Category Products Modal ────────────────────────────────────────────────
+
+function CategoryProductsModal({
+    category,
+    products,
+    onClose,
+    onAdd,
+    cartQtyFor,
+}: {
+    category: Category | undefined
+    products: Product[]
+    onClose: () => void
+    onAdd: (p: Product) => void
+    cartQtyFor: (id: string) => number
+}) {
+    if (!category) return null;
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-4xl shadow-2xl flex flex-col overflow-hidden max-h-[85vh]">
+                <div className="flex items-center justify-between px-5 py-4 bg-zinc-800/60 border-b border-zinc-800">
+                    <div>
+                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                            Seleccionar Producto
+                        </p>
+                        <h2 className="text-base font-black text-white uppercase tracking-widest">
+                            {category.name}
+                        </h2>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="p-2 rounded-lg bg-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors"
+                    >
+                        <XCircle className="w-6 h-6" />
+                    </button>
+                </div>
+                
+                <div className="p-5 overflow-y-auto">
+                    {products.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
+                            <Package className="w-12 h-12 mb-4 opacity-50" />
+                            <p className="text-sm font-bold uppercase tracking-widest">Sin productos</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                            {products.map((product) => (
+                                <ProductCard
+                                    key={product.id}
+                                    product={product}
+                                    onAdd={onAdd}
+                                    cartQty={cartQtyFor(product.id)}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    )
+}
+
 // ── Main Screen ────────────────────────────────────────────────────────────
 
 export function POSScreen() {
@@ -589,7 +650,6 @@ export function POSScreen() {
             ? []
             : products.filter((p) => p.isActive && p.category.id === selectedCategory)
 
-    const selectedCategoryName = categories.find((cat) => cat.id === selectedCategory)?.name
 
     // ── Cart helpers ─────────────────────────────────────────────
     const cartQtyFor = (productId: string) =>
@@ -794,6 +854,7 @@ export function POSScreen() {
                         <SidebarNavItem icon={<Package className="w-4 h-4" />} label="Empleados" active={activeView === 'employees'} onClick={() => handleAdminAction(() => setActiveView('employees'))}/>
                         <SidebarNavItem icon={<Receipt className="w-4 h-4" />} label="Reports" active={activeView === 'reports'} onClick={() => handleAdminAction(() => setActiveView('reports'))} />
                         <SidebarNavItem icon={<FileText className="w-4 h-4" />} label="Word Assistant" onClick={() => setIsAttendanceOpen(true)} />
+                        <SidebarNavItem icon={<Receipt className="w-4 h-4" />} label="Notas C/D" active={activeView === 'billing-notes'} onClick={() => handleAdminAction(() => setActiveView('billing-notes'))} />
                     </div>
 
                         <div className="ml-6 mt-2 max-h-44 space-y-1 overflow-y-auto border-l border-zinc-800 pl-3">
@@ -891,7 +952,7 @@ export function POSScreen() {
                     <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-4 min-h-[480px]">
                         <section className="flex min-h-0 flex-col rounded-xl border border-zinc-800 bg-[#090909] p-4">
                             <div className="mb-3 flex items-center justify-between border-b border-zinc-800 pb-2">
-                                <p className="text-xs font-bold font-mono uppercase tracking-widest text-zinc-500">[{selectedCategory === null ? categories.length : visibleProducts.length} items]</p>
+                                <p className="text-xs font-bold font-mono uppercase tracking-widest text-zinc-500">[{categories.length} categorias]</p>
                                 <div className="text-[11px] uppercase tracking-widest text-zinc-500">Catalogo</div>
                             </div>
 
@@ -902,14 +963,14 @@ export function POSScreen() {
                                 </div>
                             )}
 
-                            {!loading && selectedCategory === null && categories.length === 0 && (
+                            {!loading && categories.length === 0 && (
                                 <div className="flex flex-col items-center justify-center h-64 gap-4 text-slate-600">
                                     <Grid3X3 className="w-12 h-12 opacity-50" />
                                     <p className="text-sm font-bold uppercase tracking-widest">Sin categorias</p>
                                 </div>
                             )}
 
-                            {!loading && selectedCategory === null && categories.length > 0 && (
+                            {!loading && categories.length > 0 && (
                                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 cursor-default overflow-y-auto pr-1">
                                     {categories.map((cat) => {
                                         const count = products.filter((p) => p.isActive && p.category.id === cat.id).length
@@ -929,39 +990,6 @@ export function POSScreen() {
                                             </button>
                                         )
                                     })}
-                                </div>
-                            )}
-
-                            {!loading && selectedCategory !== null && visibleProducts.length === 0 && (
-                                <div className="flex flex-col items-center justify-center h-64 gap-4 text-slate-600">
-                                    <Package className="w-12 h-12 opacity-50" />
-                                    <p className="text-sm font-bold uppercase tracking-widest">Cero resultados</p>
-                                </div>
-                            )}
-
-                            {!loading && selectedCategory !== null && visibleProducts.length > 0 && (
-                                <div className="flex min-h-0 flex-col gap-3 overflow-hidden">
-                                    <div className="flex items-center justify-between rounded-lg border border-zinc-800 bg-black/40 px-3 py-2">
-                                        <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                                            Categoria activa: <span className="text-zinc-100">{selectedCategoryName ?? 'Sin nombre'}</span>
-                                        </p>
-                                        <button
-                                            onClick={() => setSelectedCategory(null)}
-                                            className="rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-zinc-300 hover:border-zinc-500 hover:text-white"
-                                        >
-                                            Volver a categorias
-                                        </button>
-                                    </div>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 cursor-default overflow-y-auto pr-1">
-                                        {visibleProducts.map((product) => (
-                                            <ProductCard
-                                                key={product.id}
-                                                product={product}
-                                                onAdd={addItem}
-                                                cartQty={cartQtyFor(product.id)}
-                                            />
-                                        ))}
-                                    </div>
                                 </div>
                             )}
                         </section>
@@ -1065,6 +1093,7 @@ export function POSScreen() {
                         {activeView === 'reports' && <ReportsScreen />}
                         {activeView === 'employees' && <EmployeesScreen />}
                         {activeView === 'playzone' && <PlayZoneScreen />}
+                        {activeView === 'billing-notes' && <BillingNotesScreen />}
                     </div>
                     )}
                 </main>
@@ -1098,6 +1127,17 @@ export function POSScreen() {
                     total={totalToPay}
                     onConfirm={handlePay}
                     onCancel={() => setCheckoutOpen(false)}
+                />
+            )}
+
+            {/* ══════════════════ CATEGORY MODAL ═════════════════════════ */}
+            {selectedCategory !== null && (
+                <CategoryProductsModal
+                    category={categories.find(c => c.id === selectedCategory)}
+                    products={visibleProducts}
+                    onClose={() => setSelectedCategory(null)}
+                    onAdd={addItem}
+                    cartQtyFor={cartQtyFor}
                 />
             )}
 

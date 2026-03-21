@@ -153,9 +153,8 @@ export function CashCloseHistoryScreen() {
             <CardHeader>
               <CardDescription>Diferencia Total</CardDescription>
               <CardTitle
-                className={`text-2xl ${
-                  totalDifferenceSum === 0 ? 'text-emerald-300' : totalDifferenceSum > 0 ? 'text-sky-300' : 'text-red-300'
-                }`}
+                className={`text-2xl ${totalDifferenceSum === 0 ? 'text-emerald-300' : totalDifferenceSum > 0 ? 'text-sky-300' : 'text-red-300'
+                  }`}
               >
                 {formatCurrency(totalDifferenceSum)}
               </CardTitle>
@@ -173,7 +172,7 @@ export function CashCloseHistoryScreen() {
               <TrendingUp className="w-4 h-4 text-zinc-300" />
               Historial Detallado
             </CardTitle>
-            <CardDescription>RÃ©cord de cada cierre de caja por dÃ­a</CardDescription>
+            <CardDescription>RÃ©cord de cada cierre de caja por dia</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
