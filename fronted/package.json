@@ -31,8 +31,8 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "installerIcon": "icon.png",
-      "uninstallerIcon": "icon.png"
+      "installerIcon": "icon.ico",
+      "uninstallerIcon": "icon.ico"
     }
   },
   "dependencies": {
