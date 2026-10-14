@@ -70,7 +70,7 @@ const WORKER_WRITES = new Set(["POST /hr/verify-pin", "POST /hr/attendance", "PO
  *  cashier terminal (POST /cash/close/:id/approve) stay worker-level: the 6-digit code is the admin factor. */
 const ADMIN_ROUTES = new Set([
     "GET /hr/roles", "GET /hr/workers", "GET /hr/attendance",
-    "GET /dashboard/metrics",
+    "GET /dashboard/metrics", "GET /inventory/movements",
     "GET /pos/void", "POST /pos/void/:id/resolve",
     "GET /billing/notes",
     "DELETE /cash/movements/:id",

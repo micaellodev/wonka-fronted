@@ -56,13 +56,35 @@ export interface Product {
  sku: string
  imageUrl?: string | null
  price: number
- cost: number
+ cost?: number
+ minStock?: number
  stock: number
  trackStock: boolean
  isActive: boolean
  igvRegime?: string | null
  createdAt: string
  category: Pick<Category, 'id' | 'name'>
+}
+
+export type StockMovementType = 'INICIAL' | 'ENTRADA' | 'SALIDA' | 'CORRECCION' | 'VENTA' | 'ANULACION' | 'IMPORTACION'
+
+export interface StockMovement {
+ id: string
+ type: StockMovementType
+ delta: number
+ stockBefore: number
+ stockAfter: number
+ reason?: string | null
+ createdAt: string
+ saleId?: string | null
+ product: { id: string; name: string; sku: string }
+ worker: { id: string; name: string } | null
+}
+
+export interface InventoryStats {
+ active: number
+ lowStock: number
+ outOfStock: number
 }
 
 export interface CartItem {

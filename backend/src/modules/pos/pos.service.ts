@@ -287,16 +287,19 @@ export async function processSale(
             return product?.trackStock;
         });
 
+        const stockAfter = new Map<string, number>();
         await Promise.all(
             itemsToTrack.map(async (item) => {
                 try {
-                    await tx.product.update({
+                    const upd = await tx.product.update({
                         where: {
                             id: item.productId,
                             stock: { gte: item.qty },
                         },
                         data: { stock: { decrement: item.qty } },
+                        select: { stock: true },
                     });
+                    stockAfter.set(item.productId, upd.stock);
                 } catch (error) {
                     const product = productMap.get(item.productId)!;
                     throw new Error(
@@ -430,6 +433,17 @@ export async function processSale(
                 },
             },
         });
+
+        // Kardex: one VENTA movement per tracked line (same transaction)
+        if (itemsToTrack.length > 0) {
+            await tx.stockMovement.createMany({
+                data: itemsToTrack.map((item) => ({
+                    type: "VENTA", delta: -item.qty,
+                    stockBefore: stockAfter.get(item.productId)! + item.qty, stockAfter: stockAfter.get(item.productId)!,
+                    tenantId: input.tenantId, productId: item.productId, workerId: input.workerId, saleId: sale.id,
+                })),
+            });
+        }
 
         // Emisión SUNAT: fuera de la transacción (ver emitSale tras el commit)
         const sunatStatus: string | null = sale.status === "ACTIVE" ? null : "PENDING_SUNAT";
@@ -757,16 +771,19 @@ export async function resolveVoidRequest(input: ResolveVoidInput) {
         // (playzone time, "venta libre") have productId === null and no
         // Product row to update; non-tracked products must not have their
         // stock figure touched either, mirroring the decrement in processSale.
-        await Promise.all(
-            sale.items
-                .filter((item) => item.productId !== null && item.product?.trackStock)
-                .map((item) =>
-                    tx.product.update({
-                        where: { id: item.productId! },
-                        data: { stock: { increment: item.qty } },
-                    })
-                )
-        );
+        for (const item of sale.items.filter((i) => i.productId !== null && i.product?.trackStock)) {
+            const upd = await tx.product.update({
+                where: { id: item.productId! },
+                data: { stock: { increment: item.qty } },
+                select: { stock: true },
+            });
+            await tx.stockMovement.create({
+                data: {
+                    type: "ANULACION", delta: item.qty, stockBefore: upd.stock - item.qty, stockAfter: upd.stock,
+                    tenantId: sale.tenantId, productId: item.productId!, workerId: input.approverWorkerId, saleId: sale.id,
+                },
+            });
+        }
 
         await tx.sale.update({
             where: { id: sale.id },

@@ -9,3 +9,5 @@ release/
 !.env.example
 *.log
 build/
+test-results/
+playwright-report/

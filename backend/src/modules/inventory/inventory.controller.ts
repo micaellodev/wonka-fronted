@@ -1,4 +1,5 @@
 import Elysia, { t } from "elysia";
+import { getAuth } from "../../lib/auth.ts";
 import {
     InventoryError,
     listCategories,
@@ -9,6 +10,8 @@ import {
     createProduct,
     updateProduct,
     adjustStock,
+    inventoryStats,
+    listMovements,
     importProducts,
 } from "./inventory.service.ts";
 import {
@@ -96,27 +99,61 @@ export const inventoryController = new Elysia({
         { params: IdParams, query: TenantQuery, detail: { summary: "Delete an empty category (409 if it has products)" } }
     )
 
-    // ── GET /inventory/products ───────────────────────────────
+    // ── GET /inventory/stats ──────────────────────────────────
+    .get("/stats", async ({ query }) => ({ data: await inventoryStats(query.tenantId) }), {
+        query: TenantQuery,
+        detail: { summary: "Counts: active, lowStock, outOfStock" },
+    })
+
+    // ── GET /inventory/movements (admin) ──────────────────────
     .get(
-        "/products",
-        async ({ query }) =>
-            listProducts({ tenantId: query.tenantId, page: query.page ?? 1, limit: query.limit ?? 20 }),
+        "/movements",
+        async ({ query, set }) => {
+            try {
+                return await listMovements({ ...query, page: query.page ?? 1, limit: query.limit ?? 50 });
+            } catch (err) {
+                return fail(set, err);
+            }
+        },
         {
             query: t.Object({
                 tenantId: t.String({ minLength: 1 }),
+                productId: t.Optional(t.String()),
+                type: t.Optional(t.Union(["INICIAL", "ENTRADA", "SALIDA", "CORRECCION", "VENTA", "ANULACION", "IMPORTACION"].map((v) => t.Literal(v)))),
+                from: t.Optional(t.String()),
+                to: t.Optional(t.String()),
+                page: t.Optional(t.Numeric({ minimum: 1 })),
+                limit: t.Optional(t.Numeric({ minimum: 1, maximum: 200 })),
+            }),
+            detail: { summary: "Paginated stock movements (kardex), newest first" },
+        }
+    )
+
+    // ── GET /inventory/products ───────────────────────────────
+    .get(
+        "/products",
+        async ({ query }) => listProducts({ ...query, page: query.page ?? 1, limit: query.limit ?? 20 }),
+        {
+            query: t.Object({
+                tenantId: t.String({ minLength: 1 }),
+                search: t.Optional(t.String()),
+                categoryId: t.Optional(t.String()),
+                stock: t.Optional(t.Union([t.Literal("all"), t.Literal("low"), t.Literal("out"), t.Literal("ok")])),
+                status: t.Optional(t.Union([t.Literal("active"), t.Literal("inactive"), t.Literal("all")])),
                 page: t.Optional(t.Numeric({ minimum: 1, default: 1 })),
                 limit: t.Optional(t.Numeric({ minimum: 1, maximum: 500, default: 20 })),
             }),
-            detail: { summary: "List products with pagination" },
+            detail: { summary: "List products with pagination and filters" },
         }
     )
 
     // ── POST /inventory/products ──────────────────────────────
     .post(
         "/products",
-        async ({ body, set }) => {
+        async ({ body, set, request }) => {
             try {
                 const data = await createProduct({
+                    workerId: getAuth(request)!.workerId,
                     tenantId: body.tenantId,
                     categoryId: body.categoryId,
                     name: body.name,
@@ -125,6 +162,7 @@ export const inventoryController = new Elysia({
                     price: body.price,
                     cost: body.cost ?? 0,
                     ...(body.stock !== undefined ? { stock: body.stock } : {}),
+                    ...(body.minStock !== undefined ? { minStock: body.minStock } : {}),
                     ...(body.trackStock !== undefined ? { trackStock: body.trackStock } : {}),
                     ...(body.igvRegime !== undefined ? { igvRegime: body.igvRegime } : {}),
                 });
@@ -140,9 +178,9 @@ export const inventoryController = new Elysia({
     // ── POST /inventory/products/import ───────────────────────
     .post(
         "/products/import",
-        async ({ body, set }) => {
+        async ({ body, set, request }) => {
             try {
-                return { data: await importProducts(body.tenantId, body.rows, body.updateStock ?? false) };
+                return { data: await importProducts(body.tenantId, getAuth(request)!.workerId, body.rows, body.updateStock ?? false) };
             } catch (err) {
                 return fail(set, err);
             }
@@ -155,15 +193,17 @@ export const inventoryController = new Elysia({
         "/products/:id",
         async ({ params, body, query, set }) => {
             try {
+                const tenantId = query.tenantId ?? body.tenantId;
+                if (!tenantId) throw new InventoryError("tenantId requerido.", 422);
                 const data = await updateProduct({
-                    tenantId: query.tenantId,
+                    tenantId,
                     productId: params.id,
                     ...(body.name !== undefined ? { name: body.name } : {}),
                     ...(body.imageUrl !== undefined ? { imageUrl: body.imageUrl } : {}),
                     ...(body.categoryId !== undefined ? { categoryId: body.categoryId } : {}),
                     ...(body.price !== undefined ? { price: body.price } : {}),
                     ...(body.cost !== undefined ? { cost: body.cost } : {}),
-                    ...(body.stock !== undefined ? { stock: body.stock } : {}),
+                    ...(body.minStock !== undefined ? { minStock: body.minStock } : {}),
                     ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
                     ...(body.trackStock !== undefined ? { trackStock: body.trackStock } : {}),
                     ...(body.igvRegime !== undefined ? { igvRegime: body.igvRegime } : {}),
@@ -175,7 +215,7 @@ export const inventoryController = new Elysia({
         },
         {
             params: IdParams,
-            query: TenantQuery,
+            query: t.Object({ tenantId: t.Optional(t.String({ minLength: 1 })) }),
             body: UpdateProductBody,
             detail: { summary: "Update a product (name, price, cost, stock, active). SKU is immutable." },
         }
@@ -184,17 +224,16 @@ export const inventoryController = new Elysia({
     // ── POST /inventory/products/:id/stock ────────────────────
     .post(
         "/products/:id/stock",
-        async ({ params, body, query, set }) => {
+        async ({ params, body, set, request }) => {
             try {
-                return { data: await adjustStock(query.tenantId, params.id, body.delta) };
+                return { data: await adjustStock(body.tenantId, params.id, getAuth(request)!.workerId, body.type, body.quantity, body.reason) };
             } catch (err) {
                 return fail(set, err);
             }
         },
         {
             params: IdParams,
-            query: TenantQuery,
             body: AdjustStockBody,
-            detail: { summary: "Atomic stock adjustment (delta > 0 entrada, < 0 salida); 409 if it would go negative" },
+            detail: { summary: "Stock adjustment (ENTRADA/SALIDA/CORRECCION) with movement; 422 if invalid or would go negative" },
         }
     );

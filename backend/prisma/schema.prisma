@@ -5,7 +5,7 @@
 // ============================================================
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   previewFeatures = ["partialIndexes"]
 }
 
@@ -25,51 +25,52 @@ model Tenant {
   updatedAt DateTime @updatedAt
 
   // Datos de empresa para SUNAT
-  ruc               String?
-  razonSocial       String?
-  nombreComercial   String?
-  direccion         String?
-  ubigeo            String?
+  ruc             String?
+  razonSocial     String?
+  nombreComercial String?
+  direccion       String?
+  ubigeo          String?
 
   // Configuración APISPeru
-  apisperuToken     String?
-  apisperuUrl       String?   @default("https://facturacion.apisperu.com/api/v1")
+  apisperuToken String?
+  apisperuUrl   String? @default("https://facturacion.apisperu.com/api/v1")
 
   // Configuración fiscal
-  igvRate           Decimal   @db.Decimal(5,2) @default(18.00)
-  defaultIgvRegime  String    @default("EXONERADO") // GRAVADO, EXONERADO, INAFECTO
-  pricesIncludeIgv  Boolean   @default(false)
+  igvRate                    Decimal @default(18.00) @db.Decimal(5, 2)
+  defaultIgvRegime           String  @default("EXONERADO") // GRAVADO, EXONERADO, INAFECTO
+  pricesIncludeIgv           Boolean @default(false)
   electronicInvoicingEnabled Boolean @default(false)
 
   /// Play zone pricing: {durations:[{minutes,price,label}], extraPerMinute, freePerMinute}. null = built-in defaults
-  playzoneRates     Json?
+  playzoneRates Json?
 
   // Series de comprobantes
-  serieBoleta       String    @default("B001")
-  serieFactura      String    @default("F001")
-  serieNotaCredito  String    @default("BC01")
-  serieNotaDebito   String    @default("BD01")
+  serieBoleta      String @default("B001")
+  serieFactura     String @default("F001")
+  serieNotaCredito String @default("BC01")
+  serieNotaDebito  String @default("BD01")
 
   // Correlativos (contadores)
-  lastBoletaNumber  Int       @default(0)
-  lastFacturaNumber Int       @default(0)
-  lastNotaCredito   Int       @default(0)
-  lastNotaDebito    Int       @default(0)
+  lastBoletaNumber  Int @default(0)
+  lastFacturaNumber Int @default(0)
+  lastNotaCredito   Int @default(0)
+  lastNotaDebito    Int @default(0)
 
   // Relations
-  roles         Role[]
-  workers       Worker[]
-  attendances   Attendance[]
-  categories    Category[]
-  products      Product[]
-  sales         Sale[]
-  guardians     Guardian[]
-  children      Child[]
-  playSessions  PlaySession[]
-  cashCloses    CashClose[]
-  cashMovements CashMovement[]
-  billingNotes  BillingNote[]
-  voidRequests  VoidRequest[]
+  roles          Role[]
+  workers        Worker[]
+  attendances    Attendance[]
+  categories     Category[]
+  products       Product[]
+  sales          Sale[]
+  stockMovements StockMovement[]
+  guardians      Guardian[]
+  children       Child[]
+  playSessions   PlaySession[]
+  cashCloses     CashClose[]
+  cashMovements  CashMovement[]
+  billingNotes   BillingNote[]
+  voidRequests   VoidRequest[]
 
   birthdayReservations BirthdayReservation[]
   birthdayGuests       BirthdayGuest[]
@@ -83,50 +84,51 @@ model Tenant {
 
 model Role {
   id        String   @id @default(cuid())
-  name      String   // e.g. "ADMIN", "CASHIER", "MANAGER"
+  name      String // e.g. "ADMIN", "CASHIER", "MANAGER"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Multi-tenancy
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   // Relations
-  workers   Worker[]
+  workers Worker[]
 
   @@unique([tenantId, name])
   @@map("roles")
 }
 
 model Worker {
-  id        String   @id @default(cuid())
-  name      String
+  id               String   @id @default(cuid())
+  name             String
   /// SHA256-hashed 5-digit numeric PIN used for login
-  pinHash   String
+  pinHash          String
   /// Optional SHA256-hashed 6-digit owner/admin approval code for sensitive approvals
   approvalCodeHash String?
-  dni       String?
-  avatarUrl String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  dni              String?
+  avatarUrl        String?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   // Multi-tenancy
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   // Role
-  roleId    String
-  role      Role     @relation(fields: [roleId], references: [id])
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id])
 
   // Relations
-  attendances Attendance[]
-  sales       Sale[]
-  cashCloses  CashClose[]
-  cashMovements CashMovement[]
-  billingNotes BillingNote[]
-  voidRequestsMade VoidRequest[] @relation("Requester")
-  voidRequestsApproved VoidRequest[] @relation("Approver")
+  attendances          Attendance[]
+  sales                Sale[]
+  stockMovements       StockMovement[]
+  cashCloses           CashClose[]
+  cashMovements        CashMovement[]
+  billingNotes         BillingNote[]
+  voidRequestsMade     VoidRequest[]   @relation("Requester")
+  voidRequestsApproved VoidRequest[]   @relation("Approver")
 
   @@index([tenantId])
   @@map("workers")
@@ -140,12 +142,12 @@ model Attendance {
   updatedAt DateTime  @updatedAt
 
   // Multi-tenancy
-  tenantId  String
-  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   // Worker
-  workerId  String
-  worker    Worker    @relation(fields: [workerId], references: [id])
+  workerId String
+  worker   Worker @relation(fields: [workerId], references: [id])
 
   @@index([tenantId, workerId])
   @@map("attendances")
@@ -156,54 +158,57 @@ model Attendance {
 // ─────────────────────────────────────────────
 
 model Category {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
   imageUrl  String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Multi-tenancy
-  tenantId  String
-  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   // Relations
-  products  Product[]
+  products Product[]
 
   @@unique([tenantId, name])
   @@map("categories")
 }
 
 model Product {
-  id          String    @id @default(cuid())
-  name        String
-  sku         String
-  imageUrl    String?
+  id        String   @id @default(cuid())
+  name      String
+  sku       String
+  imageUrl  String?
   /// Public selling price
-  price       Decimal   @db.Decimal(10, 2)
+  price     Decimal  @db.Decimal(10, 2)
   /// Internal unit cost (for margin tracking)
-  cost        Decimal   @db.Decimal(10, 2)
+  cost      Decimal  @db.Decimal(10, 2)
   /// Current real-time stock level
-  stock       Int       @default(0)
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  stock     Int      @default(0)
+  /// Low-stock alert threshold (stock <= minStock)
+  minStock  Int      @default(5)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Multi-tenancy
-  tenantId    String
-  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   // Category
-  categoryId  String
-  category    Category  @relation(fields: [categoryId], references: [id])
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
 
   // Track stock option
-  trackStock  Boolean   @default(true)
+  trackStock Boolean @default(true)
 
   /// Tipo de afectación al IGV: GRAVADO, EXONERADO, INAFECTO, ICBPER, GRAVADO_10_5. null = hereda del tenant
-  igvRegime   String?
+  igvRegime String?
 
   // Relations
-  saleItems   SaleItem[]
+  saleItems      SaleItem[]
+  stockMovements StockMovement[]
 
   @@unique([tenantId, sku])
   @@index([tenantId])
@@ -215,61 +220,61 @@ model Product {
 // ─────────────────────────────────────────────
 
 model Sale {
-  id        String     @id @default(cuid())
+  id        String   @id @default(cuid())
   /// Grand total calculated at time of sale (amount the customer paid)
-  total     Decimal    @db.Decimal(10, 2)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  total     Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Multi-tenancy
-  tenantId  String
-  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   // Cashier who processed the sale
-  workerId  String
-  worker    Worker     @relation(fields: [workerId], references: [id])
+  workerId String
+  worker   Worker @relation(fields: [workerId], references: [id])
 
   // Comprobante type
-  tipoComprobante   String    @default("TICKET") // TICKET, BOLETA, FACTURA
+  tipoComprobante String @default("TICKET") // TICKET, BOLETA, FACTURA
 
   // Serie and correlativo for BOLETA/FACTURA
-  serie             String?
-  correlativo       String?
+  serie       String?
+  correlativo String?
 
   // Client data (for BOLETA/FACTURA)
-  clientDocType     String?   // "1"=DNI, "6"=RUC, "-"=SIN_DOC
-  clientDocNumber   String?
-  clientName        String?
-  clientAddress     String?
+  clientDocType   String? // "1"=DNI, "6"=RUC, "-"=SIN_DOC
+  clientDocNumber String?
+  clientName      String?
+  clientAddress   String?
 
   // Payment method
-  paymentMethod     String    @default("efectivo") // efectivo, yape, tarjeta
+  paymentMethod String @default("efectivo") // efectivo, yape, tarjeta
 
   // Sale status
-  status            String    @default("ACTIVE") // ACTIVE, CANCELLED, PENDING_SUNAT
+  status String @default("ACTIVE") // ACTIVE, CANCELLED, PENDING_SUNAT
 
   // SUNAT / APISPeru response
-  sunatTicket       String?
-  sunatStatus       String?   // ACEPTADA, RECHAZADA, PENDIENTE
-  sunatXmlUrl       String?
-  sunatCdrUrl       String?
-  sunatResponse     Json?
+  sunatTicket   String?
+  sunatStatus   String? // ACEPTADA, RECHAZADA, PENDIENTE
+  sunatXmlUrl   String?
+  sunatCdrUrl   String?
+  sunatResponse Json?
 
   // Cancellation
-  cancelledAt       DateTime?
-  voidReason        String?
-  creditNoteSerie   String?
+  cancelledAt           DateTime?
+  voidReason            String?
+  creditNoteSerie       String?
   creditNoteCorrelativo String?
 
   // Fiscal breakdown
-  mtoOperGravadas   Decimal?  @db.Decimal(10,2)
-  mtoOperExoneradas Decimal?  @db.Decimal(10,2)
-  mtoOperInafectas  Decimal?  @db.Decimal(10,2)
-  mtoIGV            Decimal?  @db.Decimal(10,2)
-  mtoImpVenta       Decimal?  @db.Decimal(10,2)
+  mtoOperGravadas   Decimal? @db.Decimal(10, 2)
+  mtoOperExoneradas Decimal? @db.Decimal(10, 2)
+  mtoOperInafectas  Decimal? @db.Decimal(10, 2)
+  mtoIGV            Decimal? @db.Decimal(10, 2)
+  mtoImpVenta       Decimal? @db.Decimal(10, 2)
 
   // Relations
-  items     SaleItem[]
+  items        SaleItem[]
   voidRequests VoidRequest[]
 
   @@index([tenantId])
@@ -287,8 +292,8 @@ model SaleItem {
   createdAt DateTime @default(now())
 
   // Sale
-  saleId    String
-  sale      Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  saleId String
+  sale   Sale   @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
   // Product (null for virtual/non-catalog line items — see isVirtual below)
   productId String?
@@ -309,38 +314,38 @@ model SaleItem {
 // ─────────────────────────────────────────────
 
 model VoidRequest {
-  id                String   @id @default(cuid())
+  id String @id @default(cuid())
 
   // Original sale
-  saleId            String
-  sale              Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  saleId String
+  sale   Sale   @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
   // Who requested the void
   requesterWorkerId String
-  requester         Worker   @relation("Requester", fields: [requesterWorkerId], references: [id])
+  requester         Worker @relation("Requester", fields: [requesterWorkerId], references: [id])
 
   // Who approved/rejected the void (owner/admin)
-  approverWorkerId  String?
-  approver          Worker?  @relation("Approver", fields: [approverWorkerId], references: [id])
+  approverWorkerId String?
+  approver         Worker? @relation("Approver", fields: [approverWorkerId], references: [id])
 
   // Status
-  status            String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  status String @default("PENDING") // PENDING, APPROVED, REJECTED
 
   // Reason for voiding
-  reason            String
+  reason String
 
   // Credit note generated after approval
-  creditNoteSerie   String?
+  creditNoteSerie       String?
   creditNoteCorrelativo String?
-  sunatResponse     Json?
+  sunatResponse         Json?
 
   // Timestamps
-  requestedAt       DateTime @default(now())
-  resolvedAt        DateTime?
+  requestedAt DateTime  @default(now())
+  resolvedAt  DateTime?
 
   // Multi-tenancy
-  tenantId          String
-  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -359,20 +364,20 @@ enum PlaySessionStatus {
 
 /// Parent / guardian registered by DNI
 model Guardian {
-  id          String    @id @default(cuid())
+  id        String   @id @default(cuid())
   /// Document ID — unique per tenant
-  dni         String
-  phone       String?
-  fullName    String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  dni       String
+  phone     String?
+  fullName  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Multi-tenancy
-  tenantId    String
-  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   // Relations
-  children    Child[]
+  children             Child[]
   birthdayReservations BirthdayReservation[]
 
   @@unique([tenantId, dni])
@@ -381,21 +386,21 @@ model Guardian {
 }
 
 model Child {
-  id           String        @id @default(cuid())
-  fullName     String
-  dni          String?
-  age          Int?
-  gender       String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id        String   @id @default(cuid())
+  fullName  String
+  dni       String?
+  age       Int?
+  gender    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Multi-tenancy (denormalized for fast tenant-scoped queries)
-  tenantId     String
-  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   // Guardian
-  guardianId   String
-  guardian     Guardian      @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+  guardianId String
+  guardian   Guardian @relation(fields: [guardianId], references: [id], onDelete: Cascade)
 
   // Relations
   playSessions PlaySession[]
@@ -418,12 +423,12 @@ model PlaySession {
   updatedAt       DateTime          @updatedAt
 
   // Multi-tenancy
-  tenantId        String
-  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   // Child (and through child → Guardian)
-  childId         String
-  child           Child             @relation(fields: [childId], references: [id])
+  childId String
+  child   Child  @relation(fields: [childId], references: [id])
 
   /// Code must be unique among ACTIVE sessions per tenant only (partial index);
   /// the old @@unique([tenantId, wristbandCode, status]) blocked reusing a code
@@ -438,20 +443,20 @@ model PlaySession {
 // ─────────────────────────────────────────────
 
 model BirthdayReservation {
-  id          String   @id @default(cuid())
-  date        DateTime @db.Date()
-  guestCount  Int
-  notes       String?  @db.Text
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  date       DateTime @db.Date()
+  guestCount Int
+  notes      String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Relations
-  tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  guardianId  String
-  guardian    Guardian @relation(fields: [guardianId], references: [id])
-  
-  guests      BirthdayGuest[]
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  guardianId String
+  guardian   Guardian @relation(fields: [guardianId], references: [id])
+
+  guests BirthdayGuest[]
 
   @@index([tenantId])
   @@index([tenantId, date])
@@ -459,14 +464,14 @@ model BirthdayReservation {
 }
 
 model BirthdayGuest {
-  id            String   @id @default(cuid())
-  firstName     String?
-  lastName      String?
-  attended      Boolean  @default(false)
-  
-  tenantId      String
-  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  
+  id        String  @id @default(cuid())
+  firstName String?
+  lastName  String?
+  attended  Boolean @default(false)
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   reservationId String
   reservation   BirthdayReservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
 
@@ -479,49 +484,49 @@ model BirthdayGuest {
 // ─────────────────────────────────────────────
 
 model CashClose {
-  id                   String    @id @default(cuid())
+  id               String  @id @default(cuid())
   /// Opening balance at start of day (in PEN)
-  openingBalance       Decimal   @db.Decimal(10, 2)
+  openingBalance   Decimal @db.Decimal(10, 2)
   /// Total sales registered for the day
-  totalSales           Decimal   @db.Decimal(10, 2)
+  totalSales       Decimal @db.Decimal(10, 2)
   /// Expected cash from efectivo payments
-  expectedEfectivo     Decimal   @db.Decimal(10, 2) @default(0)
+  expectedEfectivo Decimal @default(0) @db.Decimal(10, 2)
   /// Expected cash from yape payments
-  expectedYape         Decimal   @db.Decimal(10, 2) @default(0)
+  expectedYape     Decimal @default(0) @db.Decimal(10, 2)
   /// Expected cash from tarjeta payments
-  expectedTarjeta      Decimal   @db.Decimal(10, 2) @default(0)
+  expectedTarjeta  Decimal @default(0) @db.Decimal(10, 2)
   /// Expected cash from unclassified/historical sales
-  expectedUnknown      Decimal   @db.Decimal(10, 2) @default(0)
+  expectedUnknown  Decimal @default(0) @db.Decimal(10, 2)
   /// Total expected = expectedEfectivo + expectedYape + expectedTarjeta + expectedUnknown
-  totalExpected        Decimal   @db.Decimal(10, 2)
+  totalExpected    Decimal @db.Decimal(10, 2)
   /// Actual cash counted at end of shift
-  countedCash          Decimal   @db.Decimal(10, 2)
+  countedCash      Decimal @db.Decimal(10, 2)
   /// Difference = countedCash - totalExpected (positive=surplus, negative=shortage)
-  difference           Decimal   @db.Decimal(10, 2)
+  difference       Decimal @db.Decimal(10, 2)
 
   /// Approval workflow: cashier requests, owner approves with PIN
-  status               String    @default("PENDING_APPROVAL") // PENDING_APPROVAL, APPROVED
-  approvedByWorkerId   String?
-  approvedAt           DateTime?
+  status             String    @default("PENDING_APPROVAL") // PENDING_APPROVAL, APPROVED
+  approvedByWorkerId String?
+  approvedAt         DateTime?
 
   /// Date of the close (for grouping by day)
-  closedDate           DateTime  @db.Date()
+  closedDate DateTime @db.Date()
   /// Timestamp when close was recorded
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Multi-tenancy
-  tenantId             String
-  tenant               Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   // Cashier who closed the drawer
-  workerId             String
-  worker               Worker    @relation(fields: [workerId], references: [id])
+  workerId String
+  worker   Worker @relation(fields: [workerId], references: [id])
 
+  @@unique([tenantId, closedDate, workerId])
   @@index([tenantId])
   @@index([tenantId, closedDate])
   @@index([tenantId, workerId])
-  @@unique([tenantId, closedDate, workerId])
   @@map("cash_closes")
 }
 
@@ -535,12 +540,12 @@ model CashMovement {
   createdAt DateTime @default(now())
 
   // Multi-tenancy
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   // Worker who created the movement
-  workerId  String
-  worker    Worker   @relation(fields: [workerId], references: [id])
+  workerId String
+  worker   Worker @relation(fields: [workerId], references: [id])
 
   @@index([tenantId, createdAt])
   @@index([tenantId, workerId])
@@ -573,29 +578,55 @@ model BillingNote {
   reasonDescription String
 
   /// "1" (DNI), "6" (RUC), etc.
-  clientDocType     String
-  clientDocNumber   String
-  clientName        String
+  clientDocType   String
+  clientDocNumber String
+  clientName      String
 
-  totalAmount       Decimal   @db.Decimal(10, 2)
+  totalAmount Decimal @db.Decimal(10, 2)
 
   // SUNAT / APISPeru result of sending this note
-  sunatStatus       String?   // null = legacy note (never retried automatically)
-  sunatResponse     Json?
-  sunatXmlUrl       String?
-  sunatCdrUrl       String?
+  sunatStatus   String? // null = legacy note (never retried automatically)
+  sunatResponse Json?
+  sunatXmlUrl   String?
+  sunatCdrUrl   String?
 
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Multi-tenancy
-  tenantId          String
-  tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   // Worker who created this note
-  workerId          String
-  worker            Worker    @relation(fields: [workerId], references: [id])
+  workerId String
+  worker   Worker @relation(fields: [workerId], references: [id])
 
   @@index([tenantId])
   @@map("billing_notes")
+}
+
+/// Stock ledger: every change to Product.stock writes one row in the same transaction.
+/// type: INICIAL | ENTRADA | SALIDA | CORRECCION | VENTA | ANULACION | IMPORTACION
+model StockMovement {
+  id          String   @id @default(cuid())
+  type        String
+  /// Signed change applied to stock
+  delta       Int
+  stockBefore Int
+  stockAfter  Int
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  tenantId  String
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  workerId  String?
+  worker    Worker? @relation(fields: [workerId], references: [id], onDelete: SetNull)
+  /// Sale that caused the movement (VENTA / ANULACION)
+  saleId    String?
+
+  @@index([tenantId, createdAt])
+  @@index([productId, createdAt])
+  @@map("stock_movements")
 }

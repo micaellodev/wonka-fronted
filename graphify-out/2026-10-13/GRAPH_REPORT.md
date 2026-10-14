@@ -1,26 +1,31 @@
 # Graph Report - Wonka  (2026-10-13)
 
 ## Corpus Check
-- 161 files · ~1,436,567 words
+- 160 files · ~124,076 words
 - Verdict: corpus is large enough that graph structure adds value.
-- Unclassified: 85 file(s) not represented in the graph (top: .pak 58, .dll 6, (none) 5)
+- Unclassified: 17 file(s) not represented in the graph (top: (none) 6, .example 3, .css 3)
 
 ## Summary
-- 1589 nodes · 3207 edges · 108 communities (85 shown, 23 thin omitted)
-- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 40 edges (avg confidence: 0.87)
+- 1597 nodes · 3136 edges · 111 communities (85 shown, 26 thin omitted)
+- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 41 edges (avg confidence: 0.87)
 - Token cost: 0 input · 0 output
+
+## Graph Freshness
+- Built from commit: `bad08770`
+- Run `git rev-parse HEAD` and compare to check if the graph is stale.
+- Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - Button
-- cash.service.ts
+- hr.service.ts
 - cn
 - schemas.ts
-- apisperu.service.ts
+- pos.service.ts
 - admin_routes.py
 - InventoryScreen.tsx
 - main.py
 - Wonka Asistencia Attendance App (Python/FastAPI)
-- pages/PlayZoneScreen.tsx
+- PlayZoneScreen.tsx
 - fronted/package.json
 - components.json
 - dependencies
@@ -34,11 +39,11 @@
 - Caveman Voice Mode
 - main.js
 - gsap.min.js
-- electron-builder effective config (Renzo Wonka POS, com.renzowonka.pos, NSIS, Electron 33.4.11)
-- react
-- prisma.ts
+- Guia de Despliegue de Actualizaciones (Wonka update deployment guide)
+- authStore.ts
+- helpers.ts
 - scripts
-- eslint.config.js
+- cash.service.ts
 - playzone.service.ts
 - fronted/tsconfig.json
 - env.d.ts
@@ -58,15 +63,15 @@
 - App Icon (Smiling Mouth Logo)
 - Renzo Wonka Logo
 - Vite Logo (vite.svg)
-- inventory.controller.ts
-- pos.service.ts
+- inventory.service.ts
+- seed.ts
 - State & Feedback Patterns
-- TerminalShell
+- TerminalShell.tsx
 - componer-musica.py
 - generar-voz.mjs
-- pages/POSScreen.tsx
+- prisma.ts
 - Motion Design Skill
-- billing.service.ts
+- scripts
 - Inventario de controles — Wonka POS
 - Tween
 - src/index.ts
@@ -75,8 +80,8 @@
 - Coordinated Sequences
 - Choreography
 - auth.ts
-- __base/RightCheckoutDrawer.tsx
-- components/RightCheckoutDrawer.tsx
+- birthday.controller.ts
+- dependencies
 - Disney's 12 Principles — UI Adapted
 - ce
 - Ambient & Continuous Patterns
@@ -94,7 +99,7 @@
 - schemas.py
 - SalesHistoryScreen.tsx
 - mock-apisperu.ts
-- sheet.tsx
+- dashboard.service.ts
 - CashMovementsScreen.tsx
 - Core Philosophy
 - Property Selection
@@ -103,28 +108,31 @@
 - checkin_routes.py
 - Coordinación del equipo — Wonka POS
 - db-inventario — schema, inventario, upload
-- tooltip.tsx
+- POSScreen.tsx
 - na
 - launcher.py
 - la
 - Renzo Wonka · Video promocional (Hyperframes)
-- tabs.tsx
+- devDependencies
 - fb
 - he
 - Za
 - Rd
 - cashMovementStore.ts
+- peerDependencies
+- Splash.tsx
+- Renzo Wonka POS Vite HTML entry point
 
 ## God Nodes (most connected - your core abstractions)
-1. `cn()` - 80 edges
-2. `useAuthStore` - 64 edges
-3. `Button` - 45 edges
-4. `react` - 40 edges
-5. `TerminalShell()` - 31 edges
-6. `lucide-react` - 30 edges
-7. `api` - 26 edges
-8. `Card` - 25 edges
-9. `App()` - 23 edges
+1. `cn()` - 76 edges
+2. `useAuthStore` - 56 edges
+3. `Button` - 38 edges
+4. `react` - 37 edges
+5. `lucide-react` - 27 edges
+6. `TerminalShell()` - 25 edges
+7. `App()` - 23 edges
+8. `Card` - 23 edges
+9. `api` - 22 edges
 10. `Inventario de controles — Wonka POS` - 20 edges
 
 ## Surprising Connections (you probably didn't know these)
@@ -132,12 +140,12 @@
   .claude/CLAUDE.md → AGENTS.md
 - `graphify (project pointer, .claude/CLAUDE.md)` --semantically_similar_to--> `graphify Knowledge Graph System (CLAUDE.md)`  [INFERRED] [semantically similar]
   .claude/CLAUDE.md → CLAUDE.md
+- `Cambios de schema aplicados (DB local de test)` --references--> `BillingNote`  [INFERRED]
+  docs/equipo/db-inventario.md → fronted/src/pages/BillingNotesScreen.tsx
 - `Boleta Electronica receipt (Emiliani Pizzas y Pastas EIRL)` --semantically_similar_to--> `printQR`  [INFERRED] [semantically similar]
   boleta.html → asistencia/templates/qr_display.html
 - `fastapi==0.115.6` --semantically_similar_to--> `wonka-backend (Bun/TypeScript runtime)`  [INFERRED] [semantically similar]
   asistencia/requirements.txt → backend/README.md
-- `wonka-backend (Bun/TypeScript runtime)` --conceptually_related_to--> `Wonka Asistencia Attendance App (Python/FastAPI)`  [AMBIGUOUS]
-  backend/README.md → asistencia/requirements.txt
 
 ## Import Cycles
 - None detected.
@@ -145,39 +153,37 @@
 ## Hyperedges (group relationships)
 - **Caveman Sibling Skills (caveman/ultracave/megacave)** — _agents_skills_caveman_readme_caveman, _agents_skills_caveman_readme_ultracave, _agents_skills_caveman_readme_megacave [EXTRACTED 1.00]
 - **Ponytail Intensity Levels (lite/full/ultra)** — _agents_skills_ponytail_skill_lite, _agents_skills_ponytail_skill_full, _agents_skills_ponytail_skill_ultra [EXTRACTED 1.00]
-- **Vite dev/build to Electron-packaged desktop app flow** — fronted_index_html_entry, fronted_readme_vite_react_ts_template, fronted_release_builder_debug_x64_patterns, fronted_release_builder_effective_config_electron_config [INFERRED 0.75]
-- **Conflicting Tauri (CI/docs) vs Electron (actual release output) build tooling** — fronted__github_workflows_release_workflow, fronted_actualizaciones_guide, fronted_release_builder_effective_config_electron_config, fronted_release_win_unpacked_license_electron_mit [INFERRED 0.75]
 - **Bearer-Token-From-localStorage Auth Pattern** — asistencia_templates_dashboard_loaddashboard, asistencia_templates_employee_form_loademployee, asistencia_templates_qr_display_loademployees, asistencia_templates_reports_loadreports, asistencia_templates_schedule_loadschedule [INFERRED 0.85]
 
-## Communities (108 total, 23 thin omitted)
+## Communities (111 total, 26 thin omitted)
 
 ### Community 0 - "Button"
 Cohesion: 0.14
-Nodes (38): Child, Field(), Guardian, RegisterClientScreen(), apiErrorMessage(), CashDrawerGuard(), CashOpeningModal(), CashOpeningModalProps (+30 more)
+Nodes (36): CashOpeningModal(), CashOpeningModalProps, Badge(), BadgeVariant, styles, Button, buttonVariants, Card (+28 more)
 
-### Community 1 - "cash.service.ts"
-Cohesion: 0.08
-Nodes (60): clientIp(), signToken(), attempts, checkRateLimit(), Entry, RateLimitError, resetRateLimit(), undoAttempt() (+52 more)
+### Community 1 - "hr.service.ts"
+Cohesion: 0.15
+Nodes (31): clientIp(), signToken(), attempts, checkRateLimit(), Entry, RateLimitError, resetRateLimit(), undoAttempt() (+23 more)
 
 ### Community 2 - "cn"
-Cohesion: 0.11
-Nodes (33): Separator(), SidebarContent(), SidebarContext, SidebarContextProps, SidebarFooter(), SidebarGroup(), SidebarGroupAction(), SidebarGroupContent() (+25 more)
+Cohesion: 0.05
+Nodes (68): RECEIPT_LOGO, apiErrorMessage(), calculateLine(), escapeHtml(), IgvRegime, InvoiceType, numberToWords(), PaymentMethod (+60 more)
 
 ### Community 3 - "schemas.ts"
-Cohesion: 0.11
-Nodes (27): birthdayController, createBirthdayReservation(), getBirthdayDetails(), listBirthdayReservations(), updateBirthdayGuest(), AddChildBody, AttendanceBody, BirthdayListQuery (+19 more)
+Cohesion: 0.15
+Nodes (18): AddChildBody, AttendanceBody, CreateGuardianBody, CreatePlaySessionBody, CreateWorkerBody, GuardianListQuery, GuardianLookupQuery, Money (+10 more)
 
-### Community 4 - "apisperu.service.ts"
-Cohesion: 0.14
-Nodes (28): buildClient(), buildCompany(), buildCreditNotePayload(), buildDetails(), buildFiscalSummary(), buildInvoicePayload(), buildManualNotePayload(), calculateFiscalLine() (+20 more)
+### Community 4 - "pos.service.ts"
+Cohesion: 0.05
+Nodes (77): getAuth(), apisperuController, buildClient(), buildCompany(), buildCreditNotePayload(), buildDetails(), buildFiscalSummary(), buildInvoicePayload() (+69 more)
 
 ### Community 5 - "admin_routes.py"
-Cohesion: 0.15
-Nodes (20): admin_login(), CheckinRequest, create_employee(), EmployeeCreate, EmployeeUpdate, export_reports(), generate_qr(), get_biometric_options() (+12 more)
+Cohesion: 0.14
+Nodes (21): admin_login(), CheckinRequest, create_employee(), EmployeeCreate, EmployeeUpdate, export_reports(), generate_qr(), get_biometric_options() (+13 more)
 
 ### Community 6 - "InventoryScreen.tsx"
-Cohesion: 0.11
-Nodes (29): ProductsResponse, CheckoutLine, CheckoutLine, apiMsg(), CategoryModal(), CategoryModalProps, CategoryWithCount, ErrorBox() (+21 more)
+Cohesion: 0.08
+Nodes (39): CheckoutLine, RightCheckoutDrawerProps, API_KEY, apiMsg(), CategoryModal(), CategoryModalProps, CategoryWithCount, clientCheck() (+31 more)
 
 ### Community 7 - "main.py"
 Cohesion: 0.30
@@ -187,13 +193,13 @@ Nodes (10): checkin_page(), edit_employee_page(), employees_page(), index(), log
 Cohesion: 0.07
 Nodes (37): asyncpg==0.31.0, fastapi==0.115.6, jinja2==3.1.4, openpyxl==3.1.5, passlib[bcrypt]==1.7.4, python-jose[cryptography]==3.3.0, python-multipart==0.0.18, qrcode[pil]==8.0 (+29 more)
 
-### Community 9 - "pages/PlayZoneScreen.tsx"
-Cohesion: 0.09
-Nodes (35): ActiveSession, BirthdaysView(), calcElapsed(), Child, DURATION_OPTIONS, DurationOpt, fmtPrice(), fmtTime() (+27 more)
+### Community 9 - "PlayZoneScreen.tsx"
+Cohesion: 0.14
+Nodes (21): ActiveSession, BirthdaysView(), calcElapsed(), Child, DurationOpt, fmtPrice(), fmtTime(), FREE_OPTION (+13 more)
 
 ### Community 10 - "fronted/package.json"
 Cohesion: 0.07
-Nodes (27): elysia, @types/node, typescript, main, name, private, type, version (+19 more)
+Nodes (30): elysia, @types/node, typescript, main, name, private, type, version (+22 more)
 
 ### Community 11 - "components.json"
 Cohesion: 0.09
@@ -201,7 +207,7 @@ Nodes (21): aliases, components, hooks, lib, ui, utils, iconLibrary, menuAccent 
 
 ### Community 12 - "dependencies"
 Cohesion: 0.09
-Nodes (22): dependencies, @base-ui/react, class-variance-authority, clsx, date-fns, elysia, @elysiajs/eden, @fontsource-variable/geist (+14 more)
+Nodes (23): dependencies, @base-ui/react, class-variance-authority, clsx, date-fns, elysia, @elysiajs/eden, @fontsource-variable/geist (+15 more)
 
 ### Community 13 - "compilerOptions"
 Cohesion: 0.10
@@ -224,8 +230,8 @@ Cohesion: 0.11
 Nodes (18): devDependencies, cross-env, electron, electron-builder, eslint, @eslint/js, eslint-plugin-react-hooks, eslint-plugin-react-refresh (+10 more)
 
 ### Community 18 - "backend/package.json"
-Cohesion: 0.05
-Nodes (42): dependencies, elysia, @elysiajs/cors, @elysiajs/swagger, nodemailer, pg, @prisma/adapter-pg, @prisma/client (+34 more)
+Cohesion: 0.12
+Nodes (14): elysia, @types/node, typescript, module, name, private, type, @elysiajs/cors (+6 more)
 
 ### Community 19 - "build"
 Cohesion: 0.13
@@ -243,29 +249,25 @@ Nodes (7): { app, BrowserWindow, ipcMain }, path, { contextBridge, ipcRenderer }
 Cohesion: 0.07
 Nodes (15): Gc(), Hc(), ia(), ja(), Lc(), Nc(), oa(), pa() (+7 more)
 
-### Community 23 - "electron-builder effective config (Renzo Wonka POS, com.renzowonka.pos, NSIS, Electron 33.4.11)"
-Cohesion: 0.24
-Nodes (8): Build and Release Tauri App (GitHub Actions workflow), Guia de Despliegue de Actualizaciones (Wonka update deployment guide), Renzo Wonka POS Vite HTML entry point, React + TypeScript + Vite template README, electron-builder debug x64 file-inclusion patterns, electron-builder effective config (Renzo Wonka POS, com.renzowonka.pos, NSIS, Electron 33.4.11), Electron MIT license (bundled in win-unpacked output), Chromium third-party licenses/credits page (bundled in win-unpacked output)
+### Community 24 - "authStore.ts"
+Cohesion: 0.09
+Nodes (34): AdminGatekeeper(), AdminGatekeeperProps, flat, groups, AttendanceModal(), AttendanceModalProps, BillingNoteResult, CreateBillingNoteModal() (+26 more)
 
-### Community 24 - "react"
-Cohesion: 0.15
-Nodes (24): AdminGatekeeper(), AdminGatekeeperProps, AttendanceModalProps, CreateBillingNoteModal(), Props, KEYS, KeyValue, PinPad() (+16 more)
-
-### Community 25 - "prisma.ts"
-Cohesion: 0.08
-Nodes (30): adapter, main(), pool, prisma, sha256(), adapter, globalForPrisma, pool (+22 more)
+### Community 25 - "helpers.ts"
+Cohesion: 0.21
+Nodes (14): prisma, boleta(), sell(), BASE, call(), createTenant(), Ctx, dropTenant() (+6 more)
 
 ### Community 26 - "scripts"
 Cohesion: 0.25
 Nodes (8): scripts, build, dev, electron:build, electron:dev, lint, preview, tauri
 
-### Community 28 - "eslint.config.js"
-Cohesion: 0.29
-Nodes (6): eslint, @eslint/js, eslint-plugin-react-hooks, eslint-plugin-react-refresh, globals, typescript-eslint
+### Community 28 - "cash.service.ts"
+Cohesion: 0.24
+Nodes (18): cashController, approveCashClose(), CashCloseInput, CashCloseRecord, CashMovementRecord, closeInclude, CloseRow, createCashMovement() (+10 more)
 
 ### Community 29 - "playzone.service.ts"
 Cohesion: 0.11
-Nodes (30): playzoneController, addChild(), AddChildInput, ChargeableSession, completeSession(), computePlayzoneCharge(), createGuardian(), CreateGuardianInput (+22 more)
+Nodes (28): playzoneController, addChild(), AddChildInput, ChargeableSession, completeSession(), computePlayzoneCharge(), createGuardian(), CreateGuardianInput (+20 more)
 
 ### Community 30 - "fronted/tsconfig.json"
 Cohesion: 0.33
@@ -275,21 +277,21 @@ Nodes (5): compilerOptions, baseUrl, paths, files, references
 Cohesion: 0.40
 Nodes (4): ElectronAPI, ImportMeta, ImportMetaEnv, Window
 
-### Community 51 - "inventory.controller.ts"
-Cohesion: 0.15
-Nodes (26): fail(), IdParams, inventoryController, TenantQuery, adjustStock(), assertCategory(), categorySelect, createCategory() (+18 more)
+### Community 51 - "inventory.service.ts"
+Cohesion: 0.12
+Nodes (33): fail(), IdParams, inventoryController, TenantQuery, adjustStock(), assertCategory(), categorySelect, createCategory() (+25 more)
 
-### Community 52 - "pos.service.ts"
-Cohesion: 0.15
-Nodes (23): getAuth(), posController, buildReceiptHtml(), ComprobanteType, createVoidRequest(), CreateVoidRequestInput, formatPEN(), getNextCorrelative() (+15 more)
+### Community 52 - "seed.ts"
+Cohesion: 0.25
+Nodes (7): adapter, main(), pool, prisma, sha256(), pg, @prisma/adapter-pg
 
 ### Community 53 - "State & Feedback Patterns"
 Cohesion: 0.08
 Nodes (23): Button Press, Checkmark Success, Confirmation Badge, Corporate, Disabled / Enabled, Error Shake, Error State, Focus States (+15 more)
 
-### Community 54 - "TerminalShell"
+### Community 54 - "TerminalShell.tsx"
 Cohesion: 0.15
-Nodes (17): Logo(), LogoProps, ActiveSection, getSectionFromPath(), SectionGroup(), TerminalShell(), TerminalShellProps, apiErrorMessage() (+9 more)
+Nodes (18): apiErrorMessage(), CashDrawerGuard(), Logo(), LogoProps, ActiveSection, getSectionFromPath(), SectionGroup(), TerminalShell() (+10 more)
 
 ### Community 55 - "componer-musica.py"
 Cohesion: 0.25
@@ -299,17 +301,17 @@ Nodes (17): bass(), bell(), bp(), clap(), env(), hp(), kick(), lead() (+9 more)
 Cohesion: 0.13
 Nodes (18): args, audioDir, duration(), force, hasEdge(), LINES, ok(), pureEnv (+10 more)
 
-### Community 57 - "pages/POSScreen.tsx"
-Cohesion: 0.19
-Nodes (20): CartRow(), CatalogTabs(), CategoryCard(), POSScreen(), ProductCard(), SaleToday, ToastState, TodaySalesPanel() (+12 more)
+### Community 57 - "prisma.ts"
+Cohesion: 0.13
+Nodes (11): adapter, globalForPrisma, pool, ap(), call(), counted, login(), opening (+3 more)
 
 ### Community 58 - "Motion Design Skill"
 Cohesion: 0.10
 Nodes (21): Button Press (Playful), Card Entrance (Premium), Choreography Essentials, Common Patterns, CRITICAL — never break, Duration Table, Easing Selection, Emotion-to-Motion Map (+13 more)
 
-### Community 59 - "billing.service.ts"
-Cohesion: 0.20
-Nodes (19): EmissionResult, formatCorrelative(), billingController, countPendingDocuments(), createBillingNote(), CreateBillingNoteInput, createVoidCreditNote(), CREDIT_REASONS (+11 more)
+### Community 59 - "scripts"
+Cohesion: 0.18
+Nodes (11): scripts, build, db:generate, db:migrate, db:push, db:seed, db:studio, dev (+3 more)
 
 ### Community 60 - "Inventario de controles — Wonka POS"
 Cohesion: 0.10
@@ -320,12 +322,12 @@ Cohesion: 0.18
 Nodes (21): _a(), Ao(), _assertThisInitialized(), cb(), cc(), ga(), gb(), hb() (+13 more)
 
 ### Community 62 - "src/index.ts"
-Cohesion: 0.16
-Nodes (14): App, PORT, StorageUnavailableError, supabase, supabaseBucket, uploadFileToStorage(), apisperuController, consultaDNI() (+6 more)
+Cohesion: 0.19
+Nodes (10): App, PORT, StorageUnavailableError, supabase, supabaseBucket, uploadFileToStorage(), ALLOWED_UPLOAD_FOLDERS, AllowedUploadFolder (+2 more)
 
 ### Community 63 - "useAuthStore"
 Cohesion: 0.21
-Nodes (13): AdminGuard(), App(), CashDrawerGuardRoute(), PosGuard(), RootRedirect(), WorkerGuard(), TitleBar(), BillingNotesScreen() (+5 more)
+Nodes (15): AdminAuth(), AdminGuard(), App(), CashDrawerGuardRoute(), PosGuard(), RootRedirect(), WorkerGuard(), AdminLayout() (+7 more)
 
 ### Community 64 - "Common Recipes"
 Cohesion: 0.11
@@ -343,13 +345,13 @@ Nodes (15): 1. Lead with the Hero, 2. Spatial Origin Consistency, 3. Counter-Mot
 Cohesion: 0.17
 Nodes (13): ADMIN_ROUTES, ADMIN_WRITE_PREFIXES, authGuard, AuthPayload, denial(), isAdminRole(), isAdminRoute(), isPublic() (+5 more)
 
-### Community 68 - "__base/RightCheckoutDrawer.tsx"
-Cohesion: 0.17
-Nodes (13): calculateLine(), IgvRegime, InvoiceType, numberToWords(), PaymentMethod, resolveRegime(), RightCheckoutDrawer(), TenantFiscalConfig (+5 more)
+### Community 68 - "birthday.controller.ts"
+Cohesion: 0.38
+Nodes (8): birthdayController, createBirthdayReservation(), getBirthdayDetails(), listBirthdayReservations(), updateBirthdayGuest(), BirthdayListQuery, CreateBirthdayBody, UpdateBirthdayGuestBody
 
-### Community 69 - "components/RightCheckoutDrawer.tsx"
-Cohesion: 0.19
-Nodes (14): RightCheckoutDrawerProps, RECEIPT_LOGO, calculateLine(), IgvRegime, InvoiceType, numberToWords(), PaymentMethod, resolveRegime() (+6 more)
+### Community 69 - "dependencies"
+Cohesion: 0.22
+Nodes (9): dependencies, elysia, @elysiajs/cors, @elysiajs/swagger, nodemailer, pg, @prisma/adapter-pg, @prisma/client (+1 more)
 
 ### Community 70 - "Disney's 12 Principles — UI Adapted"
 Cohesion: 0.14
@@ -412,16 +414,16 @@ Cohesion: 0.29
 Nodes (7): CheckinRequest, EmployeeCreate, EmployeeUpdate, LoginRequest, ScheduleUpdate, WebAuthnLoginRequest, WebAuthnRegisterRequest
 
 ### Community 85 - "SalesHistoryScreen.tsx"
-Cohesion: 0.33
-Nodes (10): formatDateKey(), formatLongDateLabel(), formatPEN(), formatTableDateTime(), formatUSD(), getCorrelativo(), getDocumentTypeLabel(), getPaymentMethodLabel() (+2 more)
+Cohesion: 0.24
+Nodes (14): apiErrorMessage(), escapeHtml(), formatDateKey(), formatLongDateLabel(), formatPEN(), formatTableDateTime(), formatUSD(), fromDateKey() (+6 more)
 
 ### Community 86 - "mock-apisperu.ts"
 Cohesion: 0.24
 Nodes (9): accepted, json(), log, Mode, modeFor(), PORT, sendDocument(), server (+1 more)
 
-### Community 87 - "sheet.tsx"
-Cohesion: 0.29
-Nodes (7): SheetContent(), SheetDescription(), SheetFooter(), SheetHeader(), SheetOverlay(), SheetPortal(), Sidebar()
+### Community 87 - "dashboard.service.ts"
+Cohesion: 0.32
+Nodes (12): getTodayOpening(), limaDayBounds(), limaYmd(), openCashDrawer(), dashboardController, assertNonNegativeInteger(), DashboardStats, getDashboardStats() (+4 more)
 
 ### Community 88 - "CashMovementsScreen.tsx"
 Cohesion: 0.31
@@ -448,12 +450,12 @@ Cohesion: 0.25
 Nodes (7): Bloqueos / avisos entre agentes, Contratos acordados (el líder decide; cambios se anotan aquí), Coordinación del equipo — Wonka POS, Direcciones SendMessage (campo `to`), Entorno de pruebas (OBLIGATORIO), Propiedad de archivos (uno edita a la vez; si necesitas un archivo ajeno, pide el cambio al dueño vía SendMessage o anótalo abajo), Solicitudes de schema
 
 ### Community 95 - "db-inventario — schema, inventario, upload"
-Cohesion: 0.25
-Nodes (7): Aplicar en producción (NO ejecutado; hacerlo el responsable de deploy), Cambios de schema aplicados (DB local de test), db-inventario — schema, inventario, upload, Inventario (backend `modules/inventory`, `types/schemas.ts` sección Inventory), Pendientes, Pruebas (curl :3015 con token Bearer, verificado en DB), Seed
+Cohesion: 0.22
+Nodes (8): Aplicar en producción (NO ejecutado; hacerlo el responsable de deploy), Cambios de schema aplicados (DB local de test), db-inventario — schema, inventario, upload, Inventario (backend `modules/inventory`, `types/schemas.ts` sección Inventory), Pendientes, Pruebas (curl :3015 con token Bearer, verificado en DB), Seed, BillingNote
 
-### Community 96 - "tooltip.tsx"
-Cohesion: 0.32
-Nodes (6): SidebarMenuButton(), sidebarMenuButtonVariants, Tooltip(), TooltipContent(), TooltipTrigger(), @base-ui/react
+### Community 96 - "POSScreen.tsx"
+Cohesion: 0.23
+Nodes (12): formatCurrency(), DashboardStats, initialStats, CartRow(), CatalogTabs(), CategoryCard(), POSScreen(), ProductCard() (+4 more)
 
 ### Community 97 - "na"
 Cohesion: 0.25
@@ -467,9 +469,9 @@ Nodes (6): Animation(), Da(), la(), ma(), Ua(), Va()
 Cohesion: 0.33
 Nodes (5): Dirección de movimiento, Estructura, Guion y tiempos, Renderizar, Renzo Wonka · Video promocional (Hyperframes)
 
-### Community 102 - "tabs.tsx"
-Cohesion: 0.40
-Nodes (4): Tabs(), TabsContent(), TabsList(), TabsTrigger()
+### Community 102 - "devDependencies"
+Cohesion: 0.33
+Nodes (6): devDependencies, prisma, @types/bun, @types/node, @types/nodemailer, @types/pg
 
 ### Community 103 - "fb"
 Cohesion: 0.40
@@ -491,11 +493,11 @@ Nodes (5): Rd(), Vd(), Wd(), yd(), ye()
 Cohesion: 0.50
 Nodes (3): CashMovementState, ManualCashMovement, useCashMovementStore
 
+### Community 109 - "Splash.tsx"
+Cohesion: 0.50
+Nodes (3): @tauri-apps/api, @tauri-apps/plugin-process, @tauri-apps/plugin-updater
+
 ## Ambiguous Edges - Review These
-- `Build and Release Tauri App (GitHub Actions workflow)` → `electron-builder effective config (Renzo Wonka POS, com.renzowonka.pos, NSIS, Electron 33.4.11)`  [AMBIGUOUS]
-  fronted/.github/workflows/release.yml · relation: conceptually_related_to
-- `Guia de Despliegue de Actualizaciones (Wonka update deployment guide)` → `Electron MIT license (bundled in win-unpacked output)`  [AMBIGUOUS]
-  fronted/ACTUALIZACIONES.md · relation: conceptually_related_to
 - `QR-based Attendance/Verification Scanning` → `QR Code Image`  [AMBIGUOUS]
   fronted/public/qr-code.png · relation: conceptually_related_to
 - `Wonka Asistencia Attendance App (Python/FastAPI)` → `wonka-backend (Bun/TypeScript runtime)`  [AMBIGUOUS]
@@ -505,27 +507,27 @@ Nodes (3): CashMovementState, ManualCashMovement, useCashMovementStore
 
 ## Knowledge Gaps
 - **66 isolated node(s):** `@types/bun`, `@types/node`, `@types/nodemailer`, `@types/pg`, `typescript` (+61 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 735 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **23 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 742 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **26 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `react` connect `react` to `Button`, `main.tsx`, `cn`, `__base/RightCheckoutDrawer.tsx`, `components/RightCheckoutDrawer.tsx`, `tabs.tsx`, `InventoryScreen.tsx`, `pages/PlayZoneScreen.tsx`, `fronted/package.json`, `ReportsScreen.tsx`, `SalesHistoryScreen.tsx`, `TerminalShell`, `sheet.tsx`, `CashMovementsScreen.tsx`, `pages/POSScreen.tsx`?**
-  _High betweenness centrality (0.014) - this node is a cross-community bridge._
+- **Why does `prisma` connect `helpers.ts` to `hr.service.ts`, `pos.service.ts`, `birthday.controller.ts`, `inventory.service.ts`, `dashboard.service.ts`, `prisma.ts`, `cash.service.ts`, `playzone.service.ts`?**
+  _High betweenness centrality (0.019) - this node is a cross-community bridge._
 - **What connects `@types/bun`, `@types/node`, `@types/nodemailer` to the rest of the system?**
   _66 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Button` be split into smaller, more focused modules?**
-  _Cohesion score 0.13933236574746008 - nodes in this community are weakly interconnected._
-- **Why does `dependencies` connect `dependencies` to `fronted/package.json`?**
-  _High betweenness centrality (0.012) - this node is a cross-community bridge._
-- **Should `cash.service.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.08165057067603161 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.14122448979591837 - nodes in this community are weakly interconnected._
+- **Why does `react` connect `Button` to `main.tsx`, `POSScreen.tsx`, `cn`, `InventoryScreen.tsx`, `PlayZoneScreen.tsx`, `fronted/package.json`, `ReportsScreen.tsx`, `Splash.tsx`, `SalesHistoryScreen.tsx`, `TerminalShell.tsx`, `authStore.ts`, `CashMovementsScreen.tsx`?**
+  _High betweenness centrality (0.016) - this node is a cross-community bridge._
+- **Should `cn` be split into smaller, more focused modules?**
+  _Cohesion score 0.05308641975308642 - nodes in this community are weakly interconnected._
 
 ### Low-confidence Hints
 _AMBIGUOUS edges — the extractor was unsure. Verify before acting on these._
 
-- **What is the exact relationship between `Build and Release Tauri App (GitHub Actions workflow)` and `electron-builder effective config (Renzo Wonka POS, com.renzowonka.pos, NSIS, Electron 33.4.11)`?**
+- **What is the exact relationship between `QR-based Attendance/Verification Scanning` and `QR Code Image`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **What is the exact relationship between `Guia de Despliegue de Actualizaciones (Wonka update deployment guide)` and `Electron MIT license (bundled in win-unpacked output)`?**
+- **What is the exact relationship between `Wonka Asistencia Attendance App (Python/FastAPI)` and `wonka-backend (Bun/TypeScript runtime)`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._

@@ -49,25 +49,25 @@ describe("productos", () => {
         });
         expect(r.status).toBe(403);
     });
-    test("editar stock/precio/isActive → DB", async () => {
+    test("editar precio/isActive → DB; PATCH ignora stock", async () => {
         const r = await call("PATCH", `/inventory/products/${pid}`, { token: c.adminToken, query: { tenantId: c.tid }, body: { stock: 20, price: 3, isActive: false } });
         expect(r.status).toBe(200);
         const p = await prisma.product.findUnique({ where: { id: pid } });
-        expect(p?.stock).toBe(20);
+        expect(p?.stock).toBe(7); // PATCH no cambia stock (solo POST /stock)
         expect(Number(p?.price)).toBe(3);
         expect(p?.isActive).toBe(false);
     });
-    test("stock negativo rechazado", async () => {
-        const r = await call("PATCH", `/inventory/products/${pid}`, { token: c.adminToken, query: { tenantId: c.tid }, body: { stock: -1 } });
+    test("minStock negativo rechazado", async () => {
+        const r = await call("PATCH", `/inventory/products/${pid}`, { token: c.adminToken, query: { tenantId: c.tid }, body: { minStock: -1 } });
         expect([400, 422]).toContain(r.status);
     });
     test("ajustar stock por delta → DB; no permite quedar negativo", async () => {
-        const r = await call("POST", `/inventory/products/${pid}/stock`, { token: c.adminToken, query: { tenantId: c.tid }, body: { delta: -5 } });
+        const r = await call("POST", `/inventory/products/${pid}/stock`, { token: c.adminToken, query: { tenantId: c.tid }, body: { tenantId: c.tid, type: "SALIDA", quantity: 5, reason: "merma QA" } });
         expect(r.status).toBeLessThan(300);
-        expect((await prisma.product.findUnique({ where: { id: pid } }))?.stock).toBe(15);
-        const bad = await call("POST", `/inventory/products/${pid}/stock`, { token: c.adminToken, query: { tenantId: c.tid }, body: { delta: -999 } });
-        expect([409, 422]).toContain(bad.status);
-        expect((await prisma.product.findUnique({ where: { id: pid } }))?.stock).toBe(15);
+        expect((await prisma.product.findUnique({ where: { id: pid } }))?.stock).toBe(2);
+        const bad = await call("POST", `/inventory/products/${pid}/stock`, { token: c.adminToken, query: { tenantId: c.tid }, body: { tenantId: c.tid, type: "SALIDA", quantity: 999, reason: "merma QA" } });
+        expect(bad.status).toBe(422);
+        expect((await prisma.product.findUnique({ where: { id: pid } }))?.stock).toBe(2);
     });
     test("eliminar categoría con productos → 409; vacía → OK", async () => {
         const busy = await call("DELETE", `/inventory/categories/${c.category.id}`, { token: c.adminToken, query: { tenantId: c.tid } });

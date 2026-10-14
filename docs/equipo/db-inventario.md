@@ -56,3 +56,22 @@ categoría 201 / duplicada 409 / vacía 422 / otro tenant 403 / cajero 403; prod
 - Imágenes: requiere Supabase real (no hay en test) → bloqueado en controles.md.
 - Listado de inventario: una página de 500 (shortcut anotado en InventoryScreen).
 - POSScreen pide `limit` ≤ 500 (verificar que pos-zona no pida más; >500 → 422). POS ya oculta inactivos.
+
+## Inventario v2 (2026-10-13) — SQL para producción (NO aplicado)
+Aditivo: columna con default y tabla nueva. Aplicar con `prisma db execute --file` dentro de BEGIN/COMMIT antes de desplegar el backend nuevo.
+```sql
+BEGIN;
+ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "minStock" INTEGER NOT NULL DEFAULT 5;
+CREATE TABLE IF NOT EXISTS "stock_movements" (
+    "id" TEXT NOT NULL, "type" TEXT NOT NULL, "delta" INTEGER NOT NULL,
+    "stockBefore" INTEGER NOT NULL, "stockAfter" INTEGER NOT NULL, "reason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "tenantId" TEXT NOT NULL, "productId" TEXT NOT NULL, "workerId" TEXT, "saleId" TEXT,
+    CONSTRAINT "stock_movements_pkey" PRIMARY KEY ("id"));
+CREATE INDEX IF NOT EXISTS "stock_movements_tenantId_createdAt_idx" ON "stock_movements"("tenantId", "createdAt");
+CREATE INDEX IF NOT EXISTS "stock_movements_productId_createdAt_idx" ON "stock_movements"("productId", "createdAt");
+ALTER TABLE "stock_movements" ADD CONSTRAINT "stock_movements_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "tenants"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "stock_movements" ADD CONSTRAINT "stock_movements_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "stock_movements" ADD CONSTRAINT "stock_movements_workerId_fkey" FOREIGN KEY ("workerId") REFERENCES "workers"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+COMMIT;
+```

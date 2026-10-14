@@ -161,10 +161,9 @@ export async function getDashboardStats(tenantId: string): Promise<DashboardStat
                 _count: { id: true },
                 _sum: { total: true },
             }),
-            // Low stock products (<= 5 units and trackStock = true)
-            prisma.product.count({
-                where: { tenantId, isActive: true, trackStock: true, stock: { lte: 5 } },
-            }),
+            // Low stock products (stock <= minStock and trackStock = true)
+            prisma.$queryRaw<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM products WHERE "tenantId" = ${tenantId} AND "isActive" AND "trackStock" AND stock <= "minStock"`
+                .then((r) => r[0]?.n ?? 0),
             prisma.voidRequest.count({ where: { tenantId, status: "PENDING" } }),
             getTodayCashClose(tenantId),
             getTodayOpening(tenantId),

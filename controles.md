@@ -201,23 +201,28 @@ Evidencia: `e2e:<archivo>#<test>` = test de `bun test` contra backend :3016 + ve
 | Approvals | Aprobar (código admin) | Venta CANCELLED, stock restaurado solo productos reales | POST /pos/void/:id/resolve approve=true | probado | e2e:flow-e2e.test.ts#anulación: admin identificado SOLO por código |
 | Approvals | Rechazar (código admin) | VoidRequest REJECTED, venta intacta | POST /pos/void/:id/resolve approve=false | probado | e2e:flow-sales-cash.test.ts#rechazar → REJECTED |
 
-## Inventario (InventoryScreen)
-| Pantalla | Control/acción | Acción esperada | API/DB | Resultado | Evidencia |
-|---|---|---|---|---|---|
-| Inventory | Carga | Lista productos (hasta 500) y categorías con conteo; error → banner "Reintentar" | GET /inventory/products?limit=500, /inventory/categories (_count) | probado | curl :3015 + DB (docs/equipo/db-inventario.md) |
-| Inventory | Tabs Productos / Categorías | Cambia vista | — | probado | código:InventoryScreen.tsx (setActiveTab) |
-| Inventory | Buscar | Filtra por nombre/SKU/categoría (cliente) | — | probado | código:InventoryScreen.tsx (filteredProducts) |
-| Inventory | Botón "Ajuste de stock" (antes "Entrada"/"Asistencia") | Abre modal Entrada / Salida-merma | — | probado | código:InventoryScreen.tsx (isStockOpen) |
-| Inventory | Nueva categoría: nombre + imagen + "Guardar" | Crea; nombre vacío/espacios → bloqueado; duplicado → 409 "Ya existe una categoría con ese nombre." inline | POST /inventory/categories | probado (201/409/422; cajero 403) | curl :3015 + DB (docs/equipo/db-inventario.md) |
-| Inventory | Editar categoría + "Guardar" / "Quitar imagen" | Actualiza nombre/imagen ('' limpia); renombrar a existente → 409 | PATCH /inventory/categories/:id (where id+tenantId) | probado | curl :3015 + DB (docs/equipo/db-inventario.md) |
-| Inventory | Eliminar categoría (modal editar) | Solo si no tiene productos (botón deshabilitado si tiene); confirm | DELETE /inventory/categories/:id → 200 / 409 / 404 | probado | curl :3015 + DB (docs/equipo/db-inventario.md) |
-| Inventory | Nuevo producto: form + "Crear Producto" | Valida nombre/SKU sin espacios/precio≥0/costo≥0/stock entero≥0; SKU duplicado → 409 inline; categoría ajena → 404 | POST /inventory/products | probado (201/409/422/404) | curl :3015 + DB (docs/equipo/db-inventario.md) |
-| Inventory | Editar producto + "Actualizar" | Actualiza nombre/categoría/precio/costo/IGV ('' = default negocio)/imagen; SKU inmutable; stock solo lectura (usar ajuste) | PATCH /inventory/products/:id (where id+tenantId) | probado (200/404) | curl :3015 + DB (docs/equipo/db-inventario.md) |
-| Inventory | Toggle "Control de Stock" / "Activo" (modal) | Cambia trackStock / isActive | PATCH /inventory/products/:id | probado | curl :3015 + DB (docs/equipo/db-inventario.md) |
-| Inventory | Icono Estado en fila (✓/✗) | Activa/desactiva el producto con un clic | PATCH /inventory/products/:id {isActive} | probado | curl :3015 + DB (docs/equipo/db-inventario.md) |
-| Inventory | Ajuste de stock: Entrada / Salida + "Registrar" | Incremento atómico; salida > stock → error "Stock insuficiente"; 0 → 422 | POST /inventory/products/:id/stock {delta} | probado (+5→15, −20→409, −15→0, 0→422; cajero 403) | curl :3015 + DB (docs/equipo/db-inventario.md) |
-| Inventory | Recorte de imagen: zoom ±, rotar ±, reset, confirmar, cancelar | Recorta (JPEG) y sube | POST /upload | bloqueado: sin Supabase en test → 503 "El almacenamiento rechazó la imagen…" mostrado inline; producto/categoría se guardan sin imagen | curl :3015 + DB (docs/equipo/db-inventario.md) |
-| Inventory | Cerrar/cancelar modales | Cierra sin guardar | — | probado | código:InventoryScreen.tsx (onClose) |
+## Inventario (InventoryScreen) — v2
+| Pantalla | Control/acción | Acción esperada | API/DB | Resultado |
+|---|---|---|---|---|
+| Inventory | Carga / indicadores Activos, Stock bajo, Agotados | Muestran /inventory/stats | GET /inventory/stats | probado (UI: e2e/inventory.spec.ts#indicadores clicables filtran) · probado (API: tests/inventory-v2.test.ts#stats) |
+| Inventory | Click en indicador | Filtra la tabla (low/out/all); el número coincide con el total | GET /inventory/products?stock= | probado (UI: e2e/inventory.spec.ts#indicador stock bajo: el número coincide con el filtro) |
+| Inventory | Tabs Productos / Movimientos / Categorías | Cambia vista | — | probado (UI: e2e/inventory.spec.ts#categorías: crear, editar, eliminar) |
+| Inventory | Búsqueda, filtros categoría/stock/estado | Filtra en servidor (nombre/SKU insensible) | GET /inventory/products | probado (UI: e2e/inventory.spec.ts#búsqueda y filtros) · probado (API: tests/inventory-v2.test.ts#search nombre/SKU insensible; categoryId, filtro stock, filtro status) |
+| Inventory | Paginación | meta.total/page/limit | GET /inventory/products | probado (API: tests/inventory-v2.test.ts#paginación con meta.total) |
+| Inventory | Nuevo producto (stock inicial + mínimo) | Crea; movimiento INICIAL si stock>0 y trackStock | POST /inventory/products | probado (UI: e2e/inventory.spec.ts#crear producto con stock inicial y mínimo) · probado (API: tests/inventory-v2.test.ts#crear con stock>0 → INICIAL; stock 0 o sin trackStock → nada) |
+| Inventory | Editar producto (SKU bloqueado, minStock) | Actualiza; PATCH ignora stock | PATCH /inventory/products/:id | probado (UI: e2e/inventory.spec.ts#editar producto) · probado (API: tests/inventory-v2.test.ts#minStock inválido → 422; PATCH con stock no lo cambia) |
+| Inventory | minStock por defecto / custom / inválido | 5 / n / 422 | POST/PATCH /inventory/products | probado (API: tests/inventory-v2.test.ts#minStock por defecto 5, custom en create, PATCH lo cambia) |
+| Inventory | Desactivar / Activar (confirmación) | Cambia isActive | PATCH /inventory/products/:id | probado (UI: e2e/inventory.spec.ts#desactivar y activar) |
+| Inventory | Ajuste ENTRADA / SALIDA / CORRECCION | Stock + movimiento en la misma operación | POST /inventory/products/:id/stock | probado (UI: e2e/inventory.spec.ts#ajustar stock: entrada, salida inválida, corrección) · probado (API: tests/inventory-v2.test.ts#ENTRADA: stock y movimiento en la misma operación) |
+| Inventory | Ajuste inválido (cantidad 0/neg/decimal, salida>stock, delta 0, motivo corto, trackStock=false) | 422, sin cambios | POST /inventory/products/:id/stock | probado (UI: e2e/inventory.spec.ts#ajustar stock: entrada, salida inválida, corrección) · probado (API: tests/inventory-v2.test.ts#inválidos → 422 y sin cambios; trackStock=false → 422) |
+| Inventory | Ajuste: tenant ajeno / cajero | 403/404; cajero 403 | POST …/stock, GET /inventory/movements | probado (API: tests/inventory-v2.test.ts#tenant ajeno → 403/404; cajero → 403 en ajuste y movimientos) |
+| Inventory | Concurrencia de salidas | Nunca negativo; suma de deltas = stock final | POST …/stock x10 | probado (API: tests/inventory-v2.test.ts#10 salidas concurrentes de 3 sobre stock 20: nunca negativo, deltas cuadran) |
+| Inventory | Pestaña Movimientos + filtros producto/tipo/fecha | Lista orden desc con antes→después | GET /inventory/movements | probado (UI: e2e/inventory.spec.ts#movimientos muestran los registros) · probado (API: tests/inventory-v2.test.ts#forma, orden desc, filtros y meta) |
+| Inventory | Venta real / anulación aprobada | Movimientos VENTA / ANULACION; nada para líneas virtuales ni sin trackStock; rechazo no mueve | POST /pos/sales, /pos/void/:id/resolve | probado (API: tests/inventory-v2.test.ts#venta real → VENTA; virtual y sin trackStock → nada, anulación aprobada → ANULACION (+); rechazada no mueve) |
+| Inventory | Categorías crear / editar / eliminar | CRUD de categoría | /inventory/categories | probado (UI: e2e/inventory.spec.ts#categorías: crear, editar, eliminar) |
+| Inventory | Importar Excel: plantilla, vista previa, confirmar, resumen | Plantilla .xlsx; filas inválidas marcadas; válidas aplicadas | POST /inventory/products/import | probado (UI: e2e/inventory.spec.ts#importar Excel: plantilla, vista previa, confirmar, resumen) |
+| Inventory | Import: INICIAL / sin pisar stock / IMPORTACION / stock_minimo | Movimientos según updateStock; minStock | POST /inventory/products/import | probado (API: tests/inventory-v2.test.ts#crear con stock → INICIAL; sin stock → nada, update sin updateStock no pisa stock ni crea movimiento, updateStock=true → IMPORTACION; mismo stock → sin movimiento, minStock al crear, default 5, actualiza sin tocar si falta) |
+| Inventory | Recorte/subida de imagen | Sube JPEG | POST /upload | bloqueado: sin Supabase en test → 503 (mostrado inline) |
 
 ## Empleados / Roles / Asistencia (EmployeesScreen)
 | Pantalla | Control/acción | Acción esperada | API/DB | Resultado | Evidencia |

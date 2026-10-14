@@ -87,17 +87,19 @@ export const CreateProductBody = t.Object({
     price: Money,
     cost: t.Optional(Money),
     stock: t.Optional(Stock),
+    minStock: t.Optional(Stock),
     trackStock: t.Optional(t.Boolean({ default: true })),
     igvRegime: t.Optional(t.String({ pattern: "^(GRAVADO|EXONERADO|INAFECTO|ICBPER|GRAVADO_10_5)$" })),
 });
 
 export const UpdateProductBody = t.Object({
+    tenantId: t.Optional(t.String({ minLength: 1 })), // alternative to ?tenantId
     name: t.Optional(t.String({ minLength: 1, maxLength: 120, pattern: "\\S" })),
     imageUrl: t.Optional(t.String()), // "" clears the image
     categoryId: t.Optional(t.String({ minLength: 1 })),
     price: t.Optional(Money),
     cost: t.Optional(Money),
-    stock: t.Optional(Stock),
+    minStock: t.Optional(Stock),
     isActive: t.Optional(t.Boolean()),
     trackStock: t.Optional(t.Boolean()),
     // "" = inherit the tenant default
@@ -113,7 +115,10 @@ export const ImportProductsBody = t.Object({
 });
 
 export const AdjustStockBody = t.Object({
-    delta: t.Integer({ minimum: -1000000, maximum: 1000000 }), // 0 rejected in the service
+    tenantId: t.String({ minLength: 1 }),
+    type: t.Union([t.Literal("ENTRADA"), t.Literal("SALIDA"), t.Literal("CORRECCION")]),
+    quantity: t.Integer({ minimum: 0, maximum: 2147483647 }), // >0 enforced per type in the service
+    reason: t.String({ minLength: 3, maxLength: 200 }),
 });
 
 // ── POS ──────────────────────────────────────────────────────
