@@ -115,18 +115,58 @@ test('movimientos de caja: ingreso 20 y salida 5 (no son ventas)', async () => {
   expect(s.expectedCash).toBe(125)
 })
 
+test('venta libre desde POS (9, tarjeta): una sola vez, sin tocar stock', async () => {
+  await go(page, '/pos')
+  await page.getByRole('button', { name: 'Venta libre' }).click()
+  await page.getByPlaceholder('Ej: Servicio de limpieza').fill('Limpieza E2E')
+  await page.getByPlaceholder('0.00').first().fill('9')
+  await page.getByRole('button', { name: 'Agregar al ticket' }).click()
+  await page.getByRole('button', { name: 'COBRAR' }).click()
+  await page.getByRole('button', { name: 'Tarjeta', exact: true }).click()
+  await page.getByRole('button', { name: /Finalizar venta/ }).click()
+  await expect.poll(async () => (await summary()).sales.count).toBe(3)
+  const s = await summary()
+  expect(s.sales).toMatchObject({ total: 36.5 })
+  expect(s.sales.byKind).toMatchObject({ productos: 10, zonaJuegos: 17.5, ventaLibre: 9 })
+  expect(s.sales.byMethod).toMatchObject({ efectivo: 10, yape: 17.5, tarjeta: 9 })
+  expect(s.expectedCash).toBe(125) // tarjeta no entra al efectivo
+  await go(page, '/sales-history')
+  await expect(page.getByRole('row').filter({ hasText: money(9) })).toHaveCount(1)
+  await expect(page.getByRole('row')).toHaveCount(4)
+  await go(page, '/admin')
+  await expect(kpi(page, 'Ventas hoy')).toContainText(money(36.5))
+  await expect(kpi(page, 'Ventas hoy')).toContainText('3 ventas')
+})
+
+test('ajuste de stock desde Inventario (+5): no cambia cifras de caja', async () => {
+  const before = await summary()
+  await go(page, '/admin/inventory')
+  const row = page.locator('[data-testid="product-row"][data-sku="QA-1"]')
+  await expect(row.getByTestId('stock-value')).toHaveText('8')
+  await row.getByTestId('product-adjust').click()
+  await page.getByTestId('stock-type-ENTRADA').click()
+  await page.getByTestId('stock-qty').fill('5')
+  await page.getByTestId('stock-reason').fill('Reposición e2e')
+  await page.getByTestId('stock-save').click()
+  await expect(row.getByTestId('stock-value')).toHaveText('13')
+  const after = await summary()
+  expect(after.sales).toEqual(before.sales)
+  expect(after.expectedCash).toBe(before.expectedCash)
+  expect(after.movements).toEqual(before.movements)
+})
+
 test('historial, estadísticas, reporte de turno y panel muestran las mismas cifras', async () => {
   await go(page, '/sales-history')
-  await expect(page.getByText(money(27.5)).first()).toBeVisible() // total del periodo
-  await expect(page.getByRole('row')).toHaveCount(3) // cabecera + 2 ventas, sin duplicados
+  await expect(page.getByText(money(36.5)).first()).toBeVisible() // total del periodo
+  await expect(page.getByRole('row')).toHaveCount(4) // cabecera + 3 ventas, sin duplicados
   await go(page, '/estadisticas-venta')
-  await expect(page.getByText(money(27.5)).first()).toBeVisible()
+  await expect(page.getByText(money(36.5)).first()).toBeVisible()
   await expect(page.getByText(money(17.5)).first()).toBeVisible()
   await go(page, '/cash-close')
   await expect(page.getByText(money(125)).first()).toBeVisible() // esperado en efectivo
   await go(page, '/admin')
-  await expect(kpi(page, 'Ventas hoy')).toContainText(money(27.5))
-  await expect(kpi(page, 'Ventas hoy')).toContainText('2 ventas')
+  await expect(kpi(page, 'Ventas hoy')).toContainText(money(36.5))
+  await expect(kpi(page, 'Ventas hoy')).toContainText('3 ventas')
   await expect(kpi(page, 'Saldo esperado')).toContainText(money(125))
   await expect(kpi(page, 'Anuladas')).toContainText('0')
 })
@@ -134,7 +174,7 @@ test('historial, estadísticas, reporte de turno y panel muestran las mismas cif
 test('panel: enlaces con filtro llevan a pantallas que lo aplican', async () => {
   await kpi(page, 'Ventas hoy').click()
   await expect(page).toHaveURL(/\/sales-history\?date=hoy/)
-  await expect(page.getByRole('row')).toHaveCount(3)
+  await expect(page.getByRole('row')).toHaveCount(4)
   await go(page, '/admin')
   await kpi(page, 'Anuladas').click()
   await expect(page).toHaveURL(/\/sales-history\?status=CANCELLED/)
@@ -158,12 +198,12 @@ test('solicitar anulación de la venta de producto y aprobarla en Aprobaciones',
   await pin(page, ADMIN_PIN)
   await expect.poll(async () => (await summary()).voided.count).toBe(1)
   const s = await summary()
-  expect(s.sales).toMatchObject({ count: 1, total: 17.5 })
+  expect(s.sales).toMatchObject({ count: 2, total: 26.5 })
   expect(s.voided).toMatchObject({ count: 1, total: 10 })
   expect(s.pending.voids).toBe(0)
   expect(s.expectedCash).toBe(115) // 100 + 0 efectivo + 20 − 5
   await go(page, '/admin')
-  await expect(kpi(page, 'Ventas hoy')).toContainText(money(17.5))
+  await expect(kpi(page, 'Ventas hoy')).toContainText(money(26.5))
   await expect(kpi(page, 'Anuladas')).toContainText(money(10))
   await expect(kpi(page, 'Solicitudes')).toContainText('0')
   await expect(kpi(page, 'Saldo esperado')).toContainText(money(115))
@@ -176,7 +216,7 @@ test('cierre de caja y aprobación: Cerrada en panel e historial de cierres', as
   const counted = page.locator('input[placeholder="0.00"]')
   await counted.nth(0).fill('115')
   await counted.nth(1).fill('17.5')
-  await counted.nth(2).fill('0')
+  await counted.nth(2).fill('9')
   await page.getByRole('button', { name: 'Cerrar Caja' }).click()
   await pin(page, ADMIN_PIN)
   await expect.poll(async () => (await summary()).cashStatus).toBe('CERRADA')
@@ -185,14 +225,14 @@ test('cierre de caja y aprobación: Cerrada en panel e historial de cierres', as
   await relogin() // tras cerrar, la app puede cerrar la sesión
   await relogin(); await go(page, '/admin')
   await expect(kpi(page, 'Caja')).toContainText('Cerrada')
-  await expect(kpi(page, 'Ventas hoy')).toContainText(money(17.5)) // cifras idénticas tras el cierre
+  await expect(kpi(page, 'Ventas hoy')).toContainText(money(26.5)) // cifras idénticas tras el cierre
   await relogin(); await go(page, '/reporte-cierre-turno')
   await expect(page.getByText('Sin cierres de turno')).toHaveCount(0)
-  await expect(page.getByText(money(132.5)).first()).toBeVisible() // efectivo 115 + yape 17.50 contados
+  await expect(page.getByText(money(141.5)).first()).toBeVisible() // efectivo 115 + yape 17.50 + tarjeta 9 contados
   await relogin(); await go(page, '/admin')
   await kpi(page, 'Caja').click()
   await expect(page).toHaveURL(/cash-history/)
   await expect(page.getByText(money(100)).first()).toBeVisible() // apertura congelada
-  await expect(page.getByRole('row').filter({ hasText: '132.50' }).last()).toBeVisible() // fila del cierre
+  await expect(page.getByRole('row').filter({ hasText: '141.50' }).last()).toBeVisible() // fila del cierre
   await expect(page.getByRole('button', { name: /Pendiente/ })).toHaveCount(0) // aprobado: sin botón de aprobar
 })
