@@ -85,7 +85,7 @@ export const CreateProductBody = t.Object({
     sku: t.String({ minLength: 1, maxLength: 40, pattern: "^\\s*\\S+\\s*$" }),
     imageUrl: t.Optional(t.String()),
     price: Money,
-    cost: Money,
+    cost: t.Optional(Money),
     stock: t.Optional(Stock),
     trackStock: t.Optional(t.Boolean({ default: true })),
     igvRegime: t.Optional(t.String({ pattern: "^(GRAVADO|EXONERADO|INAFECTO|ICBPER|GRAVADO_10_5)$" })),

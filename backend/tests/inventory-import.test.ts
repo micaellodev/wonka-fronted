@@ -11,7 +11,7 @@ const imp = (ctx: Ctx, rows: any[], extra: any = {}, token = ctx.adminToken) =>
 describe("import masivo de productos", () => {
     test("crea productos y categoría nueva; sku en mayúsculas", async () => {
         const r = await imp(c, [
-            { row: 2, sku: "imp-1", name: "Galleta", category: "Dulces Nuevos", price: 2.5, cost: 1, stock: 5, trackStock: "SI", isActive: "NO" },
+            { row: 2, sku: "imp-1", name: "Galleta", category: "Dulces Nuevos", price: 2.5, stock: 5, trackStock: "SI", isActive: "NO" },
             { row: 3, sku: "IMP-2", name: "Agua", category: "qa cat", price: "3,5", stock: "" },
         ]);
         expect(r.status).toBe(200);
@@ -19,13 +19,15 @@ describe("import masivo de productos", () => {
         const p = await prisma.product.findFirst({ where: { tenantId: c.tid, sku: "IMP-1" } });
         expect(p?.stock).toBe(5);
         expect(p?.isActive).toBe(false);
+        expect(p?.igvRegime).toBe("EXONERADO");
+        expect(Number(p?.cost)).toBe(0);
         expect(await prisma.category.count({ where: { tenantId: c.tid, name: "Dulces Nuevos" } })).toBe(1);
         const p2 = await prisma.product.findFirst({ where: { tenantId: c.tid, sku: "IMP-2" }, include: { category: true } });
         expect(Number(p2?.price)).toBe(3.5);
         expect(p2?.category.name).toBe("QA Cat"); // reuses existing category case-insensitively
     });
     test("actualiza por SKU sin pisar stock por defecto", async () => {
-        const r = await imp(c, [{ sku: "IMP-1", name: "Galleta XL", category: "Dulces Nuevos", price: 9, cost: 4, stock: 99 }]);
+        const r = await imp(c, [{ sku: "IMP-1", name: "Galleta XL", category: "Dulces Nuevos", price: 9, stock: 99 }]);
         expect(r.json.data).toMatchObject({ created: 0, updated: 1 });
         const p = await prisma.product.findFirst({ where: { tenantId: c.tid, sku: "IMP-1" } });
         expect(p?.name).toBe("Galleta XL");

@@ -123,7 +123,7 @@ export const inventoryController = new Elysia({
                     sku: body.sku,
                     ...(body.imageUrl !== undefined ? { imageUrl: body.imageUrl } : {}),
                     price: body.price,
-                    cost: body.cost,
+                    cost: body.cost ?? 0,
                     ...(body.stock !== undefined ? { stock: body.stock } : {}),
                     ...(body.trackStock !== undefined ? { trackStock: body.trackStock } : {}),
                     ...(body.igvRegime !== undefined ? { igvRegime: body.igvRegime } : {}),

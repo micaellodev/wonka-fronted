@@ -590,7 +590,6 @@ function ProductModal({ tenantId, categories, editing, onClose, onSaved }: Produ
  categoryId: editing?.category?.id ?? categories[0]?.id ?? '',
  imageUrl: editing?.imageUrl ?? '',
  price: editing?.price?.toString() ?? '',
- cost: editing?.cost?.toString() ?? '',
  stock: editing?.stock?.toString() ?? '0',
  trackStock: editing?.trackStock ?? true,
  isActive: editing?.isActive ?? true,
@@ -637,9 +636,7 @@ function ProductModal({ tenantId, categories, editing, onClose, onSaved }: Produ
  if (!name || !sku || !form.categoryId) { setError('Nombre, SKU y categoría son obligatorios.'); return }
  if (/\s/.test(sku)) { setError('El SKU no puede contener espacios.'); return }
  const price = Number(form.price)
- const cost = Number(form.cost)
  if (form.price.trim() === '' || !isFinite(price) || price < 0 || price > 99999999.99) { setError('El precio debe ser un número mayor o igual a 0.'); return }
- if (form.cost.trim() === '' || !isFinite(cost) || cost < 0 || cost > 99999999.99) { setError('El costo debe ser un número mayor o igual a 0.'); return }
  const stock = Number(form.stock || '0')
  if (!editing && (!Number.isInteger(stock) || stock < 0)) { setError('El stock debe ser un número entero mayor o igual a 0.'); return }
  const round2 = (n: number) => Math.round(n * 100) / 100
@@ -654,7 +651,6 @@ function ProductModal({ tenantId, categories, editing, onClose, onSaved }: Produ
  categoryId: form.categoryId,
  imageUrl: form.imageUrl,
  price: round2(price),
- cost: round2(cost),
  trackStock: form.trackStock,
  isActive: form.isActive,
  igvRegime: form.igvRegime ?? '',
@@ -666,7 +662,6 @@ function ProductModal({ tenantId, categories, editing, onClose, onSaved }: Produ
  sku,
  ...(form.imageUrl ? { imageUrl: form.imageUrl } : {}),
  price: round2(price),
- cost: round2(cost),
  stock: form.trackStock ? stock : 0,
  trackStock: form.trackStock,
  ...(form.igvRegime ? { igvRegime: form.igvRegime } : {}),
@@ -794,19 +789,6 @@ function ProductModal({ tenantId, categories, editing, onClose, onSaved }: Produ
  />
  </div>
 
- <div>
- <label className="block text-sm font-semibold text-gray-600 mb-1.5">Costo Unitario (S/)</label>
- <input
- type="number"
- min="0"
- step="0.01"
- value={form.cost}
- onChange={e => setForm(p => ({ ...p, cost: e.target.value }))}
- className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-brand-500 transition-colors"
- placeholder="0"
- />
- </div>
-
  <div className="flex flex-col gap-2 justify-center mt-2">
  <label className="block text-sm font-semibold text-gray-600">Control de Stock</label>
  <div className="flex items-center gap-3 bg-white/30 rounded-xl px-4 py-2 border border-gray-200/50">
@@ -845,23 +827,6 @@ function ProductModal({ tenantId, categories, editing, onClose, onSaved }: Produ
  </div>
  )}
 
- {/* Margin preview */}
- <div className="flex items-end pb-1">
- <div className="w-full bg-white/40 border border-gray-200/50 rounded-xl px-4 py-2.5">
- <span className="text-xs text-gray-400 block mb-0.5">Margen estimado</span>
- <span className={`text-sm font-bold ${parseFloat(form.price) > 0 && parseFloat(form.cost) >= 0
- ? ((parseFloat(form.price) - parseFloat(form.cost)) / parseFloat(form.price) * 100) >= 20
- ? 'text-secondary-500'
- : 'text-accent-500'
- : 'text-gray-400'
- }`}>
- {parseFloat(form.price) > 0 && !isNaN(parseFloat(form.cost))
- ? `${(((parseFloat(form.price) - parseFloat(form.cost)) / parseFloat(form.price)) * 100).toFixed(1)}%`
- : '0%'
- }
- </span>
- </div>
- </div>
  </div>
 
  {form.imageUrl && !uploading && (
@@ -911,10 +876,10 @@ function ProductModal({ tenantId, categories, editing, onClose, onSaved }: Produ
 
 // ── Excel import ────────────────────────────────────────────────────────────
 
-const COLS = ['sku', 'nombre', 'categoria', 'precio', 'costo', 'stock', 'controla_stock', 'activo', 'igv', 'imagen_url'] as const
+const COLS = ['sku', 'nombre', 'categoria', 'precio', 'stock', 'controla_stock', 'activo'] as const
 const API_KEY: Record<(typeof COLS)[number], string> = {
- sku: 'sku', nombre: 'name', categoria: 'category', precio: 'price', costo: 'cost', stock: 'stock',
- controla_stock: 'trackStock', activo: 'isActive', igv: 'igvRegime', imagen_url: 'imageUrl',
+ sku: 'sku', nombre: 'name', categoria: 'category', precio: 'price', stock: 'stock',
+ controla_stock: 'trackStock', activo: 'isActive',
 }
 const norm = (h: unknown) => String(h ?? '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '_')
 
@@ -923,8 +888,8 @@ async function downloadTemplate(categoryNames: string[]) {
  const cat = categoryNames[0] ?? 'Bebidas'
  const ws = XLSX.utils.aoa_to_sheet([
  [...COLS],
- ['AGUA-500', 'Agua mineral 500ml', cat, 2.5, 1.2, 40, 'SI', 'SI', '', ''],
- ['GALL-01', 'Galletas de vainilla', cat, 1.5, 0.8, 100, 'SI', 'SI', 'GRAVADO', ''],
+ ['AGUA-500', 'Agua mineral 500ml', cat, 2.5, 40, 'SI', 'SI'],
+ ['GALL-01', 'Galletas de vainilla', cat, 1.5, 100, 'SI', 'SI'],
  ])
  ws['!cols'] = COLS.map(() => ({ wch: 18 }))
  const info = XLSX.utils.aoa_to_sheet([
@@ -933,13 +898,11 @@ async function downloadTemplate(categoryNames: string[]) {
  ['nombre', 'SI', 'Texto, máx. 120 caracteres.'],
  ['categoria', 'SI', 'Nombre de la categoría (sin distinguir mayúsculas). Si no existe, se CREA automáticamente.'],
  ['precio', 'SI', 'Número >= 0 (ej. 2.50). Precio de venta.'],
- ['costo', 'NO', 'Número >= 0. Vacío = 0.'],
  ['stock', 'NO', 'Entero >= 0. Vacío = 0 al crear. En productos que ya existen el stock NO se modifica (se conserva el real); solo se pisa si marcas "Reemplazar stock" al importar.'],
  ['controla_stock', 'NO', 'SI o NO. Vacío = SI al crear, sin cambio al actualizar.'],
  ['activo', 'NO', 'SI o NO. Vacío = SI al crear, sin cambio al actualizar.'],
- ['igv', 'NO', 'GRAVADO, EXONERADO, INAFECTO, ICBPER o GRAVADO_10_5. Vacío = hereda del negocio.'],
- ['imagen_url', 'NO', 'URL de la imagen. Vacío = sin cambio.'],
  [],
+ ['Los productos nuevos se crean con IGV EXONERADO.'],
  ['Máximo 2000 filas por archivo. Las filas con error se omiten y se informan; las válidas se importan.'],
  [],
  ['Categorías existentes'],
@@ -961,7 +924,6 @@ function clientCheck(d: Record<string, unknown>): string | undefined {
  if (!s('category')) return 'Categoría obligatoria.'
  const n = (k: string) => Number(s(k).replace(',', '.'))
  if (!s('price') || !(n('price') >= 0)) return 'Precio obligatorio (número ≥ 0).'
- if (s('cost') && !(n('cost') >= 0)) return 'Costo inválido.'
  if (s('stock') && !(Number.isInteger(n('stock')) && n('stock') >= 0)) return 'Stock debe ser entero ≥ 0.'
  return undefined
 }
@@ -1260,8 +1222,6 @@ export function InventoryScreen() {
  <th className="px-4 py-3 font-semibold">SKU</th>
  <th className="px-4 py-3 font-semibold">Categoria</th>
  <th className="px-4 py-3 font-semibold text-right">Precio</th>
- <th className="px-4 py-3 font-semibold text-right">Costo</th>
- <th className="px-4 py-3 font-semibold text-right">Margen</th>
  <th className="px-4 py-3 font-semibold text-center">Stock</th>
  <th className="px-4 py-3 font-semibold text-center">Estado</th>
  <th className="px-4 py-3 font-semibold text-right">Acciones</th>
@@ -1270,7 +1230,7 @@ export function InventoryScreen() {
  <tbody className="divide-y divide-white/5">
  {loading ? (
  <tr>
- <td colSpan={9} className="p-12 text-center">
+ <td colSpan={7} className="p-12 text-center">
  <div className="flex flex-col items-center gap-3 text-gray-500">
  <div className="w-8 h-8 border-2 border-gray-300 border-t-brand-400 rounded-full animate-spin" />
  Cargando productos...
@@ -1279,7 +1239,7 @@ export function InventoryScreen() {
  </tr>
  ) : filteredProducts.length === 0 ? (
  <tr>
- <td colSpan={9} className="p-12 text-center">
+ <td colSpan={7} className="p-12 text-center">
  <div className="flex flex-col items-center gap-3 text-gray-400">
  <Package className="w-10 h-10 opacity-30" />
  <p className="text-sm">{search ? 'No se encontraron productos con ese filtro.' : 'No hay productos registrados. ¡Crea el primero!'}</p>
@@ -1288,7 +1248,6 @@ export function InventoryScreen() {
  </tr>
  ) : (
  filteredProducts.map(p => {
- const margin = p.price > 0 ? ((p.price - p.cost) / p.price) * 100 : 0
  return (
  <tr key={p.id} className="hover:bg-gray-100/40 transition-colors">
  {/* Product name + image */}
@@ -1311,12 +1270,6 @@ export function InventoryScreen() {
  <span className="bg-gray-200/60 px-2.5 py-1 rounded-full text-xs font-medium text-gray-600">{p.category.name}</span>
  </td>
  <td className="px-4 py-3 text-sm text-secondary-500 font-bold text-right">{formatCurrency(p.price)}</td>
- <td className="px-4 py-3 text-sm text-gray-500 text-right">{formatCurrency(p.cost)}</td>
- <td className="px-4 py-3 text-right">
- <span className={`text-xs font-bold ${margin >= 30 ? 'text-secondary-500' : margin >= 15 ? 'text-accent-500' : 'text-brand-500'}`}>
- {margin.toFixed(1)}%
- </span>
- </td>
  <td className="px-4 py-3 text-center">
  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${p.stock <= 0 ? 'bg-brand-100 text-brand-500' : p.stock <= 5 ? 'bg-accent-100 text-accent-500' : 'bg-secondary-500/10 text-secondary-500'}`}>
  {p.stock}

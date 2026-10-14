@@ -214,7 +214,6 @@ export async function adjustStock(tenantId: string, productId: string, delta: nu
 // ── Bulk import (Excel) ──────────────────────────────────────
 
 export const IMPORT_MAX_ROWS = 2000;
-const IGV = ["GRAVADO", "EXONERADO", "INAFECTO", "ICBPER", "GRAVADO_10_5"];
 
 /** Accepts booleans and the usual Excel spellings (SI/NO, 1/0, true/false). undefined = cell empty. */
 function parseBool(v: unknown): boolean | undefined | "bad" {
@@ -234,9 +233,8 @@ function parseNum(v: unknown, int: boolean, max: number): number | "bad" {
 }
 
 type ImportRow = {
-    row: number; sku: string; name: string; category: string; price: number; cost: number;
+    row: number; sku: string; name: string; category: string; price: number;
     stock: number | undefined; trackStock: boolean | undefined; isActive: boolean | undefined;
-    igvRegime: string | undefined; imageUrl: string | undefined;
 };
 
 /**
@@ -262,17 +260,13 @@ export async function importProducts(tenantId: string, rawRows: Record<string, u
         if (!category || category.length > 80) return bad("Categoría obligatoria (máx. 80).");
         const price = empty(r["price"]) ? "bad" : parseNum(r["price"], false, 99999999.99);
         if (price === "bad") return bad("Precio obligatorio: número ≥ 0.");
-        const cost = empty(r["cost"]) ? 0 : parseNum(r["cost"], false, 99999999.99);
-        if (cost === "bad") return bad("Costo inválido: número ≥ 0.");
         const stock = empty(r["stock"]) ? undefined : parseNum(r["stock"], true, 2147483647);
         if (stock === "bad") return bad("Stock inválido: entero ≥ 0.");
         const trackStock = parseBool(r["trackStock"]);
         const isActive = parseBool(r["isActive"]);
         if (trackStock === "bad" || isActive === "bad") return bad("controla_stock/activo deben ser SI o NO.");
-        const igv = empty(r["igvRegime"]) ? undefined : String(r["igvRegime"]).trim().toUpperCase();
-        if (igv !== undefined && !IGV.includes(igv)) return bad(`IGV inválido. Usa: ${IGV.join(", ")}.`);
         seen.add(sku);
-        rows.push({ row, sku, name, category, price, cost, stock, trackStock, isActive, igvRegime: igv, imageUrl: empty(r["imageUrl"]) ? undefined : String(r["imageUrl"]).trim() });
+        rows.push({ row, sku, name, category, price, stock, trackStock, isActive });
     });
 
     let created = 0, updated = 0;
@@ -287,17 +281,15 @@ export async function importProducts(tenantId: string, rawRows: Record<string, u
             for (const r of rows) {
                 const categoryId = cats.get(r.category.toLowerCase())!;
                 const common = {
-                    name: r.name, categoryId, price: r.price, cost: r.cost,
+                    name: r.name, categoryId, price: r.price,
                     ...(r.trackStock !== undefined && { trackStock: r.trackStock }),
                     ...(r.isActive !== undefined && { isActive: r.isActive }),
-                    ...(r.igvRegime !== undefined && { igvRegime: r.igvRegime }),
-                    ...(r.imageUrl !== undefined && { imageUrl: r.imageUrl }),
                 };
                 if (existing.has(r.sku)) {
                     await tx.product.update({ where: { tenantId_sku: { tenantId, sku: r.sku } }, data: { ...common, ...(updateStock && r.stock !== undefined && { stock: r.stock }) } });
                     updated++;
                 } else {
-                    await tx.product.create({ data: { ...common, tenantId, sku: r.sku, stock: r.stock ?? 0 } });
+                    await tx.product.create({ data: { ...common, tenantId, sku: r.sku, stock: r.stock ?? 0, cost: 0, igvRegime: "EXONERADO" } });
                     created++;
                 }
             }
