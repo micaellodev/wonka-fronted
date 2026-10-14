@@ -1,11 +1,13 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { api } from '@/lib/api'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Gamepad2, LayoutDashboard, LogOut, Monitor } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/store/authStore'
-import { useCashDrawerStore } from '@/store/cashDrawerStore'
 import { cn } from '@/lib/utils'
+
+const CASH_LABEL: Record<string, string> = { NO_ABIERTA: 'No abierta', ABIERTA: 'Abierta', PENDIENTE: 'Pendiente', CERRADA: 'Cerrada' }
 
 type ActiveSection = 'pos' | 'sales-history' | 'sales-stats' | 'cash-history' | 'movimientos-caja' | 'cash-close' | 'reports' | 'register-client' | 'playzone'
 
@@ -18,7 +20,16 @@ export function TerminalShell({ children, activeSection }: TerminalShellProps) {
  const location = useLocation()
  const navigate = useNavigate()
  const { activeWorker, logout } = useAuthStore()
- const { openingBalance } = useCashDrawerStore()
+ const { tenantId } = useAuthStore()
+ // Opening amount and cash status always come from the backend (the store is just a cache)
+ const [cash, setCash] = useState<{ status: string; opening: number | null } | null>(null)
+ useEffect(() => {
+ if (!tenantId) return
+ api.cash.summary.get({ query: { tenantId } }).then(({ data }: { data?: { data?: unknown } | null }) => {
+ const d = data?.data as unknown as { cashStatus: string; opening: { amount: number } | null } | undefined
+ if (d) setCash({ status: d.cashStatus, opening: d.opening?.amount ?? null })
+ }).catch(() => {})
+ }, [tenantId, location.pathname])
  const routeSection = getSectionFromPath(location.pathname)
  const effectiveSection = activeSection ?? routeSection
 
@@ -44,7 +55,8 @@ export function TerminalShell({ children, activeSection }: TerminalShellProps) {
  <div className="flex items-center gap-2 sm:gap-3">
  <div className="hidden rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-right sm:block">
  <span className="block text-[10px] font-bold uppercase text-gray-400">Apertura</span>
- <span className="font-mono text-sm font-black text-gray-900">{openingBalance ?? 0}</span>
+ <span className="font-mono text-sm font-black text-gray-900">{cash?.opening ?? 0}</span>
+ <span className="block text-[10px] font-semibold uppercase text-gray-500">{CASH_LABEL[cash?.status ?? 'NO_ABIERTA'] ?? ''}</span>
  </div>
  {activeWorker?.role?.name === 'ADMIN' || activeWorker?.role?.name === 'ADMINISTRADOR' ? (
  <Button variant="outline" size="sm" onClick={() => navigate('/admin')}>

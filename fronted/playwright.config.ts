@@ -3,6 +3,8 @@ import { defineConfig } from '@playwright/test'
 // Sin webServer: levantar antes backend :3031 (.env.test) y `VITE_API_URL=http://localhost:3031 bunx vite --port 5181 --strictPort`.
 export default defineConfig({
   testDir: './e2e',
+  // integration.spec needs its own throwaway tenant: run it with playwright.integration.config.ts
+  testIgnore: 'integration.spec.ts',
   timeout: 60_000,
   expect: { timeout: 8_000 },
   workers: 1,

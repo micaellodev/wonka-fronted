@@ -137,6 +137,11 @@ export function RegisterClientScreen() {
     try {
       // 1. Buscar en BD local
       const res = await (api.playzone.guardians.lookup as Loose).get({ query: { tenantId, q } })
+      if (res.error) {
+        setLookupState('idle')
+        setErrorMessage((res.error.value as Loose)?.message ?? 'No se pudo consultar el cliente en el servidor.')
+        return
+      }
       if (!res.error && (res.data as Loose).found) {
         const guardian = (res.data as Loose).data as Guardian
         setLookupResult(guardian)
@@ -171,11 +176,8 @@ export function RegisterClientScreen() {
       setGuardianName('')
       setGuardianPhone('')
     } catch {
-      setLookupResult(null)
-      setLookupState('not-found')
-      setGuardianDni(q)
-      setGuardianName('')
-      setGuardianPhone('')
+      setLookupState('idle')
+      setErrorMessage('Error de conexión al buscar el cliente.')
     } finally {
       setLookingUp(false)
     }

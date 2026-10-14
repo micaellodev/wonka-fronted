@@ -1,4 +1,5 @@
 import { Elysia, t } from "elysia";
+import { getAuth } from "../../lib/auth.ts";
 import { RateLimitError } from "../../lib/rateLimiter.ts";
 import { createBillingNote, listBillingNotes, retryPendingDocuments } from "./billing.service.ts";
 
@@ -6,9 +7,10 @@ import { createBillingNote, listBillingNotes, retryPendingDocuments } from "./bi
 export const billingController = new Elysia({ prefix: "/billing" })
     .post(
         "/notes",
-        async ({ body, set }) => {
+        async ({ body, set, request }) => {
             try {
-                const note = await createBillingNote(body);
+                // El solicitante es el dueño del token, no el workerId del body.
+                const note = await createBillingNote({ ...body, workerId: getAuth(request)!.workerId });
                 set.status = 201;
                 return note;
             } catch (error: any) {

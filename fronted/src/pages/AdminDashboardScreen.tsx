@@ -13,6 +13,8 @@ import {
  Wallet,
  TrendingUp,
  Receipt,
+ Ban,
+ PackageX,
  LineChart,
  UserPlus,
 } from 'lucide-react'
@@ -27,29 +29,36 @@ import { formatCurrency } from '@/lib/format'
 // AdminDashboardScreen — Main admin landing with KPIs + navigation
 // ============================================================
 
+type CashStatus = 'NO_ABIERTA' | 'ABIERTA' | 'PENDIENTE' | 'CERRADA'
+
+// Subset of the backend DaySummary (GET /dashboard/metrics) used here
 interface DashboardStats {
- salesToday: {
- count: number
- amount: number
- }
- lowStockProducts: number
- pendingVoidRequests: number
- cashCloseStatus: 'OPEN' | 'PENDING_APPROVAL' | 'APPROVED' | 'NOT_OPENED'
- activeWorkersToday: number
+ cashStatus: CashStatus
+ sales: { count: number; total: number }
+ voided: { count: number; total: number }
+ expectedCash: number
+ pending: { voids: number; closes: number }
+ stock: { lowStock: number; outOfStock: number }
 }
 
-const initialStats: DashboardStats = {
- salesToday: { count: 0, amount: 0 },
- lowStockProducts: 0,
- pendingVoidRequests: 0,
- cashCloseStatus: 'NOT_OPENED',
- activeWorkersToday: 0,
+const CASH_LABEL: Record<CashStatus, string> = {
+ NO_ABIERTA: 'No abierta',
+ ABIERTA: 'Abierta',
+ PENDIENTE: 'Pendiente',
+ CERRADA: 'Cerrada',
+}
+
+const CASH_TONE: Record<CashStatus, string> = {
+ NO_ABIERTA: 'text-foreground bg-muted',
+ ABIERTA: 'text-info bg-info-soft',
+ PENDIENTE: 'text-warning bg-warning-soft',
+ CERRADA: 'text-success bg-success-soft',
 }
 
 export function AdminDashboardScreen() {
  const navigate = useNavigate()
  const { activeWorker, tenantId } = useAuthStore()
- const [stats, setStats] = useState<DashboardStats>(initialStats)
+ const [stats, setStats] = useState<DashboardStats | null>(null)
  const [loading, setLoading] = useState(true)
  const [loadError, setLoadError] = useState(false)
 
@@ -61,7 +70,7 @@ export function AdminDashboardScreen() {
  })
  if (error) throw error
  if (data?.data) {
- setStats(data.data as DashboardStats)
+ setStats(data.data as unknown as DashboardStats)
  }
  } catch (err) {
  console.error('Failed to load dashboard stats:', err)
@@ -74,50 +83,19 @@ export function AdminDashboardScreen() {
  fetchStats()
  }, [tenantId])
 
- const kpiCards = [
- {
- label: 'Ventas hoy',
- value: formatCurrency(stats.salesToday.amount),
- sub: `${stats.salesToday.count} transacciones`,
- icon: TrendingUp,
- tone: 'text-foreground bg-muted',
- },
- {
- label: 'Stock bajo',
- value: String(stats.lowStockProducts),
- sub: 'productos',
- icon: AlertTriangle,
- tone: stats.lowStockProducts > 0 ? 'text-destructive bg-danger-soft' : 'text-foreground bg-muted',
- },
- {
- label: 'Solicitudes',
- value: String(stats.pendingVoidRequests),
- sub: 'pendientes',
- icon: ClipboardList,
- tone: stats.pendingVoidRequests > 0 ? 'text-warning bg-warning-soft' : 'text-foreground bg-muted',
- },
- {
- label: 'Caja',
- value:
- stats.cashCloseStatus === 'APPROVED'
- ? 'Cerrada'
- : stats.cashCloseStatus === 'PENDING_APPROVAL'
- ? 'Pendiente'
- : stats.cashCloseStatus === 'OPEN'
- ? 'Abierta'
- : 'Sin abrir',
- sub: 'estado actual',
- icon: Wallet,
- tone:
- stats.cashCloseStatus === 'APPROVED'
- ? 'text-success bg-success-soft'
- : stats.cashCloseStatus === 'PENDING_APPROVAL'
- ? 'text-warning bg-warning-soft'
- : stats.cashCloseStatus === 'OPEN'
- ? 'text-info bg-info-soft'
- : 'text-foreground bg-muted',
- },
+ const warn = (n: number) => (n > 0 ? 'text-warning bg-warning-soft' : 'text-foreground bg-muted')
+ const kpiCards = stats
+ ? [
+ { label: 'Ventas hoy', value: formatCurrency(stats.sales.total), sub: `${stats.sales.count} ventas`, icon: TrendingUp, tone: 'text-foreground bg-muted', route: '/sales-history?date=hoy' },
+ { label: 'Anuladas', value: String(stats.voided.count), sub: formatCurrency(stats.voided.total), icon: Ban, tone: warn(stats.voided.count), route: '/sales-history?status=CANCELLED' },
+ { label: 'Solicitudes', value: String(stats.pending.voids), sub: 'pendientes', icon: ClipboardList, tone: warn(stats.pending.voids), route: '/admin/approvals' },
+ { label: 'Caja', value: CASH_LABEL[stats.cashStatus], sub: 'estado actual', icon: Wallet, tone: CASH_TONE[stats.cashStatus], route: '/admin/cash-history' },
+ { label: 'Saldo esperado', value: formatCurrency(stats.expectedCash), sub: 'efectivo en caja', icon: Calculator, tone: 'text-foreground bg-muted', route: '/admin/cash-history' },
+ { label: 'Stock bajo', value: String(stats.stock.lowStock), sub: 'productos', icon: AlertTriangle, tone: warn(stats.stock.lowStock), route: '/admin/inventory?stock=low' },
+ { label: 'Agotados', value: String(stats.stock.outOfStock), sub: 'productos', icon: PackageX, tone: stats.stock.outOfStock > 0 ? 'text-destructive bg-danger-soft' : 'text-foreground bg-muted', route: '/admin/inventory?stock=out' },
  ]
+ : []
+ const pendingVoids = stats?.pending.voids ?? 0
 
  const navCards = [
  {
@@ -208,9 +186,9 @@ export function AdminDashboardScreen() {
 
  <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
  {loading
- ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)
+ ? Array.from({ length: 7 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)
  : kpiCards.map((kpi) => (
- <Card key={kpi.label}>
+ <Card key={kpi.label} role="link" tabIndex={0} onClick={() => navigate(kpi.route)} onKeyDown={(e) => e.key === "Enter" && navigate(kpi.route)} className="cursor-pointer transition-colors hover:border-primary/50">
  <CardContent className="flex items-start justify-between p-5">
  <div>
  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{kpi.label}</p>
@@ -239,8 +217,8 @@ export function AdminDashboardScreen() {
  <span className="block text-sm font-semibold">{card.label}</span>
  <span className="block text-xs text-muted-foreground">{card.desc}</span>
  </span>
- {card.label === 'Aprobaciones' && stats.pendingVoidRequests > 0 && (
- <Badge variant="warning" className="absolute right-3 top-3">{stats.pendingVoidRequests}</Badge>
+ {card.label === 'Aprobaciones' && pendingVoids > 0 && (
+ <Badge variant="warning" className="absolute right-3 top-3">{pendingVoids}</Badge>
  )}
  </button>
  ))}

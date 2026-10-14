@@ -35,8 +35,8 @@ describe("login → caja → venta mixta → reportes → anulación", () => {
     });
     test("cierre y reportes cuentan la venta una vez", async () => {
         const sum = (await call("GET", "/cash/summary", { token: c.cashierToken, query: { tenantId: c.tid } })).json.data;
-        expect(sum.sales.efectivo).toBe(35);
-        expect(sum.expected.efectivo).toBe(85);
+        expect(sum.sales.byMethod.efectivo).toBe(35);
+        expect(sum.expectedCash).toBe(85);
         const list = await call("GET", "/pos/sales", { token: c.cashierToken, query: { tenantId: c.tid } });
         expect(list.status).toBe(200);
         const rows = list.json.data.sales ?? list.json.data;
@@ -57,8 +57,8 @@ describe("login → caja → venta mixta → reportes → anulación", () => {
     });
     test("tras anular, resumen excluye la venta (efectivo 0)", async () => {
         const sum = (await call("GET", "/cash/summary", { token: c.cashierToken, query: { tenantId: c.tid } })).json.data;
-        expect(sum.sales.efectivo).toBe(0);
-        expect(sum.expected.efectivo).toBe(50);
+        expect(sum.sales.byMethod.efectivo).toBe(0);
+        expect(sum.expectedCash).toBe(50);
     });
     test("anular venta inexistente / de otro tenant → 4xx", async () => {
         const r = await call("POST", "/pos/sales/no-existe/void", { token: c.cashierToken, body: { tenantId: c.tid, reason: "x" } });

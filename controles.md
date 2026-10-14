@@ -257,5 +257,19 @@ Evidencia: `e2e:<archivo>#<test>` = test de `bun test` contra backend :3016 + ve
 | API | /health público | 200 | — | probado | e2e:auth.test.ts#/health is public |
 | Inventario | Importar productos por Excel (upsert por SKU, límite 2000, no pisa stock salvo updateStock; solo admin, aislado por tenant) | filas válidas aplicadas, inválidas reportadas | inventory.service.ts importProducts | probado | e2e:inventory-import.test.ts |
 
+## Integración entre módulos
+UI: `fronted/e2e/integration.spec.ts` (tenant desechable, ver cabecera). API/DB: `backend/tests/integration.test.ts`. Reglas del contrato `docs/equipo/integracion-contrato.md`.
+| Regla | UI probada (spec#test) | API/DB probada (test#name) | Bloqueo externo |
+|---|---|---|---|
+| 1. Venta con producto: 1 vez en historial, estadísticas, hoy, caja; stock baja solo si trackStock | integration.spec#vender producto en POS (2 × 5, efectivo): stock baja a 8; #historial, estadísticas y panel muestran las mismas cifras | integration.test#2. venta producto 2×5 efectivo: stock 10→8, 1 sola vez en todas las superficies | — |
+| 1b. Reporte de turno | integration.spec#cierre de caja y aprobación (reporte de cierre con importe contado) | integration.test#10. cierre → PENDIENTE; cifras congeladas = summary | — |
+| 1c. Venta libre / ajuste de stock no son movimientos de caja | — (sin spec UI de venta libre) | integration.test#3. venta libre 9 tarjeta ...; #5. ajuste de stock (+5) | — |
+| 2. Zona de juegos: tarifa configurada, 1 vez, sin stock | integration.spec#vender tiempo de niño (30 min, S/ 17.50) | integration.test#4. tiempo de niño (30 min a 17.5 configurada) yape ... | — |
+| 3. Apertura/cierre: montos y estado iguales | integration.spec#login y apertura de caja; #cierre de caja y aprobación | integration.test#0 y #1 (NO_ABIERTA→ABIERTA), #10 (PENDIENTE), #11 (CERRADA, historial, no re-aprobar, no doble cierre) | Historial de cierres no muestra etiqueta "Cerrada" (solo ícono; "Pendiente" si aplica): UI verifica ausencia de Pendiente |
+| 4. Movimientos IN/OUT: en historial, afectan esperado, no son ventas | integration.spec#movimientos de caja: ingreso 20 y salida 5 | integration.test#6. movimientos IN 20 / OUT 5 | — |
+| 5. Anulación: pendiente en aprobaciones, al aprobar deja de contar, restaura solo producto, 1 vez, nota de crédito si ACEPTADA | integration.spec#solicitar anulación ... y aprobarla en Aprobaciones | integration.test#7 (boleta ACEPTADA), #8, #9 (CANCELLED, stock +1, billingNote 1, doble aprobación 4xx) | — |
+| 6. Panel: cifras de backend y enlaces con filtro | integration.spec#panel: enlaces con filtro ...; #historial, estadísticas y panel ... | integration.test#crossCheck en cada paso (dashboard/metrics, sales-report, /pos/sales, /pos/sales/today) | — |
+| Permisos y tenant ajeno | — | integration.test#permisos y aislamiento (3 tests) | — |
+
 ## Resumen
 Probados: 166 / 175 · bloqueados: 9 · pendientes: 0. Suite: 104 tests (backend/tests/).

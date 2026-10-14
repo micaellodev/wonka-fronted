@@ -63,6 +63,7 @@ export function CompanySettingsScreen() {
  const [apisperuTokenInput, setApisperuTokenInput] = useState('')
  const [loading, setLoading] = useState(true)
  const [saving, setSaving] = useState(false)
+ const [loadFailed, setLoadFailed] = useState(false)
  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
  const [showAdminPinModal, setShowAdminPinModal] = useState(false)
  const [adminPinError, setAdminPinError] = useState(false)
@@ -79,6 +80,7 @@ export function CompanySettingsScreen() {
  }
  } catch (err) {
  console.error('Failed to load tenant settings:', err)
+ setLoadFailed(true)
  setMessage({ type: 'error', text: 'Error al cargar la configuración.' })
  } finally {
  setLoading(false)
@@ -156,7 +158,7 @@ export function CompanySettingsScreen() {
  <div className="flex items-center gap-3">
  <p className="text-sm text-muted-foreground">Datos fiscales y APISPeru</p>
  </div>
- <Button onClick={handleSave} disabled={saving} >
+ <Button onClick={handleSave} disabled={saving || loading || loadFailed}>
  <Save className="w-4 h-4 mr-2" />
  {saving ? 'Guardando...' : 'Guardar'}
  </Button>

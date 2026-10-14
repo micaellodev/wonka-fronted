@@ -257,11 +257,11 @@ describe("resumen y cierre", () => {
         const sales = await prisma.sale.findMany({ where: { tenantId: c.tid, status: { not: "CANCELLED" } } });
         const by = (m: string) => sales.filter((s) => s.paymentMethod === m).reduce((a, s) => a + Number(s.total), 0);
         const d = r.json.data;
-        expect(d.sales.efectivo).toBeCloseTo(by("efectivo"), 2);
-        expect(d.sales.yape).toBeCloseTo(by("yape"), 2);
-        expect(d.sales.tarjeta).toBeCloseTo(by("tarjeta"), 2);
-        expect(d.cancelled.count).toBe(1);
-        expect(d.expected.efectivo).toBeCloseTo(100 + by("efectivo") + 20, 2);
+        expect(d.sales.byMethod.efectivo).toBeCloseTo(by("efectivo"), 2);
+        expect(d.sales.byMethod.yape).toBeCloseTo(by("yape"), 2);
+        expect(d.sales.byMethod.tarjeta).toBeCloseTo(by("tarjeta"), 2);
+        expect(d.voided.count).toBe(1);
+        expect(d.expectedCash).toBeCloseTo(100 + by("efectivo") + 20, 2);
         // the re-sold pz-base charge counts exactly once among active sales
         const pzLines = await prisma.saleItem.count({ where: { virtualSku: `pz-base-${pzSessionId}`, sale: { status: { not: "CANCELLED" } } } });
         expect(pzLines).toBe(1);
@@ -271,7 +271,7 @@ describe("resumen y cierre", () => {
         const sum = (await call("GET", "/cash/summary", { token: c.cashierToken, query: { tenantId: c.tid } })).json.data;
         const r = await call("POST", "/cash/close", {
             token: c.cashierToken,
-            body: { tenantId: c.tid, workerId: c.cashier.id, countedEfectivo: sum.expected.efectivo - 1, countedYape: sum.expected.yape, countedTarjeta: sum.expected.tarjeta },
+            body: { tenantId: c.tid, workerId: c.cashier.id, countedEfectivo: sum.expectedCash - 1, countedYape: sum.sales.byMethod.yape, countedTarjeta: sum.sales.byMethod.tarjeta },
         });
         expect(r.status).toBe(201);
         closeId = r.json.data.id;
@@ -296,9 +296,14 @@ describe("resumen y cierre", () => {
         expect(row?.approvedByWorkerId).toBe(c.admin.id);
     });
     test("historial y reportes: cierre aparece una vez", async () => {
+        const u = (t: string, amount: number) => call("POST", "/cash/movements", { token: c.cashierToken, body: { tenantId: c.tid, type: t, amount, currency: "USD", reason: "QA usd" } });
+        expect((await u("IN", 50)).status).toBe(201);
+        expect((await u("OUT", 10)).status).toBe(201);
         const h = await call("GET", "/cash/history", { token: c.adminToken, query: { tenantId: c.tid, days: 7 } });
         expect(h.status).toBe(200);
         expect(h.json.data.filter((x: any) => x.id === closeId)).toHaveLength(1);
+        expect(h.json.data.find((x: any) => x.id === closeId).usd).toBe(40);
+        expect(h.json.totals.usd).toBe(40);
         const rep = await call("GET", "/playzone/reports/summary", { token: c.adminToken, query: { tenantId: c.tid, days: 7 } });
         expect(rep.status).toBe(200);
         const m = await call("GET", "/dashboard/metrics", { token: c.adminToken, query: { tenantId: c.tid } });

@@ -66,10 +66,10 @@ const dbMov = await prisma.cashMovement.findMany({ where: { tenantId: T, created
 const mv = (t: string) => dbMov.filter((m) => m.type === t).reduce((a, m) => a + Number(m.amount), 0);
 const opening = Number(dbMov.filter((m) => m.type === "OPENING").sort((a, b) => +a.createdAt - +b.createdAt)[0]?.amount ?? 0);
 const expEf = Math.round((opening + by("efectivo") + mv("IN") - mv("OUT")) * 100) / 100;
-check("summary efectivo sales = DB", sum?.sales?.efectivo === by("efectivo"), [sum?.sales, by("efectivo")]);
-check("summary yape = DB", sum?.sales?.yape === by("yape"), [sum?.sales?.yape, by("yape")]);
-check("summary expected efectivo = opening+efectivo+IN-OUT", sum?.expected?.efectivo === expEf, [sum?.expected, expEf]);
-check("cancelled sale excluded and counted apart", sum?.cancelled?.count >= 1 && !dbSales.some((s) => s.id === s3.id));
+check("summary efectivo sales = DB", sum?.sales?.byMethod?.efectivo === by("efectivo"), [sum?.sales, by("efectivo")]);
+check("summary yape = DB", sum?.sales?.byMethod?.yape === by("yape"), [sum?.sales?.byMethod?.yape, by("yape")]);
+check("summary expected efectivo = opening+efectivo+IN-OUT", sum?.expectedCash === expEf, [sum?.expectedCash, expEf]);
+check("cancelled sale excluded and counted apart", sum?.voided?.count >= 1 && !dbSales.some((s) => s.id === s3.id));
 
 // 5. Close: server computes expected; client sends counted only
 const counted = { countedEfectivo: expEf - 1, countedYape: by("yape"), countedTarjeta: by("tarjeta") };
@@ -103,13 +103,13 @@ const hist = await call("GET", `/cash/history?tenantId=${T}&days=7`, admin);
 check("history includes today's close", hist.json?.data?.some((r: any) => r.id === row!.id && r.closedDate === today), hist.json?.data?.[0]);
 const rep = (await call("GET", `/dashboard/sales-report?tenantId=${T}&from=${today}&to=${today}`, cashier)).json;
 const dbAmount = Math.round(dbSales.reduce((a, s) => a + Number(s.total), 0) * 100) / 100;
-check("sales-report amount = DB (no cancelled)", rep?.summary?.amount === dbAmount, [rep?.summary, dbAmount]);
+check("sales-report amount = DB (no cancelled)", rep?.summary?.sales?.total === dbAmount, [rep?.summary, dbAmount]);
 const pzDb = await prisma.saleItem.findMany({ where: { virtualSku: { startsWith: "pz-" }, sale: { tenantId: T, createdAt: { gte: start, lt: end }, status: { not: "CANCELLED" } } } });
-check("play-zone lines counted once", rep?.summary?.playzone?.lines === pzDb.length, [rep?.summary?.playzone, pzDb.length]);
+check("play-zone lines counted once", rep?.summary?.sales?.byKind?.zonaJuegos === Math.round(pzDb.reduce((a, i) => a + Number(i.unitPrice) * i.qty, 0) * 100) / 100, [rep?.summary?.sales?.byKind, pzDb.length]);
 check("sale s1 listed once with virtual label", rep?.data?.filter((s: any) => s.id === s1.id).length === 1 && rep.data.find((s: any) => s.id === s1.id).items[0].product.name === "Zona de juegos 30 min");
 check("sales-report bad range -> 422", (await call("GET", `/dashboard/sales-report?tenantId=${T}&from=${today}&to=2000-01-01`, cashier)).status === 422);
 const met = await call("GET", `/dashboard/metrics?tenantId=${T}`, admin);
-check("metrics sales today = DB", met.json?.data?.salesToday?.amount === dbAmount && met.json?.data?.cashCloseStatus === "APPROVED", met.json);
+check("metrics sales today = DB", met.json?.data?.sales?.total === dbAmount && met.json?.data?.cashStatus === "CERRADA", met.json);
 check("metrics as cashier -> 403", (await call("GET", `/dashboard/metrics?tenantId=${T}`, cashier)).status === 403);
 const movs = await call("GET", `/cash/movements?tenantId=${T}&date=${today}`, cashier);
 check("movements of today include e2e rows", movs.json?.data?.some((m: any) => m.id === mIn.json?.data?.id));

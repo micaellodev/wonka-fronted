@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma.ts";
+import { closeFigures, getDaySummary } from "./summary.ts";
 import { hashPin, verifyAdmin, verifyApprovalCode } from "../hr/hr.service.ts";
 
 // ============================================================
@@ -85,102 +86,6 @@ function toRecord(record: CloseRow): CashCloseRecord {
   };
 }
 
-// ── Shift summary ────────────────────────────────────────────
-
-export async function getShiftSummary(tenantId: string) {
-  const date = limaYmd();
-  const { start, end } = limaDayBounds(date);
-  const createdAt = { gte: start, lt: end };
-
-  const [opening, sales, movements, close] = await Promise.all([
-    prisma.cashMovement.findFirst({
-      where: { tenantId, type: "OPENING", createdAt },
-      include: { worker: { select: { name: true } } },
-      orderBy: { createdAt: "asc" },
-    }),
-    prisma.sale.findMany({
-      where: { tenantId, createdAt },
-      select: { id: true, total: true, paymentMethod: true, status: true, createdAt: true },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.cashMovement.findMany({
-      where: { tenantId, type: { in: ["IN", "OUT"] }, createdAt },
-      select: { type: true, amount: true, currency: true },
-    }),
-    getTodayCashClose(tenantId),
-  ]);
-
-  const byMethod = { efectivo: 0, yape: 0, tarjeta: 0, other: 0 };
-  let count = 0;
-  let cancelledCount = 0;
-  let cancelledAmount = 0;
-  for (const s of sales) {
-    const total = Number(s.total);
-    if (s.status === "CANCELLED") {
-      cancelledCount++;
-      cancelledAmount += total;
-      continue;
-    }
-    count++;
-    const m = (s.paymentMethod || "").toLowerCase();
-    if (m === "efectivo" || m === "yape" || m === "tarjeta") byMethod[m] += total;
-    else byMethod.other += total;
-  }
-
-  const mov = { inPEN: 0, outPEN: 0, inUSD: 0, outUSD: 0, inCount: 0, outCount: 0 };
-  for (const m of movements) {
-    const amount = Number(m.amount);
-    const usd = m.currency === "USD";
-    if (m.type === "IN") {
-      if (usd) mov.inUSD += amount;
-      else { mov.inPEN += amount; mov.inCount++; }
-    } else {
-      if (usd) mov.outUSD += amount;
-      else { mov.outPEN += amount; mov.outCount++; }
-    }
-  }
-
-  const openingAmount = opening ? Number(opening.amount) : 0;
-  const expectedEfectivo = round2(openingAmount + byMethod.efectivo + mov.inPEN - mov.outPEN);
-  const salesTotal = round2(byMethod.efectivo + byMethod.yape + byMethod.tarjeta + byMethod.other);
-
-  return {
-    date,
-    opening: opening
-      ? { amount: openingAmount, openedAt: opening.createdAt, workerName: opening.worker.name }
-      : null,
-    sales: {
-      efectivo: round2(byMethod.efectivo),
-      yape: round2(byMethod.yape),
-      tarjeta: round2(byMethod.tarjeta),
-      other: round2(byMethod.other),
-      total: salesTotal,
-      count,
-    },
-    cancelled: { count: cancelledCount, amount: round2(cancelledAmount) },
-    movements: {
-      inPEN: round2(mov.inPEN),
-      outPEN: round2(mov.outPEN),
-      inUSD: round2(mov.inUSD),
-      outUSD: round2(mov.outUSD),
-      inCount: mov.inCount,
-      outCount: mov.outCount,
-    },
-    expected: {
-      efectivo: expectedEfectivo,
-      yape: round2(byMethod.yape),
-      tarjeta: round2(byMethod.tarjeta),
-      other: round2(byMethod.other),
-      total: round2(expectedEfectivo + byMethod.yape + byMethod.tarjeta + byMethod.other),
-    },
-    // Cash-paid sales of the day (for the movements ledger)
-    cashSales: sales
-      .filter((s) => (s.paymentMethod || "").toLowerCase() === "efectivo")
-      .map((s) => ({ id: s.id, total: Number(s.total), status: s.status, createdAt: s.createdAt })),
-    close,
-  };
-}
-
 // ── Opening ──────────────────────────────────────────────────
 
 export async function openCashDrawer(tenantId: string, workerId: string, amount: number) {
@@ -216,7 +121,7 @@ export async function getTodayOpening(tenantId: string) {
 
 /**
  * Record (or redo) the cash close for today. Expected amounts come from the DB;
- * re-submitting resets the close to PENDING_APPROVAL with fresh totals.
+ * a second close the same day is rejected (409).
  */
 export async function recordCashClose(input: CashCloseInput): Promise<CashCloseRecord> {
   const worker = await prisma.worker.findFirst({
@@ -224,37 +129,31 @@ export async function recordCashClose(input: CashCloseInput): Promise<CashCloseR
   });
   if (!worker) throw new Error("Worker not found or inactive.");
 
-  const summary = await getShiftSummary(input.tenantId);
+  const summary = await getDaySummary(input.tenantId);
   if (!summary.opening) throw new Error("Cash drawer not opened today.");
 
+  const figures = closeFigures(summary);
   const countedCash = round2(input.countedEfectivo + input.countedYape + input.countedTarjeta);
   const data = {
-    openingBalance: summary.opening.amount,
-    totalSales: summary.sales.total,
-    expectedEfectivo: summary.expected.efectivo,
-    expectedYape: summary.expected.yape,
-    expectedTarjeta: summary.expected.tarjeta,
-    expectedUnknown: summary.expected.other,
-    totalExpected: summary.expected.total,
+    ...figures,
     countedCash,
-    difference: round2(countedCash - summary.expected.total),
+    difference: round2(countedCash - figures.totalExpected),
     status: "PENDING_APPROVAL",
     approvedByWorkerId: null,
     approvedAt: null,
   };
 
   const closedDate = todayClosedDate();
-  const record = await prisma.cashClose.upsert({
-    where: {
-      tenantId_closedDate_workerId: {
-        tenantId: input.tenantId,
-        closedDate,
-        workerId: input.workerId,
-      },
-    },
-    update: data,
-    create: { ...data, tenantId: input.tenantId, workerId: input.workerId, closedDate },
-    include: closeInclude,
+  // One close per tenant per day: the advisory lock serializes concurrent closes.
+  const record = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`close:${input.tenantId}:${closedDate.toISOString()}`}))`;
+    if (await tx.cashClose.findFirst({ where: { tenantId: input.tenantId, closedDate }, select: { id: true } })) {
+      throw new Error("Cash close already recorded today.");
+    }
+    return tx.cashClose.create({
+      data: { ...data, tenantId: input.tenantId, workerId: input.workerId, closedDate },
+      include: closeInclude,
+    });
   });
   return toRecord(record);
 }
@@ -313,15 +212,27 @@ export async function getTodayCashClose(tenantId: string): Promise<CashCloseReco
   return record ? toRecord(record) : null;
 }
 
-/** Cash close history for a tenant (last N Lima days, today included). */
-export async function getCashCloseHistory(tenantId: string, days: number = 30): Promise<CashCloseRecord[]> {
+/** Cash close history (last N Lima days). Each record carries `day`: the live DaySummary figures of its date. */
+export async function getCashCloseHistory(tenantId: string, days: number = 30, from?: string, to?: string) {
   const startDate = new Date(todayClosedDate().getTime() - days * DAY_MS);
-  const records = await prisma.cashClose.findMany({
-    where: { tenantId, closedDate: { gte: startDate } },
+  const records = (await prisma.cashClose.findMany({
+    where: { tenantId, closedDate: from && to ? { gte: new Date(`${from}T00:00:00Z`), lte: new Date(`${to}T00:00:00Z`) } : { gte: startDate } },
     include: closeInclude,
     orderBy: [{ closedDate: "desc" }, { createdAt: "desc" }],
-  });
-  return records.map(toRecord);
+  })).map(toRecord);
+  const dates = [...new Set(records.map((r) => r.closedDate))];
+  const summaries = new Map(await Promise.all(dates.map(async (d) => [d, await getDaySummary(tenantId, d)] as const)));
+  const sum = (k: "totalSales" | "totalExpected" | "countedCash" | "difference") => round2(records.reduce((a, r) => a + r[k], 0));
+  const usdOf = (r: (typeof records)[number]) => { const m = summaries.get(r.closedDate)!.movements; return round2(m.inUSD - m.outUSD); };
+  const usdDays = [...new Set(records.map((r) => r.closedDate))].reduce((a, d) => { const m = summaries.get(d)!.movements; return a + m.inUSD - m.outUSD; }, 0);
+  const totals = { totalSales: sum("totalSales"), totalExpected: sum("totalExpected"), countedCash: sum("countedCash"), difference: sum("difference"), usd: round2(usdDays) };
+  return {
+    totals,
+    records: records.map((r) => {
+      const s = summaries.get(r.closedDate)!;
+      return { ...r, usd: usdOf(r), day: { cashStatus: s.cashStatus, sales: s.sales, voided: s.voided, movements: s.movements, expectedCash: s.expectedCash } };
+    }),
+  };
 }
 
 // ============================================================

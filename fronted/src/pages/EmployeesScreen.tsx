@@ -33,6 +33,7 @@ export function EmployeesScreen() {
  const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
  const [historyData, setHistoryData] = useState<HistoryRow[]>([])
  const [loading, setLoading] = useState(true)
+ const [loadError, setLoadError] = useState<string | null>(null)
 
  // Modal state
  const [isModalOpen, setIsModalOpen] = useState(false)
@@ -54,11 +55,13 @@ export function EmployeesScreen() {
 
  const fetchWorkers = useCallback(async () => {
  setLoading(true)
+ setLoadError(null)
  try {
  const [wRes, rRes] = await Promise.all([
  api.hr.workers.get({ query: { tenantId } }),
  api.hr.roles.get({ query: { tenantId } })
  ])
+ if (wRes.error || rRes.error) setLoadError("No se pudo cargar la información.")
  if (!wRes.error) {
  const response = wRes.data as unknown as { data: Worker[] }
  setWorkers(response.data ?? [])
@@ -69,6 +72,7 @@ export function EmployeesScreen() {
  }
  } catch (e) {
  console.error(e)
+ setLoadError("Error de conexión.")
  } finally {
  setLoading(false)
  }
@@ -76,14 +80,16 @@ export function EmployeesScreen() {
 
  const fetchAttendance = useCallback(async () => {
  setLoading(true)
+ setLoadError(null)
  try {
  const res = await api.hr.attendance.get({ query: { tenantId } })
  if (!res.error) {
  const response = res.data as unknown as { data: AttendanceRecord[] }
  setAttendance(response.data ?? [])
- }
+ } else setLoadError("No se pudo cargar la asistencia.")
  } catch (e) {
  console.error(e)
+ setLoadError("Error de conexión.")
  } finally {
  setLoading(false)
  }
@@ -91,6 +97,7 @@ export function EmployeesScreen() {
 
  const fetchHistory = useCallback(async () => {
  setLoading(true)
+ setLoadError(null)
  try {
  const today = new Date()
  const startDate = new Date()
@@ -102,8 +109,9 @@ export function EmployeesScreen() {
  startDate.setDate(1) // primer dia del mes
  }
 
- const startStr = startDate.toISOString().split('T')[0]
- const endStr = today.toISOString().split('T')[0]
+ const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+ const startStr = ymd(startDate)
+ const endStr = ymd(today)
 
  // We cast query to any to bypass eden strict type issues if they haven't synced yet
  const res = await api.hr.attendance.get({
@@ -156,9 +164,10 @@ export function EmployeesScreen() {
  })
 
  setHistoryData(historical)
- }
+ } else setLoadError("No se pudo cargar el historial.")
  } catch (e) {
  console.error(e)
+ setLoadError("Error de conexión.")
  } finally {
  setLoading(false)
  }
@@ -434,6 +443,12 @@ export function EmployeesScreen() {
  </div>
 
  <main className="flex-1 p-6 flex flex-col gap-6 overflow-hidden">
+ {loadError && (
+ <div role="alert" className="flex items-center justify-between rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+ <span>{loadError}</span>
+ <button className="font-semibold underline" onClick={() => (activeTab === 'empleados' ? fetchWorkers() : activeTab === 'asistencia' ? fetchAttendance() : fetchHistory())}>Reintentar</button>
+ </div>
+ )}
  <div className="flex-1 bg-muted border border-border rounded-2xl overflow-hidden flex flex-col">
  <div className="overflow-x-auto flex-1">
  {activeTab === 'empleados' && (

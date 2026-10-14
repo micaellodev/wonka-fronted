@@ -10,13 +10,6 @@ import { Card } from '@/components/ui/card'
 // CashMovementsScreen — Cash Movements Ledger & Registration
 // ============================================================
 
-interface CashSaleRecord {
-  id: string
-  total: number
-  status: string
-  createdAt: string
-}
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const apiErrorMessage = (e: any): string => e?.value?.message ?? e?.value?.error ?? 'Error de conexión'
 
@@ -42,7 +35,7 @@ interface UnifiedMovement {
   reason: string
   amount: number
   currency: 'PEN' | 'USD'
-  source: 'OPENING' | 'SALE' | 'VOID' | 'MANUAL'
+  source: 'OPENING' | 'MANUAL'
 }
 
 function formatMovementDateTime(isoStr: string): string {
@@ -88,7 +81,9 @@ export function CashMovementsScreen() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [salesList, setSalesList] = useState<CashSaleRecord[]>([])
+  const [summary, setSummary] = useState<{ expectedCash: number; movements: { inUSD: number; outUSD: number } } | null>(null)
+  const montoCajaSoles = summary?.expectedCash ?? 0
+  const montoCajaDolares = summary ? summary.movements.inUSD - summary.movements.outUSD : 0
   const [apiMovements, setApiMovements] = useState<ApiCashMovement[]>([])
 
   // Visibility toggle for KPI balances
@@ -120,7 +115,7 @@ export function CashMovementsScreen() {
       ])
       if (summaryRes.error) throw summaryRes.error
       if (movementsRes.error) throw movementsRes.error
-      setSalesList(summaryRes.data.data.cashSales as CashSaleRecord[])
+      setSummary(summaryRes.data.data as unknown as { expectedCash: number; movements: { inUSD: number; outUSD: number } })
       setApiMovements(movementsRes.data.data as ApiCashMovement[])
     } catch (err) {
       setLoadError(apiErrorMessage(err))
@@ -136,30 +131,6 @@ export function CashMovementsScreen() {
   // Compile all unified movements
   const allMovements = useMemo(() => {
     const list: UnifiedMovement[] = []
-
-    // 1. Cash sales. A voided sale shows its entry and its reversal, so it nets to zero
-    for (const sale of salesList) {
-      list.push({
-        id: `mov-sale-${sale.id}`,
-        type: 'IN',
-        time: sale.createdAt,
-        reason: 'Ingreso de dinero por venta',
-        amount: Number(sale.total || 0),
-        currency: 'PEN',
-        source: 'SALE',
-      })
-      if (sale.status === 'CANCELLED') {
-        list.push({
-          id: `mov-sale-void-${sale.id}`,
-          type: 'OUT',
-          time: sale.createdAt,
-          reason: 'Anulación de venta',
-          amount: Number(sale.total || 0),
-          currency: 'PEN',
-          source: 'VOID',
-        })
-      }
-    }
 
     // 2. Opening + manual movements (persisted in the backend)
     for (const m of apiMovements) {
@@ -178,30 +149,7 @@ export function CashMovementsScreen() {
     return list.sort(
       (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
     )
-  }, [salesList, apiMovements])
-
-  // KPI Calculations
-  const montoCajaSoles = useMemo(() => {
-    let total = 0
-    for (const m of allMovements) {
-      if (m.currency === 'PEN') {
-        if (m.type === 'IN') total += m.amount
-        else if (m.type === 'OUT') total -= m.amount
-      }
-    }
-    return total
-  }, [allMovements])
-
-  const montoCajaDolares = useMemo(() => {
-    let total = 0
-    for (const m of allMovements) {
-      if (m.currency === 'USD') {
-        if (m.type === 'IN') total += m.amount
-        else if (m.type === 'OUT') total -= m.amount
-      }
-    }
-    return total
-  }, [allMovements])
+  }, [apiMovements])
 
   // Pagination logic
   const totalItems = allMovements.length

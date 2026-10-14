@@ -237,7 +237,13 @@ export async function processSale(
         // Virtual items are never looked up in the Product table and never
         // touch stock: `pz-*` (playzone time, priced from tenant rates) and
         // `free-sale-*` ("Venta libre", client-priced by nature).
-        const realItems = input.items.filter((i) => !isVirtualLineItem(i.productId));
+        // Cada producto una sola vez: se suman las cantidades de líneas repetidas
+        const merged = new Map<string, SaleItemInput>();
+        for (const i of input.items.filter((i) => !isVirtualLineItem(i.productId))) {
+            const prev = merged.get(i.productId);
+            merged.set(i.productId, prev ? { ...prev, qty: prev.qty + i.qty } : { ...i });
+        }
+        const realItems = [...merged.values()];
         const pzItems = await resolveVirtualLines(
             tx,
             input.tenantId,
@@ -493,14 +499,17 @@ export async function listSales(
     page: number = 1,
     limit: number = 20,
     dateFrom?: Date,
-    dateTo?: Date
+    dateTo?: Date,
+    status?: string
 ) {
     const skip = (page - 1) * limit;
 
     const where: {
         tenantId: string;
+        status?: string;
         createdAt?: { gte?: Date; lte?: Date };
     } = { tenantId };
+    if (status) where.status = status;
 
     if (dateFrom || dateTo) {
         where.createdAt = {};
@@ -580,9 +589,9 @@ export async function getSaleById(tenantId: string, saleId: string) {
 }
 
 export async function listSalesToday(tenantId: string) {
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const ymd = new Date().toLocaleDateString("en-CA", { timeZone: "America/Lima" });
+    const startOfDay = new Date(`${ymd}T00:00:00-05:00`);
+    const endOfDay = new Date(startOfDay.getTime() + 86_400_000);
 
     const sales = await prisma.sale.findMany({
         where: {

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Banknote, Smartphone, CreditCard, Search, Loader2, Ticket, FileText, User, Building2 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
-import { usePaymentLedgerStore } from '@/store/paymentLedgerStore'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -154,7 +153,6 @@ function calculateLine(product: Product, qty: number, config: TenantFiscalConfig
 
 export function RightCheckoutDrawer({ open, onClose, cart, playzoneCharges, onSaleComplete }: RightCheckoutDrawerProps) {
  const { activeWorker, tenantId } = useAuthStore()
- const { recordPayment } = usePaymentLedgerStore()
 
  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('efectivo')
  const [invoiceType, setInvoiceType] = useState<InvoiceType>('TICKET')
@@ -480,7 +478,6 @@ export function RightCheckoutDrawer({ open, onClose, cart, playzoneCharges, onSa
  const saleResult = data?.data as { sale: { total: string; tipoComprobante: string; serie: string | null; correlativo: string | null; sunatStatus: string | null }; items: SaleResultItem[] }
  // The backend total is authoritative (playzone lines are re-priced server-side)
  const saleTotal = Number(saleResult.sale.total)
- recordPayment({ tenantId, workerId: activeWorker.id, method: paymentMethod, amount: saleTotal })
  printReceipt(saleResult.sale, saleResult.items, normalizedName, paymentMethod, saleTotal)
 
  const warnings: string[] = []

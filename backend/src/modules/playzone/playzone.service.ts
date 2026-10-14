@@ -1,5 +1,6 @@
 import { prisma } from "../../lib/prisma.ts";
 import type { Prisma } from "@prisma/client";
+import { aggregateSales } from "../cash/summary.ts";
 
 // ============================================================
 //  Play Zone Service — Business Logic (CRM + Sessions)
@@ -52,6 +53,8 @@ export type PlayzoneReportSummary = {
     averageMinutesPerSession: number;
     averageMinutesPerChild: number;
     totalOvertimeMinutes: number;
+    /** Cobrado en caja: líneas pz- de ventas ACTIVE del periodo (misma regla que caja) */
+    billed: { count: number; total: number };
     topChildren: Array<{
         childId: string;
         childName: string;
@@ -450,7 +453,14 @@ export async function getPlayzoneReportSummary(
         : 30;
     const fromDate = new Date(Date.now() - safeDays * 24 * 60 * 60 * 1000);
 
-    const [activeCount, completedSessions] = await Promise.all([
+    const [billedAgg, activeCount, completedSessions] = await Promise.all([
+        prisma.sale.findMany({
+            where: { tenantId, createdAt: { gte: fromDate } },
+            select: {
+                total: true, paymentMethod: true, status: true,
+                items: { select: { productId: true, isVirtual: true, virtualSku: true, unitPrice: true, qty: true } },
+            },
+        }),
         prisma.playSession.count({ where: { tenantId, status: "ACTIVE" } }),
         prisma.playSession.findMany({
             where: {
@@ -533,6 +543,10 @@ export async function getPlayzoneReportSummary(
         averageMinutesPerSession,
         averageMinutesPerChild,
         totalOvertimeMinutes,
+        billed: {
+            count: billedAgg.filter((x) => x.status !== "CANCELLED").reduce((n, x) => n + x.items.filter((i) => i.virtualSku?.startsWith("pz-")).length, 0),
+            total: aggregateSales(billedAgg).sales.byKind.zonaJuegos,
+        },
         topChildren,
         recentCompleted: withDurations.slice(0, 20),
     };

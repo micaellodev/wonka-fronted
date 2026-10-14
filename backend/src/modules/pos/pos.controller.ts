@@ -28,10 +28,10 @@ export const posController = new Elysia({ prefix: "/pos", tags: ["POS"] })
                 query.tenantId,
                 query.page ?? 1,
                 query.limit ?? 20,
-                query.dateFrom ? new Date(query.dateFrom) : undefined,
-                // Use the END of dateTo (23:59:59.999) as the upper bound — otherwise
-                // `new Date(dateTo)` yields UTC midnight, excluding almost the whole day.
-                query.dateTo ? new Date(query.dateTo + "T23:59:59.999Z") : undefined
+                // Días Lima (UTC-5, sin DST)
+                query.dateFrom ? new Date(query.dateFrom + "T00:00:00-05:00") : undefined,
+                query.dateTo ? new Date(query.dateTo + "T23:59:59.999-05:00") : undefined,
+                query.status
             );
             return result;
         },
@@ -42,6 +42,7 @@ export const posController = new Elysia({ prefix: "/pos", tags: ["POS"] })
                 limit: t.Optional(t.Numeric({ minimum: 1, maximum: 500, default: 20 })),
                 dateFrom: t.Optional(t.String({ format: "date" })),
                 dateTo: t.Optional(t.String({ format: "date" })),
+                status: t.Optional(t.String({ pattern: "^(ACTIVE|CANCELLED|PENDING_SUNAT)$" })),
             }),
             detail: { summary: "List sales with pagination and optional date range" },
         }
@@ -65,9 +66,14 @@ export const posController = new Elysia({ prefix: "/pos", tags: ["POS"] })
     // ── GET /pos/sales/:id ──────────────────────────────────────
     .get(
         "/sales/:id",
-        async ({ params, query }) => {
-            const sale = await getSaleById(query.tenantId, params.id);
-            return { data: sale };
+        async ({ params, query, set }) => {
+            try {
+                return { data: await getSaleById(query.tenantId, params.id) };
+            } catch (err) {
+                const message = err instanceof Error ? err.message : "Unexpected error.";
+                set.status = /not found/i.test(message) ? 404 : 500;
+                return { message };
+            }
         },
         {
             params: t.Object({
@@ -117,7 +123,7 @@ export const posController = new Elysia({ prefix: "/pos", tags: ["POS"] })
             } catch (err) {
                 const message = err instanceof Error ? err.message : "Unexpected error.";
 
-                if (message.toLowerCase().includes("insufficient stock") || message.includes("ya fue cobrado")) {
+                if (message.toLowerCase().includes("insufficient stock") || message.includes("ya fue cobrado") || message.includes("duplicado")) {
                     set.status = 409;
                 } else if (
                     message.toLowerCase().includes("not found") ||
@@ -221,7 +227,7 @@ export const posController = new Elysia({ prefix: "/pos", tags: ["POS"] })
                 };
             } catch (err) {
                 const message = err instanceof Error ? err.message : "Unexpected error.";
-                set.status = err instanceof RateLimitError ? 429 : 422;
+                set.status = err instanceof RateLimitError ? 429 : /already/i.test(message) ? 409 : 422;
                 return { message };
             }
         },

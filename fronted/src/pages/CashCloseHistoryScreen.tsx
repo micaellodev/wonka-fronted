@@ -47,6 +47,7 @@ export function CashCloseHistoryScreen({
  const navigate = useNavigate()
 
  const [records, setRecords] = useState<CashCloseRecord[]>([])
+ const [totals, setTotals] = useState({ totalSales: 0, totalExpected: 0, countedCash: 0, difference: 0 })
  const [loading, setLoading] = useState(true)
  const [days, setDays] = useState<number>(30)
  const [approvingRecord, setApprovingRecord] = useState<CashCloseRecord | null>(null)
@@ -64,6 +65,7 @@ export function CashCloseHistoryScreen({
  })
  if (response.error) throw response.error
  setRecords((response.data.data as CashCloseRecord[]) || [])
+ setTotals((response.data as unknown as { totals: typeof totals }).totals)
  } catch (error) {
  setLoadError(apiErrorMessage(error))
  } finally {
@@ -75,10 +77,6 @@ export function CashCloseHistoryScreen({
  fetchHistory()
  }, [fetchHistory])
 
- const totalSalesSum = records.reduce((acc, r) => acc + r.totalSales, 0)
- const totalExpectedSum = records.reduce((acc, r) => acc + r.totalExpected, 0)
- const totalCountedSum = records.reduce((acc, r) => acc + r.countedCash, 0)
- const totalDifferenceSum = records.reduce((acc, r) => acc + r.difference, 0)
 
  const recordsWithBalance = records.map((r) => ({
  ...r,
@@ -95,9 +93,10 @@ export function CashCloseHistoryScreen({
  return new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN', minimumFractionDigits: 2 }).format(v)
  }
 
- function formatDate(dateStr: string) {
- // closedDate is a plain YYYY-MM-DD (Lima day); parse as UTC so it never shifts a day
- return new Date(`${dateStr.slice(0, 10)}T00:00:00Z`).toLocaleDateString('es-PE', { year: 'numeric', month: 'short', day: '2-digit', timeZone: 'UTC' })
+ function formatDate(value: string | Date) {
+ // closedDate is a plain YYYY-MM-DD (Lima day); Eden may already hand it over as a Date at UTC midnight
+ const d = value instanceof Date ? value : new Date(`${value.slice(0, 10)}T00:00:00Z`)
+ return d.toLocaleDateString('es-PE', { year: 'numeric', month: 'short', day: '2-digit', timeZone: 'UTC' })
  }
 
  const handleApprovePin = async (pin: string) => {
@@ -172,7 +171,7 @@ export function CashCloseHistoryScreen({
  <Card>
  <CardHeader>
  <CardDescription>Total Vendido</CardDescription>
- <CardTitle className="text-2xl text-secondary-500">{formatCurrency(totalSalesSum)}</CardTitle>
+ <CardTitle className="text-2xl text-secondary-500">{formatCurrency(totals.totalSales)}</CardTitle>
  </CardHeader>
  <CardContent className="text-xs text-muted-foreground">{records.length} cierres registrados</CardContent>
  </Card>
@@ -180,7 +179,7 @@ export function CashCloseHistoryScreen({
  <Card>
  <CardHeader>
  <CardDescription>Total Esperado</CardDescription>
- <CardTitle className="text-2xl text-accent-500">{formatCurrency(totalExpectedSum)}</CardTitle>
+ <CardTitle className="text-2xl text-accent-500">{formatCurrency(totals.totalExpected)}</CardTitle>
  </CardHeader>
  <CardContent className="text-xs text-muted-foreground">Apertura + ventas</CardContent>
  </Card>
@@ -188,7 +187,7 @@ export function CashCloseHistoryScreen({
  <Card>
  <CardHeader>
  <CardDescription>Total Contado</CardDescription>
- <CardTitle className="text-2xl text-secondary-500">{formatCurrency(totalCountedSum)}</CardTitle>
+ <CardTitle className="text-2xl text-secondary-500">{formatCurrency(totals.countedCash)}</CardTitle>
  </CardHeader>
  <CardContent className="text-xs text-muted-foreground">Efectivo fisico</CardContent>
  </Card>
@@ -197,14 +196,14 @@ export function CashCloseHistoryScreen({
  <CardHeader>
  <CardDescription>Diferencia Total</CardDescription>
  <CardTitle
- className={`text-2xl ${totalDifferenceSum === 0 ? 'text-secondary-500' : totalDifferenceSum > 0 ? 'text-secondary-500' : 'text-brand-400'
+ className={`text-2xl ${totals.difference === 0 ? 'text-secondary-500' : totals.difference > 0 ? 'text-secondary-500' : 'text-brand-400'
  }`}
  >
- {formatCurrency(totalDifferenceSum)}
+ {formatCurrency(totals.difference)}
  </CardTitle>
  </CardHeader>
  <CardContent className="text-xs text-muted-foreground">
- {totalDifferenceSum === 0 ? 'Cuadrado' : totalDifferenceSum > 0 ? 'Sobrante' : 'Faltante'}
+ {totals.difference === 0 ? 'Cuadrado' : totals.difference > 0 ? 'Sobrante' : 'Faltante'}
  </CardContent>
  </Card>
  </div>
@@ -275,12 +274,13 @@ export function CashCloseHistoryScreen({
  <button
  onClick={() => { setApprovingRecord(record); setApprovePinError(null) }}
  className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-warning-soft text-warning hover:bg-warning-soft/70 transition-colors"
- title="Pendiente de aprobación — clic para aprobar"
+ title="Pendiente — clic para aprobar"
  >
- <Lock className="w-3.5 h-3.5" /> Pendiente de aprobación
+ <Lock className="w-3.5 h-3.5" /> Pendiente
  </button>
  ) : (
- <div className="flex justify-center">
+ <div className="flex justify-center items-center gap-1.5 text-xs font-bold text-success" title={record.difference === 0 ? 'Sin diferencia' : 'Con diferencia'}>
+ Cerrada
  {record.difference === 0 ? (
  <CheckCircle2 className="w-5 h-5 text-secondary-500" />
  ) : (

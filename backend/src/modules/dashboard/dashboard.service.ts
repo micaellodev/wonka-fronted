@@ -1,20 +1,11 @@
 import { prisma } from "../../lib/prisma.ts";
-import { getTodayCashClose, getTodayOpening, limaDayBounds, limaYmd } from "../cash/cash.service.ts";
+import { limaDayBounds } from "../cash/cash.service.ts";
+import { aggregateSales, getDaySummary } from "../cash/summary.ts";
 
 // ============================================================
 //  Dashboard Service — KPIs for the admin dashboard
 // ============================================================
 
-export interface DashboardStats {
-    salesToday: {
-        count: number;
-        amount: number;
-    };
-    lowStockProducts: number;
-    pendingVoidRequests: number;
-    cashCloseStatus: "OPEN" | "PENDING_APPROVAL" | "APPROVED" | "NOT_OPENED";
-    activeWorkersToday: number;
-}
 
 export async function getTenantById(tenantId: string) {
     const tenant = await prisma.tenant.findUnique({
@@ -150,50 +141,20 @@ export async function updateTenant(tenantId: string, input: UpdateTenantInput) {
     };
 }
 
-export async function getDashboardStats(tenantId: string): Promise<DashboardStats> {
-    const { start: startOfDay, end: endOfDay } = limaDayBounds(limaYmd());
-
-    const [salesToday, lowStockProducts, pendingVoidRequests, todayClose, opening, activeWorkersToday] =
-        await Promise.all([
-            // Sales today (ACTIVE and PENDING_SUNAT, exclude CANCELLED)
-            prisma.sale.aggregate({
-                where: { tenantId, createdAt: { gte: startOfDay, lt: endOfDay }, status: { not: "CANCELLED" } },
-                _count: { id: true },
-                _sum: { total: true },
-            }),
-            // Low stock products (stock <= minStock and trackStock = true)
-            prisma.$queryRaw<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM products WHERE "tenantId" = ${tenantId} AND "isActive" AND "trackStock" AND stock <= "minStock"`
-                .then((r) => r[0]?.n ?? 0),
-            prisma.voidRequest.count({ where: { tenantId, status: "PENDING" } }),
-            getTodayCashClose(tenantId),
-            getTodayOpening(tenantId),
-            // Active workers today (checked in, not checked out)
-            prisma.attendance.count({
-                where: { tenantId, checkIn: { gte: startOfDay, lt: endOfDay }, checkOut: null },
-            }),
-        ]);
-
-    const cashCloseStatus: DashboardStats["cashCloseStatus"] = todayClose
-        ? todayClose.status === "APPROVED" ? "APPROVED" : "PENDING_APPROVAL"
-        : opening ? "OPEN" : "NOT_OPENED";
-
-    return {
-        salesToday: {
-            count: salesToday._count.id,
-            amount: Number(salesToday._sum.total ?? 0),
-        },
-        lowStockProducts,
-        pendingVoidRequests,
-        cashCloseStatus,
-        activeWorkersToday,
-    };
+export async function getDashboardStats(tenantId: string, date?: string) {
+    const s = await getDaySummary(tenantId, date);
+    const { start, end } = limaDayBounds(s.date);
+    const activeWorkersToday = await prisma.attendance.count({
+        where: { tenantId, checkIn: { gte: start, lt: end }, checkOut: null },
+    });
+    // The DaySummary is the payload; the extra field is the only non-cash KPI.
+    return { ...s, activeWorkersToday };
 }
 
 /**
- * Sales of a Lima date range (inclusive YYYY-MM-DD bounds) with totals computed
- * from the DB. CANCELLED sales are listed but excluded from every amount.
- * Each SaleItem is one line: play-zone charges (virtualSku `pz-*`) are counted
- * once via their line, and the sale total already includes them exactly once.
+ * Sales of a Lima date range (inclusive YYYY-MM-DD bounds): the listing plus
+ * totals from aggregateSales (same code as DaySummary). CANCELLED sales are
+ * listed but only counted under `voided`.
  */
 export async function getSalesReport(tenantId: string, from: string, to: string) {
     const { start } = limaDayBounds(from);
@@ -211,56 +172,26 @@ export async function getSalesReport(tenantId: string, from: string, to: string)
         take: 5000,
     });
 
-    const byMethod: Record<string, number> = { efectivo: 0, yape: 0, tarjeta: 0 };
-    let amount = 0;
-    let count = 0;
-    let cancelledCount = 0;
-    let cancelledAmount = 0;
-    let playzoneAmount = 0;
-    let playzoneLines = 0;
-
-    const data = sales.map((sale) => {
-        const total = Number(sale.total);
-        if (sale.status === "CANCELLED") {
-            cancelledCount++;
-            cancelledAmount += total;
-        } else {
-            count++;
-            amount += total;
-            const m = (sale.paymentMethod || "").toLowerCase();
-            byMethod[m] = (byMethod[m] ?? 0) + total;
-            for (const item of sale.items) {
-                if (item.virtualSku?.startsWith("pz-")) {
-                    playzoneLines++;
-                    playzoneAmount += Number(item.unitPrice) * item.qty;
-                }
-            }
-        }
-        return {
-            ...sale,
-            total,
-            items: sale.items.map((item) => ({
-                ...item,
-                unitPrice: Number(item.unitPrice),
-                product: item.product ?? {
-                    name: item.virtualLabel ?? "Venta libre",
-                    sku: item.virtualSku ?? "VARIOS",
-                },
-            })),
-        };
-    });
-
-    const r2 = (n: number) => Math.round(n * 100) / 100;
+    const data = sales.map((sale) => ({
+        ...sale,
+        total: Number(sale.total),
+        items: sale.items.map((item) => ({
+            ...item,
+            unitPrice: Number(item.unitPrice),
+            product: item.product ?? {
+                name: item.virtualLabel ?? "Venta libre",
+                sku: item.virtualSku ?? "VARIOS",
+            },
+        })),
+    }));
+    const agg = aggregateSales(sales);
+    // Flat legacy keys (count/amount/byMethod/cancelled*) mirror the same aggregate for older clients/tests.
     return {
-        from,
-        to,
+        from, to,
         summary: {
-            count,
-            amount: r2(amount),
-            byMethod: Object.fromEntries(Object.entries(byMethod).map(([k, v]) => [k, r2(v)])),
-            cancelledCount,
-            cancelledAmount: r2(cancelledAmount),
-            playzone: { lines: playzoneLines, amount: r2(playzoneAmount) },
+            ...agg,
+            count: agg.sales.count, amount: agg.sales.total, byMethod: agg.sales.byMethod,
+            cancelledCount: agg.voided.count, cancelledAmount: agg.voided.total,
             truncated: sales.length === 5000,
         },
         data,

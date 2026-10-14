@@ -35,6 +35,7 @@ export function SalesStatisticsScreen() {
  const [days, setDays] = useState(30)
  const [search, setSearch] = useState('')
  const [sales, setSales] = useState<Sale[]>([])
+ const [report, setReport] = useState({ total: 0, count: 0, byMethod: {} as Record<string, number> })
 
  // Last `days` Lima days (today included), computed server-side; no page-size truncation
  const fetchSales = useCallback(async () => {
@@ -47,6 +48,8 @@ export function SalesStatisticsScreen() {
  })
  if (response.error) throw response.error
  setSales((response.data.data ?? []) as Sale[])
+ const s = (response.data as unknown as { summary: { sales: { total: number; count: number; byMethod: Record<string, number> } } }).summary.sales
+ setReport({ total: s.total, count: s.count, byMethod: s.byMethod })
  } catch (err) {
  setLoadError(apiErrorMessage(err))
  } finally {
@@ -67,15 +70,8 @@ export function SalesStatisticsScreen() {
  })
  }, [sales, search])
 
- const summary = useMemo(() => {
- const total = filteredSales.reduce((sum, sale) => sum + Number(sale.total || 0), 0)
-  const byMethod = filteredSales.reduce<Record<string, number>>((acc, sale) => {
-    acc[sale.paymentMethod] = (acc[sale.paymentMethod] ?? 0) + Number(sale.total || 0)
- return acc
- }, {})
- const avgTicket = filteredSales.length ? total / filteredSales.length : 0
- return { total, byMethod, avgTicket }
- }, [filteredSales])
+ // Backend totals for the whole period (the search box only filters the table)
+ const summary = { total: report.total, byMethod: report.byMethod, avgTicket: report.count ? report.total / report.count : 0 }
 
  const formatCurrency = (value: number) => new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN', minimumFractionDigits: 2 }).format(Number(value) || 0)
  const paymentMethodLabel = (value: string) => ({ efectivo: 'Efectivo', yape: 'Yape', tarjeta: 'Tarjeta' }[value] ?? value)
@@ -111,8 +107,8 @@ export function SalesStatisticsScreen() {
  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
  <MetricCard title="Total vendido" value={formatCurrency(summary.total)} icon={<Banknote className="h-4 w-4 text-red-500" />} />
  <MetricCard title="Ticket promedio" value={formatCurrency(summary.avgTicket)} icon={<BarChart3 className="h-4 w-4 text-secondary-500" />} />
- <MetricCard title="Ventas filtradas" value={String(filteredSales.length)} icon={<ShoppingBag className="h-4 w-4 text-secondary-500" />} />
- <MetricCard title="Métodos activos" value={String(Object.keys(summary.byMethod).length)} icon={<CreditCard className="h-4 w-4 text-brand-500" />} />
+ <MetricCard title="Ventas" value={String(report.count)} icon={<ShoppingBag className="h-4 w-4 text-secondary-500" />} />
+ <MetricCard title="Métodos activos" value={String(["efectivo", "yape", "tarjeta"].filter((m) => (summary.byMethod[m] ?? 0) > 0).length)} icon={<CreditCard className="h-4 w-4 text-brand-500" />} />
  </div>
 
  <div className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">

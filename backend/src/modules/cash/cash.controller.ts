@@ -6,13 +6,13 @@ import {
   getTodayCashClose,
   getCashCloseHistory,
   getTodayOpening,
-  getShiftSummary,
   openCashDrawer,
   approveCashClose,
   createCashMovement,
   listCashMovements,
   deleteCashMovement,
 } from "./cash.service.ts";
+import { getDaySummary } from "./summary.ts";
 
 // ============================================================
 //  Cash Management Controller — Prefix: /cash
@@ -26,11 +26,11 @@ export const cashController = new Elysia({ prefix: "/cash", tags: ["Cash Managem
    */
   .post(
     "/close",
-    async ({ body, set }) => {
+    async ({ body, set, request }) => {
       try {
         const result = await recordCashClose({
           tenantId: body.tenantId,
-          workerId: body.workerId,
+          workerId: getAuth(request)!.workerId,
           countedEfectivo: body.countedEfectivo,
           countedYape: body.countedYape,
           countedTarjeta: body.countedTarjeta,
@@ -43,7 +43,7 @@ export const cashController = new Elysia({ prefix: "/cash", tags: ["Cash Managem
         };
       } catch (error) {
         const message = (error as Error).message;
-        if (message.toLowerCase().includes("not opened")) {
+        if (message.toLowerCase().includes("not opened") || message.includes("already recorded")) {
           set.status = 409;
         } else if (message.toLowerCase().includes("worker not found")) {
           set.status = 404;
@@ -59,7 +59,7 @@ export const cashController = new Elysia({ prefix: "/cash", tags: ["Cash Managem
     {
       body: t.Object({
         tenantId: t.String({ minLength: 1 }),
-        workerId: t.String({ minLength: 1 }),
+        workerId: t.Optional(t.String()),
         countedEfectivo: t.Number({ minimum: 0 }),
         countedYape: t.Number({ minimum: 0 }),
         countedTarjeta: t.Number({ minimum: 0 }),
@@ -96,17 +96,20 @@ export const cashController = new Elysia({ prefix: "/cash", tags: ["Cash Managem
   .get(
     "/history",
     async ({ query }) => {
-      const results = await getCashCloseHistory(query.tenantId, query.days ?? 30);
+      const { records: results, totals } = await getCashCloseHistory(query.tenantId, query.days ?? 30, query.from, query.to);
       return {
         success: true,
         data: results,
         total: results.length,
+        totals,
       };
     },
     {
       query: t.Object({
         tenantId: t.String({ minLength: 1 }),
         days: t.Optional(t.Numeric({ minimum: 1, maximum: 365, default: 30 })),
+        from: t.Optional(t.String({ format: "date" })),
+        to: t.Optional(t.String({ format: "date" })),
       }),
       detail: { summary: "Get cash close history" },
     }
@@ -137,9 +140,9 @@ export const cashController = new Elysia({ prefix: "/cash", tags: ["Cash Managem
   // ── POST /cash/opening ─────────────────────────────────────
   .post(
     "/opening",
-    async ({ body, set }) => {
+    async ({ body, set, request }) => {
       try {
-        const data = await openCashDrawer(body.tenantId, body.workerId, body.amount);
+        const data = await openCashDrawer(body.tenantId, getAuth(request)!.workerId, body.amount);
         set.status = 201;
         return { success: true, data };
       } catch (error) {
@@ -151,7 +154,7 @@ export const cashController = new Elysia({ prefix: "/cash", tags: ["Cash Managem
     {
       body: t.Object({
         tenantId: t.String({ minLength: 1 }),
-        workerId: t.String({ minLength: 1 }),
+        workerId: t.Optional(t.String()),
         amount: t.Number({ minimum: 0, maximum: 1_000_000 }),
       }),
       detail: { summary: "Open today's cash drawer with the initial cash amount" },
@@ -161,10 +164,11 @@ export const cashController = new Elysia({ prefix: "/cash", tags: ["Cash Managem
   // ── GET /cash/summary ──────────────────────────────────────
   .get(
     "/summary",
-    async ({ query }) => ({ success: true, data: await getShiftSummary(query.tenantId) }),
+    async ({ query }) => ({ success: true, data: await getDaySummary(query.tenantId, query.date) }),
     {
       query: t.Object({
         tenantId: t.String({ minLength: 1 }),
+        date: t.Optional(t.String({ format: "date" })),
       }),
       detail: { summary: "Today's shift totals (opening, sales by method, movements, expected)" },
     }
@@ -224,11 +228,11 @@ export const cashController = new Elysia({ prefix: "/cash", tags: ["Cash Managem
   // ── POST /cash/movements ─────────────────────────────────
   .post(
     "/movements",
-    async ({ body, set }) => {
+    async ({ body, set, request }) => {
       try {
         const result = await createCashMovement({
           tenantId: body.tenantId,
-          workerId: body.workerId,
+          workerId: getAuth(request)!.workerId,
           type: body.type,
           amount: body.amount,
           currency: body.currency,
@@ -244,7 +248,7 @@ export const cashController = new Elysia({ prefix: "/cash", tags: ["Cash Managem
     {
       body: t.Object({
         tenantId: t.String({ minLength: 1 }),
-        workerId: t.String({ minLength: 1 }),
+        workerId: t.Optional(t.String()),
         type: t.Union([t.Literal("IN"), t.Literal("OUT")]),
         amount: t.Number({ minimum: 0.01, maximum: 1_000_000 }),
         currency: t.Union([t.Literal("PEN"), t.Literal("USD")]),

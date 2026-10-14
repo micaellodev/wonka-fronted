@@ -10,7 +10,7 @@ export const dashboardController = new Elysia({ prefix: "/dashboard", tags: ["Da
     .get(
         "/metrics",
         async ({ query }) => {
-            const stats = await getDashboardStats(query.tenantId);
+            const stats = await getDashboardStats(query.tenantId, query.date);
             return {
                 success: true,
                 data: stats,
@@ -19,6 +19,7 @@ export const dashboardController = new Elysia({ prefix: "/dashboard", tags: ["Da
         {
             query: t.Object({
                 tenantId: t.String({ minLength: 1 }),
+                date: t.Optional(t.String({ format: "date" })),
             }),
             detail: { summary: "Get admin dashboard KPIs" },
         }

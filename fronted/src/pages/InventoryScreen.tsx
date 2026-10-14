@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Package, AlertTriangle, PackageX } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
 import { Card } from '@/components/ui/card'
@@ -21,7 +22,7 @@ const TABS: { id: Tab; label: string }[] = [
 export function InventoryScreen() {
  const { tenantId } = useAuthStore()
  const [tab, setTab] = useState<Tab>('productos')
- const [stockFilter, setStockFilter] = useState<StockFilter>('all')
+ const [stockFilter, setStockFilter] = useState<StockFilter>(() => { const s = new URLSearchParams(window.location.search).get('stock'); return s === 'low' || s === 'out' ? s : 'all' })
  const [productsKey, setProductsKey] = useState(0) // remounts ProductsTab when an indicator preselects a filter
  const [stats, setStats] = useState<InventoryStats | null>(null)
  const [categories, setCategories] = useState<CategoryWithCount[]>([])
@@ -52,6 +53,11 @@ export function InventoryScreen() {
  useEffect(() => { void loadStats(); void loadCategories() }, [loadStats, loadCategories])
 
  const goProducts = (f: StockFilter) => { setStockFilter(f); setProductsKey((k) => k + 1); setTab('productos') }
+
+ // Re-apply ?stock= when the panel links here while this screen is already mounted
+ const stockParam = useSearchParams()[0].get('stock')
+ const [seenParam, setSeenParam] = useState(stockParam)
+ if (stockParam !== seenParam) { setSeenParam(stockParam); goProducts(stockParam === 'low' || stockParam === 'out' ? stockParam : 'all') }
 
  const indicators = [
   { id: 'active', label: 'Productos activos', value: stats?.active, filter: 'all' as StockFilter, icon: Package, tone: 'text-foreground' },

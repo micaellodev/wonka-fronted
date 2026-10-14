@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button'
 
 interface CashCloseRecord {
   id: string
+  usd: number
   openingBalance: number
   totalSales: number
   expectedEfectivo: number
@@ -93,8 +94,9 @@ const fromDateKey = (val: string) => new Date(`${val}T12:00:00-05:00`)
 
 interface ShiftSummary {
   date: string
-  opening: { amount: number; openedAt: string; workerName: string } | null
-  expected: { total: number }
+  opening: { amount: number; at: string; workerName: string } | null
+  expectedTotal: number
+  movements: { inUSD: number; outUSD: number }
   close: { id: string } | null
 }
 
@@ -138,6 +140,8 @@ export function ReportsScreen() {
 
   const [loading, setLoading] = useState(true)
   const [closedRecords, setClosedRecords] = useState<CashCloseRecord[]>([])
+  const [closedTotal, setClosedTotal] = useState(0)
+  const [closedUsd, setClosedUsd] = useState(0)
   const [shiftSummary, setShiftSummary] = useState<ShiftSummary | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -176,19 +180,20 @@ export function ReportsScreen() {
     setLoadError(null)
     try {
       const [historyRes, summaryRes] = await Promise.all([
-        api.cash.history.get({ query: { tenantId, days: 90 } }),
+        api.cash.history.get({ query: { tenantId, days: 90, from: formatDateKey(dateRange.start), to: formatDateKey(dateRange.end) } }),
         api.cash.summary.get({ query: { tenantId } }),
       ])
       if (historyRes.error) throw historyRes.error
       if (summaryRes.error) throw summaryRes.error
       setClosedRecords((historyRes.data.data ?? []) as CashCloseRecord[])
+      { const t = (historyRes.data as unknown as { totals: { countedCash: number; usd: number } }).totals; setClosedTotal(t.countedCash); setClosedUsd(t.usd) }
       setShiftSummary(summaryRes.data.data as ShiftSummary)
     } catch (err) {
       setLoadError(apiErrorMessage(err))
     } finally {
       setLoading(false)
     }
-  }, [tenantId])
+  }, [tenantId, dateRange])
 
   useEffect(() => {
     fetchData()
@@ -204,11 +209,11 @@ export function ReportsScreen() {
         id: 'shift-current-open',
         dateKey: shiftSummary.date,
         isEnCurso: true,
-        startTime: shiftSummary.opening.openedAt,
+        startTime: shiftSummary.opening.at,
         cajeroApertura: shiftSummary.opening.workerName,
         cajeroCierre: '',
-        montoSoles: shiftSummary.expected.total,
-        montoDolares: 0,
+        montoSoles: shiftSummary.expectedTotal,
+        montoDolares: shiftSummary.movements.inUSD - shiftSummary.movements.outUSD,
       })
     }
 
@@ -223,7 +228,7 @@ export function ReportsScreen() {
         cajeroApertura: `Caja Principal`,
         cajeroCierre: r.worker?.name || activeWorker?.name || 'Cajero',
         montoSoles: Number(r.countedCash || r.totalExpected || 0),
-        montoDolares: 0,
+        montoDolares: r.usd,
         rawRecord: r,
       })
     }
@@ -240,14 +245,8 @@ export function ReportsScreen() {
   }, [allShifts, dateRange])
 
   // KPI Calculations
-  const totalSoles = useMemo(
-    () => filteredShifts.reduce((sum, s) => sum + s.montoSoles, 0),
-    [filteredShifts]
-  )
-  const totalDolares = useMemo(
-    () => filteredShifts.reduce((sum, s) => sum + s.montoDolares, 0),
-    [filteredShifts]
-  )
+  const totalSoles = closedTotal // backend total of the range's closes
+  const totalDolares = closedUsd
   const cantidadCierres = filteredShifts.length
 
   // Pagination
@@ -607,7 +606,7 @@ export function ReportsScreen() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Estado:</span>
                     <span className="font-semibold">
-                      {selectedShiftForPrint.isEnCurso ? 'EN CURSO' : 'CERRADO'}
+                      {selectedShiftForPrint.isEnCurso ? 'ABIERTA' : selectedShiftForPrint.rawRecord?.status === 'APPROVED' ? 'CERRADA' : 'PENDIENTE'}
                     </span>
                   </div>
                 </div>

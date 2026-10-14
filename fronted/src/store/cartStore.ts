@@ -31,6 +31,9 @@ interface CartState {
 const calcTotal = (items: CartItem[]): number =>
  items.reduce((sum, i) => sum + i.product.price * i.quantity, 0)
 
+/** Products without stock control can always be sold */
+export const stockLimit = (p: Product) => (p.trackStock ? p.stock : Infinity)
+
 export const useCartStore = create<CartState>((set, get) => ({
  items: [],
  total: 0,
@@ -41,14 +44,14 @@ export const useCartStore = create<CartState>((set, get) => ({
  let next: CartItem[]
  if (existing) {
  // Respect stock ceiling
- if (existing.quantity >= product.stock) return
+ if (existing.quantity >= stockLimit(product)) return
  next = get().items.map((i) =>
  i.product.id === product.id
  ? { ...i, quantity: i.quantity + 1 }
  : i,
  )
  } else {
- if (product.stock === 0) return
+ if (stockLimit(product) <= 0) return
  next = [...get().items, { product, quantity: 1 }]
  }
 
@@ -76,7 +79,7 @@ export const useCartStore = create<CartState>((set, get) => ({
  const item = get().items.find((i) => i.product.id === productId)
  if (!item) return
 
- const clamped = Math.max(1, Math.min(quantity, item.product.stock))
+ const clamped = Math.max(1, Math.min(quantity, stockLimit(item.product)))
  const next = get().items.map((i) =>
  i.product.id === productId ? { ...i, quantity: clamped } : i,
  )

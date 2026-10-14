@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
-import { useCartStore } from '@/store/cartStore'
+import { useCartStore, stockLimit } from '@/store/cartStore'
 import { usePlayzoneTicketStore } from '@/store/playzoneTicketStore'
 import type { Product, Category } from '@/types'
 import { AttendanceModal } from '@/components/AttendanceModal'
@@ -70,8 +70,8 @@ function ProductCard({
  onAdd: (p: Product) => void
  cartQty: number
 }) {
- const isOutOfStock = product.stock === 0
- const isMaxed = cartQty >= product.stock
+ const isOutOfStock = stockLimit(product) <= 0
+ const isMaxed = cartQty >= stockLimit(product)
 
  return (
  <button
@@ -108,10 +108,10 @@ function ProductCard({
  <span
  className={cn(
  'text-[12px] font-mono font-bold tracking-tight',
- isOutOfStock ? 'text-brand-500' : product.stock <= 5 ? 'text-accent-500' : 'text-gray-500'
+ isOutOfStock ? 'text-brand-500' : product.trackStock && product.stock <= (product.minStock ?? 5) ? 'text-accent-500' : 'text-gray-500'
  )}
  >
- {isOutOfStock ? 'STOCK: 0' : `STOCK: ${product.stock}`}
+ {!product.trackStock ? 'SIN CONTROL DE STOCK' : isOutOfStock ? 'STOCK: 0' : `STOCK: ${product.stock}`}
  </span>
  {cartQty > 0 && (
  <span className="rounded-sm bg-zinc-100 px-2 text-[12px] font-mono font-bold tracking-tight text-black">
@@ -144,7 +144,7 @@ function CartRow({
  onRemove: () => void
 }) {
  const subtotal = item.product.price * item.quantity
- const isMaxed = item.quantity >= item.product.stock
+ const isMaxed = item.quantity >= stockLimit(item.product)
 
  return (
  <div className="flex items-center gap-2 px-2 py-2 border-b border-gray-200 hover:bg-gray-50 relative group">
@@ -201,17 +201,20 @@ function TodaySalesPanel({
  const { tenantId } = useAuthStore()
  const [sales, setSales] = useState<SaleToday[]>([])
  const [loading, setLoading] = useState(false)
+ const [loadError, setLoadError] = useState<string | null>(null)
 
  useEffect(() => {
  if (!open) return
  const fetch = async () => {
  setLoading(true)
+ setLoadError(null)
  try {
  const { data, error } = await api.pos.sales.today.get({ query: { tenantId } })
  if (error) throw error
  setSales((data?.data as SaleToday[]) ?? [])
  } catch (err) {
  console.error('Failed to load today sales:', err)
+ setLoadError('No se pudieron cargar las ventas de hoy.')
  } finally {
  setLoading(false)
  }
@@ -233,7 +236,7 @@ function TodaySalesPanel({
  {loading ? (
  <p className="text-center text-gray-400 py-8">Cargando...</p>
  ) : sales.length === 0 ? (
- <p className="text-center text-gray-400 py-8">No hay ventas hoy</p>
+ loadError ? <p className="text-center text-red-600 py-8">{loadError}</p> : <p className="text-center text-gray-400 py-8">No hay ventas hoy</p>
  ) : (
  sales.map((sale) => (
  <div key={sale.id} className="rounded-xl border border-gray-200 bg-white p-3">
@@ -257,7 +260,7 @@ function TodaySalesPanel({
  </div>
  <div className="text-right">
  <p className="font-bold">{formatCurrency(sale.total)}</p>
- {sale.status !== 'CANCELLED' && sale.tipoComprobante !== 'TICKET' && (
+ {sale.status !== 'CANCELLED' && (
  <Button
  variant="outline"
  size="sm"
@@ -370,6 +373,7 @@ export function POSScreen() {
  if (!voidTarget || !activeWorker) return
  try {
  const { error } = await api.pos.sales({ id: voidTarget.id }).void.post({
+ tenantId,
  workerId: activeWorker.id,
  reason: voidReason,
  })

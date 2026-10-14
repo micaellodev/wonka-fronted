@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Search,
   Printer,
@@ -142,6 +143,11 @@ function getDocumentTypeLabel(tipo: string): string {
 
 export function SalesHistoryScreen() {
   const { tenantId, activeWorker } = useAuthStore()
+  // Filtros desde el panel admin: ?date=hoy (por defecto) y ?status=CANCELLED
+  const [searchParams] = useSearchParams()
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'CANCELLED'>(
+    searchParams.get('status') === 'CANCELLED' ? 'CANCELLED' : searchParams.get('status') === 'ACTIVE' ? 'ACTIVE' : 'ALL'
+  )
 
   // Filters state
   const [filterType, setFilterType] = useState<'today' | 'yesterday' | 'last7' | 'last30' | 'custom'>('today')
@@ -230,17 +236,22 @@ export function SalesHistoryScreen() {
     setLoading(true)
     setLoadError(null)
     try {
-      const { data, error } = await api.dashboard['sales-report'].get({
-        query: { tenantId, from: fromKey <= toKey ? fromKey : toKey, to: fromKey <= toKey ? toKey : fromKey },
+      // shortcut: una sola página de 500 ventas por rango; paginar en servidor si un rango supera eso
+      const { data, error } = await api.pos.sales.get({
+        query: {
+          tenantId, limit: 500, page: 1,
+          dateFrom: fromKey <= toKey ? fromKey : toKey, dateTo: fromKey <= toKey ? toKey : fromKey,
+          ...(statusFilter !== 'ALL' ? { status: statusFilter } : {}),
+        },
       })
       if (error) throw error
-      setSales((data.data as Sale[]) || [])
+      setSales(((data.data as Sale[]) || []).map((s) => ({ ...s, total: Number(s.total) })))
     } catch (err) {
       setLoadError(apiErrorMessage(err))
     } finally {
       setLoading(false)
     }
-  }, [tenantId, fromKey, toKey])
+  }, [tenantId, fromKey, toKey, statusFilter])
 
   useEffect(() => {
     fetchSalesData()
@@ -512,6 +523,21 @@ export function SalesHistoryScreen() {
               placeholder="Buscar correlativo o cliente"
               className="w-full text-xs md:text-sm text-gray-800 bg-transparent focus:outline-none placeholder:text-gray-400"
             />
+          </div>
+
+          <div className="border-l border-gray-200 pl-3">
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as 'ALL' | 'ACTIVE' | 'CANCELLED')
+                setPage(1)
+              }}
+              className="text-xs font-semibold text-gray-700 bg-transparent focus:outline-none cursor-pointer pr-2"
+            >
+              <option value="ALL">Todos los estados</option>
+              <option value="ACTIVE">Activas</option>
+              <option value="CANCELLED">Anuladas</option>
+            </select>
           </div>
 
           <div className="border-l border-gray-200 pl-3">
@@ -1238,7 +1264,7 @@ export function SalesHistoryScreen() {
                         </thead>
                         <tbody className="divide-y divide-gray-100 text-gray-700">
                           {selectedSaleDetail.items.map((item, idx) => (
-                            <tr key={item.product?.sku || idx} className="hover:bg-gray-50/50">
+                            <tr key={`${item.product?.sku ?? ''}-${idx}`} className="hover:bg-gray-50/50">
                               <td className="py-2.5 px-5">{item.qty}</td>
                               <td className="py-2.5 px-5 font-medium">{item.product.name}</td>
                               <td className="py-2.5 px-5">{formatPEN(Number(item.unitPrice))}</td>

@@ -28,15 +28,17 @@ interface TenantSettings {
   nombreComercial: string | null
 }
 
+// Subset of the backend DaySummary (GET /cash/summary)
 interface ShiftSummary {
   date: string
-  opening: { amount: number; openedAt: string; workerName: string } | null
-  sales: { efectivo: number; yape: number; tarjeta: number; other: number; total: number; count: number }
-  cancelled: { count: number; amount: number }
-  movements: { inPEN: number; outPEN: number; inUSD: number; outUSD: number; inCount: number; outCount: number }
-  expected: { efectivo: number; yape: number; tarjeta: number; other: number; total: number }
-  cashSales: Array<{ id: string; total: number; status: string; createdAt: string }>
-  close: CashCloseRecord | null
+  cashStatus: 'NO_ABIERTA' | 'ABIERTA' | 'PENDIENTE' | 'CERRADA'
+  opening: { amount: number; at: string; workerName: string } | null
+  sales: { count: number; total: number; byMethod: { efectivo: number; yape: number; tarjeta: number } }
+  voided: { count: number; total: number }
+  movements: { in: number; out: number; inCount: number; outCount: number }
+  expectedCash: number
+  cashInflow: number
+  close: { id: string; status: string; difference: number } | null
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -157,20 +159,16 @@ export function CashCloseScreen() {
   }, [fetchData])
 
   const currentOpening = summary?.opening?.amount ?? 0
-  const salesEfectivoTotal = summary?.sales.efectivo ?? 0
-  const salesYapeTotal = summary?.sales.yape ?? 0
-  const salesTarjetaTotal = summary?.sales.tarjeta ?? 0
-  const totalNetSales = summary?.sales.total ?? 0
-  const cancelledCount = summary?.cancelled.count ?? 0
-  const cancelledAmount = summary?.cancelled.amount ?? 0
-  const totalGrossSales = totalNetSales + cancelledAmount
+  const salesEfectivoTotal = summary?.sales.byMethod.efectivo ?? 0
   const totalTransactions = summary?.sales.count ?? 0
-  const manualIngresosSoles = summary?.movements.inPEN ?? 0
-
-  // Expected cash (same formula as the backend close)
-  const totalCashIngresos = currentOpening + salesEfectivoTotal + manualIngresosSoles
-  const totalCashSalidas = summary?.movements.outPEN ?? 0
-  const expectedEfectivo = summary?.expected.efectivo ?? 0
+  const salesYapeTotal = summary?.sales.byMethod.yape ?? 0
+  const salesTarjetaTotal = summary?.sales.byMethod.tarjeta ?? 0
+  const totalNetSales = summary?.sales.total ?? 0
+  const cancelledCount = summary?.voided.count ?? 0
+  const cancelledAmount = summary?.voided.total ?? 0
+  const totalCashIngresos = summary?.cashInflow ?? 0
+  const totalCashSalidas = summary?.movements.out ?? 0
+  const expectedEfectivo = summary?.expectedCash ?? 0
 
   const valCountedEfectivo = countedEfectivo !== '' ? Number(countedEfectivo) : expectedEfectivo
   const diffEfectivo = valCountedEfectivo - expectedEfectivo
@@ -186,11 +184,7 @@ export function CashCloseScreen() {
     (v) => Number.isFinite(v) && v >= 0
   )
 
-  // Cash In / Cash Out counts
-  const cashInCount =
-    (summary?.cashSales ?? []).filter((s) => s.status !== 'CANCELLED').length +
-    (summary?.opening ? 1 : 0) +
-    (summary?.movements.inCount ?? 0)
+  const cashInCount = summary?.movements.inCount ?? 0
   const cashOutCount = summary?.movements.outCount ?? 0
 
   // Handlers
@@ -262,7 +256,7 @@ export function CashCloseScreen() {
   const companyTitle = `Caja ${tenantSettings?.nombreComercial || tenantSettings?.name || 'Emiliani Pizzas karaoke'}`
   const companyLegal = tenantSettings?.razonSocial || 'EMILIANI PIZZAS Y PASTAS EMPRESA INDIVIDUAL DE RESPONSABILIDAD LIMITADA'
   const openingTimeString = summary?.opening
-    ? formatSpanishDate(summary.opening.openedAt)
+    ? formatSpanishDate(summary.opening.at)
     : cachedOpenedAt
       ? formatSpanishDate(cachedOpenedAt)
       : 'Sin apertura registrada'
@@ -303,7 +297,7 @@ export function CashCloseScreen() {
             </Button>
             <Button
               onClick={handleStartClose}
-              disabled={submittingClose || loading || !summary || !countsValid}
+              disabled={submittingClose || loading || !summary || !countsValid || !!summary.close}
               className="bg-red-600 hover:bg-red-700 text-white h-10 px-5 text-xs font-bold tracking-wide shadow-2xs transition-colors"
             >
               {submittingClose ? (
@@ -345,7 +339,7 @@ export function CashCloseScreen() {
             {summary?.close && (
               <p className="text-xs text-orange-600 mt-1">
                 Cierre de hoy {summary.close.status === 'APPROVED' ? 'aprobado' : 'pendiente de aprobación'} ·
-                diferencia {formatPEN(summary.close.difference)}. Volver a cerrar recalcula y requiere nueva aprobación.
+                diferencia {formatPEN(summary.close.difference)}..
               </p>
             )}
           </div>
@@ -613,11 +607,6 @@ export function CashCloseScreen() {
                 </thead>
                 <tbody className="divide-y divide-gray-50 text-gray-700">
                   <tr className="h-10">
-                    <td className="py-2.5 font-medium">Total de ventas bruto</td>
-                    <td className="py-2.5">{totalTransactions}</td>
-                    <td className="py-2.5">{formatPEN(totalGrossSales)}</td>
-                  </tr>
-                  <tr className="h-10">
                     <td className="py-2.5 font-medium">Descuentos</td>
                     <td className="py-2.5">0</td>
                     <td className="py-2.5">S/ 0.00</td>
@@ -659,7 +648,7 @@ export function CashCloseScreen() {
                   <tr className="h-10">
                     <td className="py-2.5 font-medium">Entrada de dinero</td>
                     <td className="py-2.5">{cashInCount}</td>
-                    <td className="py-2.5">{formatPEN(totalCashIngresos)}</td>
+                    <td className="py-2.5">{formatPEN(summary?.movements.in ?? 0)}</td>
                   </tr>
                   <tr className="h-10">
                     <td className="py-2.5 font-medium">Salida de dinero</td>
