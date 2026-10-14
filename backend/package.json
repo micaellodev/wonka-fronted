@@ -1,0 +1,38 @@
+{
+  "name": "wonka-backend",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "build": "bunx prisma generate",
+    "postinstall": "bunx prisma generate",
+    "db:generate": "bunx prisma generate",
+    "db:migrate": "bunx prisma migrate dev",
+    "db:push": "bunx prisma db push",
+    "db:studio": "bunx prisma studio",
+    "typecheck": "bun run tsc --noEmit",
+    "db:seed": "bun prisma/seed.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.10",
+    "@types/node": "^25.3.3",
+    "@types/nodemailer": "^8.0.1",
+    "@types/pg": "^8.18.0",
+    "prisma": "^7.4.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@elysiajs/cors": "^1.4.1",
+    "@elysiajs/swagger": "^1.3.1",
+    "@prisma/adapter-pg": "^7.4.2",
+    "@prisma/client": "^7.4.2",
+    "@supabase/supabase-js": "^2.98.0",
+    "elysia": "^1.4.27",
+    "nodemailer": "^9.0.5",
+    "pg": "^8.20.0"
+  }
+}

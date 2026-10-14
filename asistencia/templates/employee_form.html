@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Empleado - Wonka Asistencia{% endblock %}
+{% block content %}
+<div class="form-container">
+    <h2 id="formTitle">Nuevo Empleado</h2>
+    <form id="employeeForm">
+        <div class="form-group">
+            <label for="name">Nombre Completo</label>
+            <input type="text" id="name" name="name" required>
+        </div>
+        <div class="form-group">
+            <label for="dni">DNI</label>
+            <input type="text" id="dni" name="dni" maxlength="8" pattern="\d{8}" required>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <a href="/" class="btn btn-secondary">Cancelar</a>
+        </div>
+    </form>
+    <div id="message" class="message" style="display:none;"></div>
+    <div id="registrationInfo" class="registration-info" style="display:none;">
+        <h3>Empleado Creado</h3>
+        <p>Envia este link al empleado para que registre su huella:</p>
+        <div class="link-box">
+            <input type="text" id="registrationLink" readonly>
+            <button onclick="copyLink()" class="btn btn-small">Copiar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const employeeId = '{{ employee_id }}';
+const isEdit = employeeId && employeeId !== 'None';
+
+document.getElementById('formTitle').textContent = isEdit ? 'Editar Empleado' : 'Nuevo Empleado';
+
+if (isEdit) {
+    loadEmployee();
+}
+
+async function loadEmployee() {
+    const token = localStorage.getItem('token');
+    const resp = await fetch('/api/admin/employees', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const employees = await resp.json();
+    const emp = employees.find(e => e.id === employeeId);
+    if (emp) {
+        document.getElementById('name').value = emp.name;
+        document.getElementById('dni').value = emp.dni;
+    }
+}
+
+document.getElementById('employeeForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    const data = {
+        name: document.getElementById('name').value,
+        dni: document.getElementById('dni').value
+    };
+
+    try {
+        const resp = await fetch(isEdit ? `/api/admin/employees/${employeeId}` : '/api/admin/employees', {
+            method: isEdit ? 'PATCH' : 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (resp.ok) {
+            const result = await resp.json();
+            if (!isEdit) {
+                const baseUrl = window.location.origin;
+                document.getElementById('registrationLink').value = `${baseUrl}/register/${result.id}`;
+                document.getElementById('registrationInfo').style.display = 'block';
+                document.getElementById('message').textContent = 'Empleado creado exitosamente';
+                document.getElementById('message').className = 'message success';
+            } else {
+                document.getElementById('message').textContent = 'Empleado actualizado';
+                document.getElementById('message').className = 'message success';
+            }
+            document.getElementById('message').style.display = 'block';
+        } else {
+            const err = await resp.json();
+            document.getElementById('message').textContent = err.detail || 'Error al guardar';
+            document.getElementById('message').className = 'message error';
+            document.getElementById('message').style.display = 'block';
+        }
+    } catch (err) {
+        document.getElementById('message').textContent = 'Error de conexion';
+        document.getElementById('message').className = 'message error';
+        document.getElementById('message').style.display = 'block';
+    }
+});
+
+function copyLink() {
+    const linkInput = document.getElementById('registrationLink');
+    linkInput.select();
+    document.execCommand('copy');
+    alert('Link copiado al portapapeles');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}QR Codes - Wonka Asistencia{% endblock %}
+{% block content %}
+<div class="qr-header">
+    <h2>QR Codes de Asistencia</h2>
+    <p>Selecciona un empleado para ver su codigo QR</p>
+</div>
+
+<div class="employee-selector">
+    <select id="employeeSelect">
+        <option value="">Seleccionar empleado...</option>
+    </select>
+</div>
+
+<div id="qrDisplay" class="qr-display" style="display:none;">
+    <h3 id="employeeName"></h3>
+    <div id="qrContainer"></div>
+    <p class="qr-instruction">Escanea este codigo con tu celular para marcar asistencia</p>
+    <button onclick="printQR()" class="btn btn-secondary">Imprimir</button>
+</div>
+
+<script>
+async function loadEmployees() {
+    const token = localStorage.getItem('token');
+    const resp = await fetch('/api/admin/employees', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const employees = await resp.json();
+    const select = document.getElementById('employeeSelect');
+    employees.forEach(emp => {
+        const option = document.createElement('option');
+        option.value = emp.id;
+        option.textContent = `${emp.name} (${emp.dni})`;
+        select.appendChild(option);
+    });
+}
+
+document.getElementById('employeeSelect').addEventListener('change', async (e) => {
+    const employeeId = e.target.value;
+    if (!employeeId) {
+        document.getElementById('qrDisplay').style.display = 'none';
+        return;
+    }
+
+    const resp = await fetch(`/api/admin/qr/${employeeId}`);
+    const html = await resp.text();
+
+    document.getElementById('qrContainer').innerHTML = html;
+    document.getElementById('employeeName').textContent = e.target.options[e.target.selectedIndex].text;
+    document.getElementById('qrDisplay').style.display = 'block';
+});
+
+function printQR() {
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write('<html><head><title>Imprimir QR</title>');
+    printWindow.document.write('<style>body{font-family:sans-serif;text-align:center;padding:20px;} img{max-width:300px;}</style>');
+    printWindow.document.write('</head><body>');
+    printWindow.document.write(document.getElementById('qrContainer').innerHTML);
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.print();
+}
+
+loadEmployees();
+</script>
+{% endblock %}

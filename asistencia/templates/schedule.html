@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Horario - Wonka Asistencia{% endblock %}
+{% block content %}
+<div class="form-container">
+    <h2>Configurar Horario</h2>
+    <form id="scheduleForm">
+        <div class="form-group">
+            <label for="entry_time">Hora de Entrada</label>
+            <input type="time" id="entry_time" name="entry_time" required>
+        </div>
+        <div class="form-group">
+            <label for="exit_time">Hora de Salida</label>
+            <input type="time" id="exit_time" name="exit_time" required>
+        </div>
+        <div class="form-group">
+            <label for="grace_minutes">Tolerancia (minutos)</label>
+            <input type="number" id="grace_minutes" name="grace_minutes" min="0" max="60" value="10">
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Guardar Horario</button>
+            <a href="/" class="btn btn-secondary">Cancelar</a>
+        </div>
+    </form>
+    <div id="message" class="message" style="display:none;"></div>
+</div>
+
+<script>
+const employeeId = '{{ employee_id }}';
+
+async function loadSchedule() {
+    const token = localStorage.getItem('token');
+    try {
+        const resp = await fetch(`/api/admin/employees/${employeeId}/schedule`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (resp.ok) {
+            const schedule = await resp.json();
+            document.getElementById('entry_time').value = schedule.entry_time;
+            document.getElementById('exit_time').value = schedule.exit_time;
+            document.getElementById('grace_minutes').value = schedule.grace_minutes;
+        }
+    } catch (err) {
+        console.error('Error loading schedule:', err);
+    }
+}
+
+loadSchedule();
+
+document.getElementById('scheduleForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    const data = {
+        entry_time: document.getElementById('entry_time').value,
+        exit_time: document.getElementById('exit_time').value,
+        grace_minutes: parseInt(document.getElementById('grace_minutes').value)
+    };
+
+    try {
+        const resp = await fetch(`/api/admin/employees/${employeeId}/schedule`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (resp.ok) {
+            document.getElementById('message').textContent = 'Horario guardado exitosamente';
+            document.getElementById('message').className = 'message success';
+        } else {
+            const err = await resp.json();
+            document.getElementById('message').textContent = err.detail || 'Error al guardar';
+            document.getElementById('message').className = 'message error';
+        }
+        document.getElementById('message').style.display = 'block';
+    } catch (err) {
+        document.getElementById('message').textContent = 'Error de conexion';
+        document.getElementById('message').className = 'message error';
+        document.getElementById('message').style.display = 'block';
+    }
+});
+</script>
+{% endblock %}

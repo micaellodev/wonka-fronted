@@ -1,0 +1,15 @@
+{
+  "name": "renzo-wonka-promo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "voz": "node scripts/generar-voz.mjs",
+    "voz:rehacer": "node scripts/generar-voz.mjs --force",
+    "voz:muestras": "node scripts/generar-voz.mjs --muestras",
+    "musica": "python scripts/componer-musica.py",
+    "dev": "npm run voz && npx --yes hyperframes@0.8.153 preview",
+    "check": "npm run voz && npx --yes hyperframes@0.8.153 check",
+    "render": "npm run voz && npx --yes hyperframes@0.8.153 render --output renders/renzo-wonka-promo.mp4",
+    "render:alta": "npm run voz && npx --yes hyperframes@0.8.153 render --quality high --output renders/renzo-wonka-promo-alta.mp4"
+  }
+}

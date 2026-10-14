@@ -1,0 +1,1473 @@
+import { useEffect, useState, useCallback, useRef } from 'react'
+import {
+ Package, Plus, Search, Edit2, Layers, Upload, X, ImageIcon, CheckCircle, XCircle,
+ ZoomIn, ZoomOut, RotateCw, Crop, Download
+} from 'lucide-react'
+import { api } from '@/lib/api'
+import { useAuthStore } from '@/store/authStore'
+import type { Product, Category } from '@/types'
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatCurrency(v: number) {
+ return new Intl.NumberFormat('es-PE', {
+ style: 'currency', currency: 'PEN', minimumFractionDigits: 2
+ }).format(v)
+}
+
+/** Readable message from an Eden error: backend messages are Spanish; schema validation ones are not. */
+function apiMsg(error: unknown, fallback: string): string {
+ const v = (error as { value?: unknown } | null)?.value as string | { type?: string; message?: string } | undefined
+ if (typeof v === 'string') return v.trim() || fallback
+ if (v?.type === 'validation') return fallback
+ return v?.message ?? fallback
+}
+
+function ErrorBox({ message }: { message: string }) {
+ if (!message) return null
+ return <p role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{message}</p>
+}
+
+type CategoryWithCount = Category & { _count?: { products: number } }
+
+function Spinner() {
+ return (
+ <div className="w-5 h-5 border-2 border-gray-300 border-t-brand-400 rounded-full animate-spin" />
+ )
+}
+
+// ── Image Crop Modal ─────────────────────────────────────────────────────────
+
+interface ImageCropModalProps {
+ imageSrc: string
+ onConfirm: (croppedBlob: Blob) => void
+ onCancel: () => void
+ aspectRatio?: number // e.g. 1 = square, 16/9, undefined = free
+}
+
+function ImageCropModal({ imageSrc, onConfirm, onCancel, aspectRatio = 1 }: ImageCropModalProps) {
+ const canvasRef = useRef<HTMLCanvasElement>(null)
+ const containerRef = useRef<HTMLDivElement>(null)
+ const imgRef = useRef<HTMLImageElement | null>(null)
+
+ const [zoom, setZoom] = useState(1)
+ const [rotation, setRotation] = useState(0)
+ const [offset, setOffset] = useState({ x: 0, y: 0 })
+ const [dragging, setDragging] = useState(false)
+ const dragStart = useRef({ mx: 0, my: 0, ox: 0, oy: 0 })
+
+ const CANVAS_W = 400
+ const CANVAS_H = aspectRatio ? Math.round(CANVAS_W / aspectRatio) : 400
+
+ // Draw the image onto canvas whenever state changes
+ const draw = useCallback(() => {
+ const canvas = canvasRef.current
+ const img = imgRef.current
+ if (!canvas || !img) return
+ const ctx = canvas.getContext('2d')
+ if (!ctx) return
+
+ ctx.clearRect(0, 0, CANVAS_W, CANVAS_H)
+ ctx.save()
+ ctx.translate(CANVAS_W / 2 + offset.x, CANVAS_H / 2 + offset.y)
+ ctx.rotate((rotation * Math.PI) / 180)
+ ctx.scale(zoom, zoom)
+
+ const scale = Math.max(CANVAS_W / img.naturalWidth, CANVAS_H / img.naturalHeight)
+ const drawW = img.naturalWidth * scale
+ const drawH = img.naturalHeight * scale
+ ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH)
+ ctx.restore()
+ }, [zoom, rotation, offset, CANVAS_W, CANVAS_H])
+
+ // Load image and trigger initial draw
+ useEffect(() => {
+ const img = new Image()
+ img.onload = () => {
+ imgRef.current = img
+ draw()
+ }
+ img.src = imageSrc
+ }, [imageSrc]) // eslint-disable-line react-hooks/exhaustive-deps
+
+ useEffect(() => { draw() }, [draw])
+
+ // Mouse drag handlers
+ const onMouseDown = (e: React.MouseEvent) => {
+ setDragging(true)
+ dragStart.current = { mx: e.clientX, my: e.clientY, ox: offset.x, oy: offset.y }
+ }
+ const onMouseMove = (e: React.MouseEvent) => {
+ if (!dragging) return
+ setOffset({
+ x: dragStart.current.ox + (e.clientX - dragStart.current.mx),
+ y: dragStart.current.oy + (e.clientY - dragStart.current.my),
+ })
+ }
+ const onMouseUp = () => setDragging(false)
+
+ // Touch drag handlers
+ const touchStart = useRef({ tx: 0, ty: 0, ox: 0, oy: 0 })
+ const onTouchStart = (e: React.TouchEvent) => {
+ const t = e.touches[0]
+ touchStart.current = { tx: t.clientX, ty: t.clientY, ox: offset.x, oy: offset.y }
+ }
+ const onTouchMove = (e: React.TouchEvent) => {
+ e.preventDefault()
+ const t = e.touches[0]
+ setOffset({
+ x: touchStart.current.ox + (t.clientX - touchStart.current.tx),
+ y: touchStart.current.oy + (t.clientY - touchStart.current.ty),
+ })
+ }
+
+ // Wheel zoom
+ const onWheel = (e: React.WheelEvent) => {
+ e.preventDefault()
+ setZoom(z => Math.min(5, Math.max(0.2, z - e.deltaY * 0.001)))
+ }
+
+ const handleConfirm = () => {
+ const canvas = canvasRef.current
+ if (!canvas) return
+ canvas.toBlob(blob => {
+ if (blob) onConfirm(blob)
+ }, 'image/jpeg', 0.92)
+ }
+
+ return (
+ <div className="fixed inset-0 bg-gray-900/80 flex items-center justify-center p-4 z-[60]">
+ <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-md p-6 shadow-2xl flex flex-col gap-5">
+ {/* Header */}
+ <div className="flex items-center justify-between">
+ <div className="flex items-center gap-2">
+ <Crop className="w-5 h-5 text-brand-400" />
+ <h2 className="text-lg font-bold text-gray-900">Ajustar imagen</h2>
+ </div>
+ <button onClick={onCancel} className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-200 rounded-xl transition-colors">
+ <X className="w-5 h-5" />
+ </button>
+ </div>
+
+ {/* Canvas preview */}
+ <div
+ ref={containerRef}
+ className="relative rounded-2xl overflow-hidden border border-gray-200 select-none bg-gray-100 cursor-grab active:cursor-grabbing"
+ style={{ width: '100%', paddingBottom: `${(CANVAS_H / CANVAS_W) * 100}%`, position: 'relative' }}
+ onMouseDown={onMouseDown}
+ onMouseMove={onMouseMove}
+ onMouseUp={onMouseUp}
+ onMouseLeave={onMouseUp}
+ onTouchStart={onTouchStart}
+ onTouchMove={onTouchMove}
+ onWheel={onWheel}
+ >
+ <canvas
+ ref={canvasRef}
+ width={CANVAS_W}
+ height={CANVAS_H}
+ className="absolute inset-0 w-full h-full"
+ />
+ {/* Rule-of-thirds grid overlay */}
+ <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-30" viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}>
+ <line x1={CANVAS_W / 3} y1="0" x2={CANVAS_W / 3} y2={CANVAS_H} stroke="white" strokeWidth="0.5" />
+ <line x1={(CANVAS_W / 3) * 2} y1="0" x2={(CANVAS_W / 3) * 2} y2={CANVAS_H} stroke="white" strokeWidth="0.5" />
+ <line x1="0" y1={CANVAS_H / 3} x2={CANVAS_W} y2={CANVAS_H / 3} stroke="white" strokeWidth="0.5" />
+ <line x1="0" y1={(CANVAS_H / 3) * 2} x2={CANVAS_W} y2={(CANVAS_H / 3) * 2} stroke="white" strokeWidth="0.5" />
+ </svg>
+ <p className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-gray-900/50 bg-gray-900/40 px-2 py-0.5 rounded-full pointer-events-none">
+ Arrastra · Rueda = zoom
+ </p>
+ </div>
+
+ {/* Controls */}
+ <div className="flex flex-col gap-3">
+ {/* Zoom slider */}
+ <div className="flex items-center gap-3">
+ <button onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors">
+ <ZoomOut className="w-4 h-4" />
+ </button>
+ <div className="flex-1 flex flex-col gap-1">
+ <input
+ type="range" min="20" max="500" step="1"
+ value={Math.round(zoom * 100)}
+ onChange={e => setZoom(Number(e.target.value) / 100)}
+ className="w-full accent-brand-500 h-1.5"
+ />
+ <div className="flex justify-between text-[10px] text-gray-400">
+ <span>Zoom</span>
+ <span className="font-mono">{Math.round(zoom * 100)}%</span>
+ </div>
+ </div>
+ <button onClick={() => setZoom(z => Math.min(5, z + 0.1))} className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors">
+ <ZoomIn className="w-4 h-4" />
+ </button>
+ </div>
+
+ {/* Rotation slider */}
+ <div className="flex items-center gap-3">
+ <button onClick={() => setRotation(r => r - 90)} className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors">
+ <RotateCw className="w-4 h-4 scale-x-[-1]" />
+ </button>
+ <div className="flex-1 flex flex-col gap-1">
+ <input
+ type="range" min="-180" max="180" step="1"
+ value={rotation}
+ onChange={e => setRotation(Number(e.target.value))}
+ className="w-full accent-brand-500 h-1.5"
+ />
+ <div className="flex justify-between text-[10px] text-gray-400">
+ <span>Rotación</span>
+ <span className="font-mono">{rotation}°</span>
+ </div>
+ </div>
+ <button onClick={() => setRotation(r => r + 90)} className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors">
+ <RotateCw className="w-4 h-4" />
+ </button>
+ </div>
+
+ {/* Reset */}
+ <button
+ onClick={() => { setZoom(1); setRotation(0); setOffset({ x: 0, y: 0 }) }}
+ className="text-xs text-gray-400 hover:text-gray-600 transition-colors text-center"
+ >
+ ↺ Restablecer posición
+ </button>
+ </div>
+
+ {/* Action buttons */}
+ <div className="flex gap-3">
+ <button
+ onClick={onCancel}
+ className="flex-1 py-3 font-semibold text-gray-600 bg-gray-200 hover:bg-gray-300 rounded-xl transition-colors"
+ >
+ Cancelar
+ </button>
+ <button
+ onClick={handleConfirm}
+ className="flex-1 py-3 font-semibold text-gray-900 bg-brand-600 hover:bg-brand-500 rounded-xl transition-colors"
+ >
+ Usar esta imagen
+ </button>
+ </div>
+ </div>
+ </div>
+ )
+}
+
+// ── Category Modal ───────────────────────────────────────────────────────────
+
+interface CategoryModalProps {
+ tenantId: string
+ editing: CategoryWithCount | null
+ productCount: number
+ onClose: () => void
+ onSaved: () => void
+}
+
+function CategoryModal({ tenantId, editing, productCount, onClose, onSaved }: CategoryModalProps) {
+ const [name, setName] = useState(editing?.name ?? '')
+ const [imageUrl, setImageUrl] = useState(editing?.imageUrl ?? '')
+ const [uploading, setUploading] = useState(false)
+ const [saving, setSaving] = useState(false)
+ const [cropSrc, setCropSrc] = useState<string | null>(null)
+ const [error, setError] = useState('')
+
+ const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+ const file = e.target.files?.[0]
+ if (!file) return
+ const reader = new FileReader()
+ reader.onload = () => setCropSrc(reader.result as string)
+ reader.readAsDataURL(file)
+ // Reset input so same file can be selected again
+ e.target.value = ''
+ }
+
+ const handleCropConfirm = async (blob: Blob) => {
+ setCropSrc(null)
+ setUploading(true)
+ try {
+ setError('')
+ const croppedFile = new File([blob], 'category.jpg', { type: 'image/jpeg' })
+ const res = await api.upload.post({ tenantId, file: croppedFile, folder: 'categories' })
+ if (!res.error) {
+ const data = res.data as unknown as { data: { url: string } }
+ setImageUrl(data.data.url)
+ } else {
+ setError(apiMsg(res.error, 'Error subiendo la imagen.'))
+ }
+ } catch {
+ setError('Hubo un problema al subir la imagen.')
+ } finally {
+ setUploading(false)
+ }
+ }
+
+ const handleSave = async () => {
+ const trimmed = name.trim()
+ if (!trimmed || saving || uploading) return
+ if (trimmed.length > 80) { setError('El nombre admite como máximo 80 caracteres.'); return }
+ setSaving(true)
+ setError('')
+ try {
+ const res = editing
+ // imageUrl always sent on edit: '' clears the image
+ ? await api.inventory.categories({ id: editing.id }).patch({ name: trimmed, imageUrl }, { query: { tenantId } })
+ : await api.inventory.categories.post({ tenantId, name: trimmed, ...(imageUrl ? { imageUrl } : {}) })
+ if (res.error) { setError(apiMsg(res.error, 'Error guardando la categoría.')); return }
+ onSaved()
+ } catch {
+ setError('Error guardando la categoría.')
+ } finally {
+ setSaving(false)
+ }
+ }
+
+ const handleDelete = async () => {
+ if (!editing || saving) return
+ if (!confirm(`¿Eliminar la categoría "${editing.name}"?`)) return
+ setSaving(true)
+ setError('')
+ try {
+ const res = await api.inventory.categories({ id: editing.id }).delete(undefined, { query: { tenantId } })
+ if (res.error) { setError(apiMsg(res.error, 'No se pudo eliminar la categoría.')); return }
+ onSaved()
+ } catch {
+ setError('No se pudo eliminar la categoría.')
+ } finally {
+ setSaving(false)
+ }
+ }
+
+ return (
+ <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-50">
+ <div className="bg-gray-100 border border-gray-200 rounded-2xl w-full max-w-sm p-6 shadow-2xl flex flex-col gap-5">
+ {/* Header */}
+ <div className="flex items-center justify-between">
+ <div>
+ <h2 className="text-xl font-bold text-gray-900">{editing ? 'Editar Categoria' : 'Nueva Categoria'}</h2>
+ <p className="text-sm text-gray-500 mt-0.5">{editing ? 'Modifica nombre o imagen.' : 'Crea una nueva categoria de productos.'}</p>
+ </div>
+ <button onClick={onClose} className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-200 rounded-xl transition-colors">
+ <X className="w-5 h-5" />
+ </button>
+ </div>
+
+ {/* Image Upload */}
+ <label className="relative w-full h-36 rounded-2xl overflow-hidden border-2 border-dashed border-gray-300 hover:border-brand-500 transition-colors cursor-pointer group bg-white/40 flex items-center justify-center">
+ {imageUrl ? (
+ <>
+ <img src={imageUrl} className="absolute inset-0 w-full h-full object-cover" alt="preview" />
+ <div className="absolute inset-0 bg-gray-900/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+ <Upload className="w-6 h-6 text-gray-900" />
+ <span className="text-gray-900 text-sm font-medium ml-2">Cambiar foto</span>
+ </div>
+ </>
+ ) : (
+ <div className="flex flex-col items-center gap-2 text-gray-400 group-hover:text-brand-400 transition-colors">
+ {uploading ? <Spinner /> : <><ImageIcon className="w-8 h-8" /><span className="text-sm font-medium">Subir imagen de categoria</span></>}
+ </div>
+ )}
+ {uploading && (
+ <div className="absolute inset-0 bg-gray-900/60 flex items-center justify-center">
+ <Spinner />
+ </div>
+ )}
+ <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} disabled={uploading} />
+ </label>
+
+ {/* Crop modal */}
+ {cropSrc && (
+ <ImageCropModal
+ imageSrc={cropSrc}
+ aspectRatio={1}
+ onConfirm={handleCropConfirm}
+ onCancel={() => setCropSrc(null)}
+ />
+ )}
+
+ {/* Name Field */}
+ <div>
+ <label className="block text-sm font-semibold text-gray-600 mb-1.5">Nombre de la Categoria</label>
+ <input
+ type="text"
+ value={name}
+ onChange={e => setName(e.target.value)}
+ className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-brand-500 transition-colors"
+ placeholder="Ej. Chocolates, Caramelos..."
+ maxLength={80}
+ onKeyDown={e => e.key === 'Enter' && handleSave()}
+ />
+ </div>
+
+ {imageUrl && !uploading && (
+ <button type="button" onClick={() => setImageUrl('')} className="text-xs text-gray-500 hover:text-red-600 self-start">
+ Quitar imagen
+ </button>
+ )}
+
+ <ErrorBox message={error} />
+
+ {editing && (
+ <button
+ type="button"
+ onClick={handleDelete}
+ disabled={saving || productCount > 0}
+ title={productCount > 0 ? 'Solo se pueden eliminar categorías sin productos' : ''}
+ className="text-sm font-semibold text-red-600 hover:text-red-700 disabled:opacity-40 disabled:cursor-not-allowed self-start"
+ >
+ Eliminar categoría{productCount > 0 ? ` (tiene ${productCount} productos)` : ''}
+ </button>
+ )}
+
+ {/* Actions */}
+ <div className="flex gap-3">
+ <button
+ onClick={onClose}
+ className="flex-1 py-3 font-semibold text-gray-600 bg-gray-200 hover:bg-gray-300 rounded-xl transition-colors"
+ >
+ Cancelar
+ </button>
+ <button
+ onClick={handleSave}
+ disabled={saving || !name.trim() || uploading}
+ className="flex-1 py-3 font-semibold text-gray-900 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors"
+ >
+ {saving ? 'Guardando...' : 'Guardar'}
+ </button>
+ </div>
+ </div>
+ </div>
+ )
+}
+
+// ── Product Modal ────────────────────────────────────────────────────────────
+
+interface ProductModalProps {
+ tenantId: string
+ categories: Category[]
+ editing: Product | null
+ onClose: () => void
+ onSaved: () => void
+}
+
+interface StockEntryModalProps {
+ tenantId: string
+ products: Product[]
+ onClose: () => void
+ onSaved: () => void
+}
+
+function StockEntryModal({ tenantId, products, onClose, onSaved }: StockEntryModalProps) {
+ const [productId, setProductId] = useState(products[0]?.id ?? '')
+ const [qty, setQty] = useState('1')
+ const [mode, setMode] = useState<'in' | 'out'>('in')
+ const [saving, setSaving] = useState(false)
+ const [error, setError] = useState('')
+
+ const selectedProduct = products.find((p) => p.id === productId) ?? null
+ const qtyNum = /^\d+$/.test(qty.trim()) ? parseInt(qty, 10) : NaN
+ const delta = mode === 'in' ? qtyNum : -qtyNum
+
+ const handleSave = async () => {
+ if (!selectedProduct || saving) return
+ if (isNaN(qtyNum) || qtyNum <= 0 || qtyNum > 1000000) {
+ setError('Ingresa una cantidad entera mayor a 0.')
+ return
+ }
+ if (mode === 'out' && qtyNum > selectedProduct.stock) {
+ setError(`Stock insuficiente: hay ${selectedProduct.stock} unidades.`)
+ return
+ }
+
+ setSaving(true)
+ setError('')
+ try {
+ // Atomic increment on the server: concurrent sales are not overwritten.
+ const res = await api.inventory.products({ id: selectedProduct.id }).stock.post({ delta }, { query: { tenantId } })
+ if (res.error) { setError(apiMsg(res.error, 'No se pudo registrar el movimiento de stock.')); return }
+ onSaved()
+ } catch {
+ setError('No se pudo registrar el movimiento de stock.')
+ } finally {
+ setSaving(false)
+ }
+ }
+
+ return (
+ <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-50">
+ <div className="bg-gray-100 border border-gray-200 rounded-2xl w-full max-w-md p-6 shadow-2xl flex flex-col gap-5">
+ <div className="flex items-center justify-between">
+ <div>
+ <h2 className="text-xl font-bold text-gray-900">Ajuste de Stock</h2>
+ <p className="text-sm text-gray-500 mt-0.5">Entrada suma unidades; salida/merma las resta.</p>
+ </div>
+ <button onClick={onClose} className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-200 rounded-xl transition-colors">
+ <X className="w-5 h-5" />
+ </button>
+ </div>
+
+ <div className="flex space-x-2 bg-gray-200/60 p-1 rounded-xl w-fit">
+ {(['in', 'out'] as const).map(m => (
+ <button
+ key={m}
+ type="button"
+ onClick={() => { setMode(m); setError('') }}
+ className={`px-4 py-1.5 rounded-lg text-sm font-semibold ${mode === m ? 'bg-white text-gray-900 shadow' : 'text-gray-500'}`}
+ >
+ {m === 'in' ? 'Entrada' : 'Salida / merma'}
+ </button>
+ ))}
+ </div>
+
+ <div>
+ <label className="block text-sm font-semibold text-gray-600 mb-1.5">Producto</label>
+ <select
+ value={productId}
+ onChange={(e) => { setProductId(e.target.value); setError('') }}
+ className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 focus:outline-none focus:border-brand-500 transition-colors"
+ >
+ {products.map((p) => (
+ <option key={p.id} value={p.id}>{p.name} · {p.sku}</option>
+ ))}
+ </select>
+ </div>
+
+ <div className="grid grid-cols-2 gap-3">
+ <div>
+ <label className="block text-sm font-semibold text-gray-600 mb-1.5">Cantidad</label>
+ <input
+ type="number"
+ min="1"
+ step="1"
+ value={qty}
+ onChange={(e) => setQty(e.target.value)}
+ className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-brand-500 transition-colors"
+ placeholder="1"
+ />
+ </div>
+ <div className="flex items-end">
+ <div className="w-full bg-white/40 border border-gray-200/50 rounded-xl px-4 py-2.5">
+ <span className="text-xs text-gray-400 block mb-0.5">Stock actual</span>
+ <span className="text-sm font-bold text-gray-700">{selectedProduct?.stock ?? 0}</span>
+ </div>
+ </div>
+ </div>
+
+ <div className="bg-white/40 border border-gray-200/50 rounded-xl px-4 py-3">
+ <span className="text-xs text-gray-400 block mb-1">Nuevo stock proyectado</span>
+ <span className="text-lg font-black text-secondary-500">
+ {(selectedProduct?.stock ?? 0) + (isNaN(delta) ? 0 : delta)}
+ </span>
+ </div>
+
+ <ErrorBox message={error} />
+
+ <div className="flex gap-3">
+ <button
+ onClick={onClose}
+ className="flex-1 py-3 font-semibold text-gray-600 bg-gray-200 hover:bg-gray-300 rounded-xl transition-colors"
+ >
+ Cancelar
+ </button>
+ <button
+ onClick={handleSave}
+ disabled={saving || !selectedProduct || products.length === 0}
+ className="flex-1 py-3 font-semibold text-gray-900 bg-secondary-500 hover:bg-secondary-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors"
+ >
+ {saving ? 'Registrando...' : mode === 'in' ? 'Registrar Entrada' : 'Registrar Salida'}
+ </button>
+ </div>
+ </div>
+ </div>
+ )
+}
+
+function ProductModal({ tenantId, categories, editing, onClose, onSaved }: ProductModalProps) {
+ const [form, setForm] = useState({
+ name: editing?.name ?? '',
+ sku: editing?.sku ?? '',
+ categoryId: editing?.category?.id ?? categories[0]?.id ?? '',
+ imageUrl: editing?.imageUrl ?? '',
+ price: editing?.price?.toString() ?? '',
+ cost: editing?.cost?.toString() ?? '',
+ stock: editing?.stock?.toString() ?? '0',
+ trackStock: editing?.trackStock ?? true,
+ isActive: editing?.isActive ?? true,
+ igvRegime: editing?.igvRegime ?? null,
+ })
+ const [uploading, setUploading] = useState(false)
+ const [saving, setSaving] = useState(false)
+ const [cropSrc, setCropSrc] = useState<string | null>(null)
+ const [error, setError] = useState('')
+
+ const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+ const file = e.target.files?.[0]
+ if (!file) return
+ const reader = new FileReader()
+ reader.onload = () => setCropSrc(reader.result as string)
+ reader.readAsDataURL(file)
+ e.target.value = ''
+ }
+
+ const handleCropConfirm = async (blob: Blob) => {
+ setCropSrc(null)
+ setUploading(true)
+ try {
+ setError('')
+ const croppedFile = new File([blob], 'product.jpg', { type: 'image/jpeg' })
+ const res = await api.upload.post({ tenantId, file: croppedFile, folder: 'products' })
+ if (!res.error) {
+ const data = res.data as unknown as { data: { url: string } }
+ setForm(prev => ({ ...prev, imageUrl: data.data.url }))
+ } else {
+ setError(apiMsg(res.error, 'Error subiendo la imagen.'))
+ }
+ } catch {
+ setError('Hubo un problema al subir la imagen.')
+ } finally {
+ setUploading(false)
+ }
+ }
+
+ const handleSave = async () => {
+ if (saving || uploading) return
+ const name = form.name.trim()
+ const sku = form.sku.trim().toUpperCase()
+ if (!name || !sku || !form.categoryId) { setError('Nombre, SKU y categoría son obligatorios.'); return }
+ if (/\s/.test(sku)) { setError('El SKU no puede contener espacios.'); return }
+ const price = Number(form.price)
+ const cost = Number(form.cost)
+ if (form.price.trim() === '' || !isFinite(price) || price < 0 || price > 99999999.99) { setError('El precio debe ser un número mayor o igual a 0.'); return }
+ if (form.cost.trim() === '' || !isFinite(cost) || cost < 0 || cost > 99999999.99) { setError('El costo debe ser un número mayor o igual a 0.'); return }
+ const stock = Number(form.stock || '0')
+ if (!editing && (!Number.isInteger(stock) || stock < 0)) { setError('El stock debe ser un número entero mayor o igual a 0.'); return }
+ const round2 = (n: number) => Math.round(n * 100) / 100
+ setSaving(true)
+ setError('')
+ try {
+ const res = editing
+ // SKU is immutable; stock changes go through the atomic "Ajuste de stock" so concurrent sales are not overwritten.
+ // imageUrl/igvRegime are always sent: '' clears the image / inherits the business default.
+ ? await api.inventory.products({ id: editing.id }).patch({
+ name,
+ categoryId: form.categoryId,
+ imageUrl: form.imageUrl,
+ price: round2(price),
+ cost: round2(cost),
+ trackStock: form.trackStock,
+ isActive: form.isActive,
+ igvRegime: form.igvRegime ?? '',
+ }, { query: { tenantId } })
+ : await api.inventory.products.post({
+ tenantId,
+ categoryId: form.categoryId,
+ name,
+ sku,
+ ...(form.imageUrl ? { imageUrl: form.imageUrl } : {}),
+ price: round2(price),
+ cost: round2(cost),
+ stock: form.trackStock ? stock : 0,
+ trackStock: form.trackStock,
+ ...(form.igvRegime ? { igvRegime: form.igvRegime } : {}),
+ })
+ if (res.error) { setError(apiMsg(res.error, 'Error guardando el producto. Verifica el SKU y los datos.')); return }
+ onSaved()
+ } catch {
+ setError('Error guardando el producto. Verifica el SKU y los datos.')
+ } finally {
+ setSaving(false)
+ }
+ }
+
+ return (
+ <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-50">
+ <div className="bg-gray-100 border border-gray-200 rounded-2xl w-full max-w-lg p-6 shadow-2xl flex flex-col gap-5 max-h-[90vh] overflow-y-auto">
+ {/* Header */}
+ <div className="flex items-center justify-between">
+ <div>
+ <h2 className="text-xl font-bold text-gray-900">{editing ? 'Editar Producto' : 'Nuevo Producto'}</h2>
+ <p className="text-sm text-gray-500 mt-0.5">{editing ? 'Modifica los datos del producto.' : 'Registra un nuevo producto en el inventario.'}</p>
+ </div>
+ <button onClick={onClose} className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-200 rounded-xl transition-colors">
+ <X className="w-5 h-5" />
+ </button>
+ </div>
+
+ {/* Image Upload */}
+ <label className="relative w-full h-32 rounded-2xl overflow-hidden border-2 border-dashed border-gray-300 hover:border-brand-500 transition-colors cursor-pointer group bg-white/40 flex items-center justify-center shrink-0">
+ {form.imageUrl ? (
+ <>
+ <img src={form.imageUrl} className="absolute inset-0 w-full h-full object-cover" alt="preview" />
+ <div className="absolute inset-0 bg-gray-900/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+ <Upload className="w-5 h-5 text-gray-900" />
+ <span className="text-gray-900 text-sm font-medium ml-2">Cambiar foto</span>
+ </div>
+ </>
+ ) : (
+ <div className="flex flex-col items-center gap-2 text-gray-400 group-hover:text-brand-400 transition-colors">
+ {uploading ? <Spinner /> : <><ImageIcon className="w-7 h-7" /><span className="text-sm font-medium">Subir foto del producto</span></>}
+ </div>
+ )}
+ {uploading && (
+ <div className="absolute inset-0 bg-gray-900/60 flex items-center justify-center">
+ <Spinner />
+ </div>
+ )}
+ <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} disabled={uploading} />
+ </label>
+
+ {/* Crop modal */}
+ {cropSrc && (
+ <ImageCropModal
+ imageSrc={cropSrc}
+ aspectRatio={1}
+ onConfirm={handleCropConfirm}
+ onCancel={() => setCropSrc(null)}
+ />
+ )}
+
+ {/* Form Fields */}
+ <div className="grid grid-cols-2 gap-4">
+ <div className="col-span-2">
+ <label className="block text-sm font-semibold text-gray-600 mb-1.5">Nombre del Producto</label>
+ <input
+ type="text"
+ value={form.name}
+ onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+ className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-brand-500 transition-colors"
+ placeholder="Ej. Chocolate Wonka Negro"
+ />
+ </div>
+
+ <div>
+ <label className="block text-sm font-semibold text-gray-600 mb-1.5">SKU</label>
+ <input
+ type="text"
+ value={form.sku}
+ onChange={e => setForm(p => ({ ...p, sku: e.target.value.toUpperCase() }))}
+ disabled={!!editing}
+ className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-brand-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-mono"
+ placeholder="Ej. WONKA-001"
+ />
+ </div>
+
+ <div>
+ <label className="block text-sm font-semibold text-gray-600 mb-1.5">Categoria</label>
+ <select
+ value={form.categoryId}
+ onChange={e => setForm(p => ({ ...p, categoryId: e.target.value }))}
+ className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 focus:outline-none focus:border-brand-500 transition-colors"
+ >
+ {categories.map(c => (
+ <option key={c.id} value={c.id}>{c.name}</option>
+ ))}
+ </select>
+ </div>
+
+ <div>
+ <label className="block text-sm font-semibold text-gray-600 mb-1.5">Afectación IGV</label>
+ <select
+ value={form.igvRegime ?? ''}
+ onChange={e => setForm(p => ({ ...p, igvRegime: e.target.value || null }))}
+ className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 focus:outline-none focus:border-brand-500 transition-colors"
+ >
+ <option value="">Usar default del negocio</option>
+ <option value="GRAVADO">Gravado</option>
+ <option value="GRAVADO_10_5">Gravado 10.5%</option>
+ <option value="EXONERADO">Exonerado</option>
+ <option value="INAFECTO">Inafecto</option>
+ <option value="ICBPER">ICBPER</option>
+ </select>
+ </div>
+
+ <div>
+ <label className="block text-sm font-semibold text-gray-600 mb-1.5">Precio de Venta (S/)</label>
+ <input
+ type="number"
+ min="0"
+ step="0.01"
+ value={form.price}
+ onChange={e => setForm(p => ({ ...p, price: e.target.value }))}
+ className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-brand-500 transition-colors"
+ placeholder="0"
+ />
+ </div>
+
+ <div>
+ <label className="block text-sm font-semibold text-gray-600 mb-1.5">Costo Unitario (S/)</label>
+ <input
+ type="number"
+ min="0"
+ step="0.01"
+ value={form.cost}
+ onChange={e => setForm(p => ({ ...p, cost: e.target.value }))}
+ className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-brand-500 transition-colors"
+ placeholder="0"
+ />
+ </div>
+
+ <div className="flex flex-col gap-2 justify-center mt-2">
+ <label className="block text-sm font-semibold text-gray-600">Control de Stock</label>
+ <div className="flex items-center gap-3 bg-white/30 rounded-xl px-4 py-2 border border-gray-200/50">
+ <button
+ type="button"
+ onClick={() => setForm(p => ({ ...p, trackStock: !p.trackStock }))}
+ className={`w-11 h-6 rounded-full transition-colors relative shrink-0 ${form.trackStock ? 'bg-brand-600' : 'bg-gray-300'}`}
+ >
+ <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${form.trackStock ? 'translate-x-5' : 'translate-x-0'}`} />
+ </button>
+ <span className="text-sm font-medium text-gray-600 leading-tight">
+ {form.trackStock ? 'Con stock' : 'Sin stock'}
+ </span>
+ </div>
+ </div>
+
+ {form.trackStock && editing && (
+ <div>
+ <span className="block text-sm font-semibold text-gray-600 mb-1.5">Stock actual</span>
+ <p className="px-4 py-2.5 text-gray-900 font-bold">{editing.stock} <span className="text-xs font-normal text-gray-400">(usa "Ajuste de stock")</span></p>
+ </div>
+ )}
+
+ {form.trackStock && !editing && (
+ <div>
+ <label className="block text-sm font-semibold text-gray-600 mb-1.5">Stock Inicial</label>
+ <input
+ type="number"
+ min="0"
+ step="1"
+ value={form.stock}
+ onChange={e => setForm(p => ({ ...p, stock: e.target.value }))}
+ className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-brand-500 transition-colors"
+ placeholder="0"
+ />
+ </div>
+ )}
+
+ {/* Margin preview */}
+ <div className="flex items-end pb-1">
+ <div className="w-full bg-white/40 border border-gray-200/50 rounded-xl px-4 py-2.5">
+ <span className="text-xs text-gray-400 block mb-0.5">Margen estimado</span>
+ <span className={`text-sm font-bold ${parseFloat(form.price) > 0 && parseFloat(form.cost) >= 0
+ ? ((parseFloat(form.price) - parseFloat(form.cost)) / parseFloat(form.price) * 100) >= 20
+ ? 'text-secondary-500'
+ : 'text-accent-500'
+ : 'text-gray-400'
+ }`}>
+ {parseFloat(form.price) > 0 && !isNaN(parseFloat(form.cost))
+ ? `${(((parseFloat(form.price) - parseFloat(form.cost)) / parseFloat(form.price)) * 100).toFixed(1)}%`
+ : '0%'
+ }
+ </span>
+ </div>
+ </div>
+ </div>
+
+ {form.imageUrl && !uploading && (
+ <button type="button" onClick={() => setForm(p => ({ ...p, imageUrl: '' }))} className="text-xs text-gray-500 hover:text-red-600 self-start">
+ Quitar imagen
+ </button>
+ )}
+
+ <ErrorBox message={error} />
+
+ {/* Active toggle (edit only) */}
+ {editing && (
+ <div className="flex items-center gap-3 bg-white/30 rounded-xl px-4 py-3 border border-gray-200/50">
+ <button
+ type="button"
+ onClick={() => setForm(p => ({ ...p, isActive: !p.isActive }))}
+ className={`w-11 h-6 rounded-full transition-colors relative ${form.isActive ? 'bg-brand-600' : 'bg-gray-300'}`}
+ >
+ <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${form.isActive ? 'translate-x-5' : 'translate-x-0'}`} />
+ </button>
+ <span className="text-sm font-medium text-gray-600">
+ {form.isActive ? 'Producto activo (visible en POS)' : 'Producto inactivo (oculto en POS)'}
+ </span>
+ </div>
+ )}
+
+ {/* Actions */}
+ <div className="flex gap-3">
+ <button
+ onClick={onClose}
+ className="flex-1 py-3 font-semibold text-gray-600 bg-gray-200 hover:bg-gray-300 rounded-xl transition-colors"
+ >
+ Cancelar
+ </button>
+ <button
+ onClick={handleSave}
+ disabled={saving || !form.name.trim() || !form.sku.trim() || !form.categoryId || uploading}
+ className="flex-1 py-3 font-semibold text-gray-900 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors"
+ >
+ {saving ? 'Guardando...' : editing ? 'Actualizar Producto' : 'Crear Producto'}
+ </button>
+ </div>
+ </div>
+ </div>
+ )
+}
+
+// ── Excel import ────────────────────────────────────────────────────────────
+
+const COLS = ['sku', 'nombre', 'categoria', 'precio', 'costo', 'stock', 'controla_stock', 'activo', 'igv', 'imagen_url'] as const
+const API_KEY: Record<(typeof COLS)[number], string> = {
+ sku: 'sku', nombre: 'name', categoria: 'category', precio: 'price', costo: 'cost', stock: 'stock',
+ controla_stock: 'trackStock', activo: 'isActive', igv: 'igvRegime', imagen_url: 'imageUrl',
+}
+const norm = (h: unknown) => String(h ?? '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '_')
+
+async function downloadTemplate(categoryNames: string[]) {
+ const XLSX = await import('xlsx')
+ const cat = categoryNames[0] ?? 'Bebidas'
+ const ws = XLSX.utils.aoa_to_sheet([
+ [...COLS],
+ ['AGUA-500', 'Agua mineral 500ml', cat, 2.5, 1.2, 40, 'SI', 'SI', '', ''],
+ ['GALL-01', 'Galletas de vainilla', cat, 1.5, 0.8, 100, 'SI', 'SI', 'GRAVADO', ''],
+ ])
+ ws['!cols'] = COLS.map(() => ({ wch: 18 }))
+ const info = XLSX.utils.aoa_to_sheet([
+ ['Columna', 'Obligatoria', 'Formato / valores permitidos'],
+ ['sku', 'SI', 'Código único sin espacios (máx. 40). Se convierte a MAYÚSCULAS. Si ya existe en el negocio, el producto se ACTUALIZA; si no, se CREA.'],
+ ['nombre', 'SI', 'Texto, máx. 120 caracteres.'],
+ ['categoria', 'SI', 'Nombre de la categoría (sin distinguir mayúsculas). Si no existe, se CREA automáticamente.'],
+ ['precio', 'SI', 'Número >= 0 (ej. 2.50). Precio de venta.'],
+ ['costo', 'NO', 'Número >= 0. Vacío = 0.'],
+ ['stock', 'NO', 'Entero >= 0. Vacío = 0 al crear. En productos que ya existen el stock NO se modifica (se conserva el real); solo se pisa si marcas "Reemplazar stock" al importar.'],
+ ['controla_stock', 'NO', 'SI o NO. Vacío = SI al crear, sin cambio al actualizar.'],
+ ['activo', 'NO', 'SI o NO. Vacío = SI al crear, sin cambio al actualizar.'],
+ ['igv', 'NO', 'GRAVADO, EXONERADO, INAFECTO, ICBPER o GRAVADO_10_5. Vacío = hereda del negocio.'],
+ ['imagen_url', 'NO', 'URL de la imagen. Vacío = sin cambio.'],
+ [],
+ ['Máximo 2000 filas por archivo. Las filas con error se omiten y se informan; las válidas se importan.'],
+ [],
+ ['Categorías existentes'],
+ ...categoryNames.map((n) => [n]),
+ ])
+ info['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 110 }]
+ const wb = XLSX.utils.book_new()
+ XLSX.utils.book_append_sheet(wb, ws, 'Productos')
+ XLSX.utils.book_append_sheet(wb, info, 'Instrucciones')
+ XLSX.writeFile(wb, 'plantilla-inventario.xlsx')
+}
+
+type PreviewRow = { row: number; data: Record<string, unknown>; error?: string }
+
+function clientCheck(d: Record<string, unknown>): string | undefined {
+ const s = (k: string) => String(d[k] ?? '').trim()
+ if (!s('sku') || /\s/.test(s('sku'))) return 'SKU obligatorio, sin espacios.'
+ if (!s('name')) return 'Nombre obligatorio.'
+ if (!s('category')) return 'Categoría obligatoria.'
+ const n = (k: string) => Number(s(k).replace(',', '.'))
+ if (!s('price') || !(n('price') >= 0)) return 'Precio obligatorio (número ≥ 0).'
+ if (s('cost') && !(n('cost') >= 0)) return 'Costo inválido.'
+ if (s('stock') && !(Number.isInteger(n('stock')) && n('stock') >= 0)) return 'Stock debe ser entero ≥ 0.'
+ return undefined
+}
+
+async function parseFile(file: File): Promise<PreviewRow[]> {
+ const XLSX = await import('xlsx')
+ const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' })
+ const sheet = wb.Sheets['Productos'] ?? wb.Sheets[wb.SheetNames[0]!]
+ if (!sheet) return []
+ const raw = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '', raw: true })
+ const head = (raw[0] ?? []).map(norm)
+ const out: PreviewRow[] = []
+ raw.slice(1).forEach((cells, i) => {
+ if (cells.every((c) => String(c).trim() === '')) return
+ const data: Record<string, unknown> = {}
+ for (const col of COLS) {
+ const idx = head.indexOf(col)
+ if (idx >= 0) data[API_KEY[col]] = cells[idx]
+ }
+ const error = clientCheck(data)
+ out.push({ row: i + 2, data, ...(error ? { error } : {}) })
+ })
+ return out
+}
+
+function ImportModal({ tenantId, categoryNames, onClose, onDone }: { tenantId: string; categoryNames: string[]; onClose: () => void; onDone: () => void }) {
+ const [rows, setRows] = useState<PreviewRow[]>([])
+ const [fileName, setFileName] = useState('')
+ const [updateStock, setUpdateStock] = useState(false)
+ const [busy, setBusy] = useState(false)
+ const [error, setError] = useState('')
+ const [result, setResult] = useState<{ created: number; updated: number; errors: { row: number; message: string }[] } | null>(null)
+
+ const valid = rows.filter((r) => !r.error)
+ const pick = async (f: File | undefined) => {
+ if (!f) return
+ setError(''); setResult(null); setFileName(f.name)
+ try {
+ const parsed = await parseFile(f)
+ if (parsed.length === 0) setError('El archivo no tiene filas de productos.')
+ else if (parsed.length > 2000) { setError('Máximo 2000 filas por archivo.'); setRows([]); return }
+ setRows(parsed)
+ } catch { setError('No se pudo leer el archivo. Usa la plantilla (.xlsx, .xls o .csv).'); setRows([]) }
+ }
+
+ const send = async () => {
+ if (busy || valid.length === 0) return
+ setBusy(true); setError('')
+ try {
+ const res = await api.inventory.products.import.post({ tenantId, updateStock, rows: valid.map((r) => ({ row: r.row, ...r.data })) as never })
+ if (res.error) { setError(apiMsg(res.error, 'No se pudo importar.')); return }
+ setResult((res.data as unknown as { data: NonNullable<typeof result> }).data)
+ onDone()
+ } catch { setError('No se pudo conectar con el servidor.') } finally { setBusy(false) }
+ }
+
+ return (
+ <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-50">
+ <div className="bg-gray-100 border border-gray-200 rounded-2xl w-full max-w-4xl max-h-[90vh] p-6 shadow-2xl flex flex-col gap-4">
+ <div className="flex items-center justify-between">
+ <div>
+ <h2 className="text-xl font-bold text-gray-900">Importar productos desde Excel</h2>
+ <p className="text-sm text-gray-500 mt-0.5">Crea o actualiza por SKU. Descarga la plantilla para ver el formato.</p>
+ </div>
+ <button onClick={onClose} aria-label="Cerrar" className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-200 rounded-xl"><X className="w-5 h-5" /></button>
+ </div>
+
+ <div className="flex flex-wrap items-center gap-3">
+ <button onClick={() => void downloadTemplate(categoryNames)} className="flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-xl text-sm font-medium text-gray-900">
+ <Download className="w-4 h-4" /> Descargar plantilla
+ </button>
+ <label className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-500 rounded-xl text-sm font-medium text-gray-900 cursor-pointer">
+ <Upload className="w-4 h-4" /> Elegir archivo
+ <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = '' }} />
+ </label>
+ {fileName && <span className="text-sm text-gray-500">{fileName}</span>}
+ <label className="flex items-center gap-2 text-sm text-gray-600 ml-auto">
+ <input type="checkbox" checked={updateStock} onChange={(e) => setUpdateStock(e.target.checked)} />
+ Reemplazar stock de productos existentes
+ </label>
+ </div>
+
+ {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</p>}
+
+ {result ? (
+ <div className="flex flex-col gap-2 overflow-y-auto">
+ <p className="text-sm font-semibold text-green-700 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+ Creados: {result.created} · Actualizados: {result.updated} · Con error: {result.errors.length}
+ </p>
+ {result.errors.map((e) => <p key={e.row} className="text-sm text-red-600">Fila {e.row}: {e.message}</p>)}
+ </div>
+ ) : rows.length > 0 && (
+ <>
+ <p className="text-sm text-gray-600">{valid.length} filas válidas · <span className={rows.length > valid.length ? 'text-red-600 font-semibold' : ''}>{rows.length - valid.length} con error (se omitirán)</span></p>
+ <div className="overflow-auto border border-gray-200 rounded-xl bg-white">
+ <table className="w-full text-sm">
+ <thead className="bg-gray-50 text-gray-500 text-left sticky top-0">
+ <tr><th className="px-3 py-2">Fila</th>{COLS.slice(0, 6).map((c) => <th key={c} className="px-3 py-2">{c}</th>)}<th className="px-3 py-2">Estado</th></tr>
+ </thead>
+ <tbody>
+ {rows.map((r) => (
+ <tr key={r.row} className={r.error ? 'bg-red-50 text-red-700' : 'text-gray-800'}>
+ <td className="px-3 py-1.5">{r.row}</td>
+ {COLS.slice(0, 6).map((c) => <td key={c} className="px-3 py-1.5">{String(r.data[API_KEY[c]] ?? '')}</td>)}
+ <td className="px-3 py-1.5">{r.error ?? 'OK'}</td>
+ </tr>
+ ))}
+ </tbody>
+ </table>
+ </div>
+ </>
+ )}
+
+ <div className="flex justify-end gap-3">
+ <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-200">{result ? 'Cerrar' : 'Cancelar'}</button>
+ {!result && (
+ <button onClick={send} disabled={busy || valid.length === 0} className="px-4 py-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl text-sm font-medium text-gray-900">
+ {busy ? 'Importando...' : `Confirmar importación (${valid.length})`}
+ </button>
+ )}
+ </div>
+ </div>
+ </div>
+ )
+}
+
+// ── Main Screen ──────────────────────────────────────────────────────────────
+
+export function InventoryScreen() {
+ const { tenantId } = useAuthStore()
+
+ type TabType = 'productos' | 'categorias'
+ const [activeTab, setActiveTab] = useState<TabType>('productos')
+ const [products, setProducts] = useState<Product[]>([])
+ const [categories, setCategories] = useState<CategoryWithCount[]>([])
+ const [loading, setLoading] = useState(true)
+ const [loadError, setLoadError] = useState('')
+ const [togglingId, setTogglingId] = useState<string | null>(null)
+ const [search, setSearch] = useState('')
+
+ // Modal state
+ const [catModal, setCatModal] = useState<{ open: boolean; editing: CategoryWithCount | null }>({ open: false, editing: null })
+ const [prodModal, setProdModal] = useState<{ open: boolean; editing: Product | null }>({ open: false, editing: null })
+ const [isStockOpen, setIsStockOpen] = useState(false)
+ const [isImportOpen, setIsImportOpen] = useState(false)
+
+ const fetchData = useCallback(async () => {
+ setLoading(true)
+ setLoadError('')
+ try {
+ const [prodRes, catRes] = await Promise.all([
+ // shortcut: single page of 500 products; add server-side paging/search if a store exceeds it
+ api.inventory.products.get({ query: { tenantId, limit: 500, page: 1 } }),
+ api.inventory.categories.get({ query: { tenantId } })
+ ])
+ if (!prodRes.error) {
+ const response = prodRes.data as unknown as { data: Product[] }
+ setProducts(response.data ?? [])
+ }
+ if (!catRes.error) {
+ const response = catRes.data as unknown as { data: CategoryWithCount[] }
+ setCategories(response.data ?? [])
+ }
+ const err = prodRes.error ?? catRes.error
+ if (err) setLoadError(apiMsg(err, 'No se pudo cargar el inventario.'))
+ } catch (e) {
+ console.error(e)
+ setLoadError('No se pudo conectar con el servidor.')
+ } finally {
+ setLoading(false)
+ }
+ }, [tenantId])
+
+ useEffect(() => { fetchData() }, [fetchData])
+
+ const toggleActive = async (p: Product) => {
+ if (togglingId) return
+ setTogglingId(p.id)
+ try {
+ const res = await api.inventory.products({ id: p.id }).patch({ isActive: !p.isActive }, { query: { tenantId } })
+ if (res.error) { alert(apiMsg(res.error, 'No se pudo cambiar el estado del producto.')); return }
+ setProducts(prev => prev.map(x => x.id === p.id ? { ...x, isActive: !p.isActive } : x))
+ } catch {
+ alert('No se pudo cambiar el estado del producto.')
+ } finally {
+ setTogglingId(null)
+ }
+ }
+
+ const filteredProducts = products.filter(p =>
+ p.name.toLowerCase().includes(search.toLowerCase()) ||
+ p.sku.toLowerCase().includes(search.toLowerCase()) ||
+ p.category.name.toLowerCase().includes(search.toLowerCase())
+ )
+
+ const filteredCategories = categories.filter(c =>
+ c.name.toLowerCase().includes(search.toLowerCase())
+ )
+
+ return (
+ <div className="min-h-screen bg-surface-900 text-gray-700 flex flex-col">
+ {/* Header */}
+ <header className="px-6 py-4 bg-gray-100 border-b border-white/5 shadow-md flex items-center justify-between shrink-0 rounded-sm">
+ <div className="flex items-center gap-4">
+ <div>
+ <h1 className="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+ <Package className="w-5 h-5 text-brand-400" /> Inventario
+ </h1>
+ </div>
+ </div>
+ <div className="flex items-center gap-3">
+ {activeTab === 'categorias' && (
+ <button
+ onClick={() => setCatModal({ open: true, editing: null })}
+ className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl font-medium text-gray-900 transition-all active:scale-95"
+ >
+ <Plus className="w-4 h-4" /> Nueva Categoria
+ </button>
+ )}
+ {activeTab === 'productos' && (
+ <>
+ <button
+ onClick={() => setIsImportOpen(true)}
+ className="flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-xl font-medium text-gray-900 transition-all active:scale-95"
+ >
+ <Upload className="w-4 h-4" /> Importar Excel
+ </button>
+ <button
+ onClick={() => setIsStockOpen(true)}
+ disabled={products.length === 0}
+ className="flex items-center gap-2 px-4 py-2 bg-secondary-500 hover:bg-secondary-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-medium text-gray-900 transition-all active:scale-95"
+ title={products.length === 0 ? 'No hay productos para ajustar stock' : 'Entrada o salida de stock'}
+ >
+ <Plus className="w-4 h-4" /> Ajuste de stock
+ </button>
+ <button
+ onClick={() => setProdModal({ open: true, editing: null })}
+ disabled={categories.length === 0}
+ className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-medium text-gray-900 transition-all active:scale-95"
+ title={categories.length === 0 ? 'Crea al menos una categoria primero' : ''}
+ >
+ <Plus className="w-4 h-4" /> Nuevo Producto
+ </button>
+ </>
+ )}
+ </div>
+ </header>
+
+ {/* Tabs + Search */}
+ <div className="px-6 pt-5 pb-0 shrink-0 flex items-center justify-between gap-4 flex-wrap">
+ <div className="flex space-x-2 bg-gray-100 p-1.5 rounded-xl w-fit border border-gray-200/50">
+ <button
+ onClick={() => setActiveTab('productos')}
+ className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'productos' ? 'bg-brand-600 text-gray-900 shadow' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
+ >
+ <Package className="w-4 h-4" /> Productos
+ <span className="text-xs bg-white/10 px-1.5 py-0.5 rounded-full">{products.length}</span>
+ </button>
+ <button
+ onClick={() => setActiveTab('categorias')}
+ className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'categorias' ? 'bg-blue-600 text-gray-900 shadow' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
+ >
+ <Layers className="w-4 h-4" /> Categorias
+ <span className="text-xs bg-white/10 px-1.5 py-0.5 rounded-full">{categories.length}</span>
+ </button>
+ </div>
+
+ <div className="relative flex-1 max-w-sm">
+ <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+ <input
+ type="text"
+ placeholder={activeTab === 'productos' ? 'Buscar por nombre, SKU o categoria...' : 'Buscar categoria...'}
+ value={search}
+ onChange={e => setSearch(e.target.value)}
+ className="w-full bg-gray-100 border border-gray-200 rounded-xl pl-9 pr-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm"
+ />
+ </div>
+ </div>
+
+ {/* Content */}
+ <main className="flex-1 p-6 flex flex-col gap-4 overflow-hidden">
+ {loadError && (
+ <div role="alert" className="flex items-center justify-between gap-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-2">
+ <span>{loadError}</span>
+ <button onClick={fetchData} className="font-semibold underline">Reintentar</button>
+ </div>
+ )}
+ {/* ── PRODUCTOS TAB ── */}
+ {activeTab === 'productos' && (
+ <div className="flex-1 bg-gray-100/40 border border-white/5 rounded-2xl overflow-hidden flex flex-col">
+ <div className="overflow-x-auto flex-1">
+ <table className="w-full text-left border-collapse">
+ <thead>
+ <tr className="bg-gray-100 text-gray-500 text-xs border-b border-white/5 uppercase tracking-wider">
+ <th className="px-4 py-3 font-semibold">Producto</th>
+ <th className="px-4 py-3 font-semibold">SKU</th>
+ <th className="px-4 py-3 font-semibold">Categoria</th>
+ <th className="px-4 py-3 font-semibold text-right">Precio</th>
+ <th className="px-4 py-3 font-semibold text-right">Costo</th>
+ <th className="px-4 py-3 font-semibold text-right">Margen</th>
+ <th className="px-4 py-3 font-semibold text-center">Stock</th>
+ <th className="px-4 py-3 font-semibold text-center">Estado</th>
+ <th className="px-4 py-3 font-semibold text-right">Acciones</th>
+ </tr>
+ </thead>
+ <tbody className="divide-y divide-white/5">
+ {loading ? (
+ <tr>
+ <td colSpan={9} className="p-12 text-center">
+ <div className="flex flex-col items-center gap-3 text-gray-500">
+ <div className="w-8 h-8 border-2 border-gray-300 border-t-brand-400 rounded-full animate-spin" />
+ Cargando productos...
+ </div>
+ </td>
+ </tr>
+ ) : filteredProducts.length === 0 ? (
+ <tr>
+ <td colSpan={9} className="p-12 text-center">
+ <div className="flex flex-col items-center gap-3 text-gray-400">
+ <Package className="w-10 h-10 opacity-30" />
+ <p className="text-sm">{search ? 'No se encontraron productos con ese filtro.' : 'No hay productos registrados. ¡Crea el primero!'}</p>
+ </div>
+ </td>
+ </tr>
+ ) : (
+ filteredProducts.map(p => {
+ const margin = p.price > 0 ? ((p.price - p.cost) / p.price) * 100 : 0
+ return (
+ <tr key={p.id} className="hover:bg-gray-100/40 transition-colors">
+ {/* Product name + image */}
+ <td className="px-4 py-3">
+ <div className="flex items-center gap-3">
+ <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-200 border border-gray-300 shrink-0">
+ {p.imageUrl ? (
+ <img src={p.imageUrl} className="w-full h-full object-cover" alt={p.name} />
+ ) : (
+ <div className="w-full h-full flex items-center justify-center">
+ <Package className="w-4 h-4 text-gray-400" />
+ </div>
+ )}
+ </div>
+ <span className="text-sm font-medium text-gray-900">{p.name}</span>
+ </div>
+ </td>
+ <td className="px-4 py-3 text-sm font-mono text-gray-500">{p.sku}</td>
+ <td className="px-4 py-3">
+ <span className="bg-gray-200/60 px-2.5 py-1 rounded-full text-xs font-medium text-gray-600">{p.category.name}</span>
+ </td>
+ <td className="px-4 py-3 text-sm text-secondary-500 font-bold text-right">{formatCurrency(p.price)}</td>
+ <td className="px-4 py-3 text-sm text-gray-500 text-right">{formatCurrency(p.cost)}</td>
+ <td className="px-4 py-3 text-right">
+ <span className={`text-xs font-bold ${margin >= 30 ? 'text-secondary-500' : margin >= 15 ? 'text-accent-500' : 'text-brand-500'}`}>
+ {margin.toFixed(1)}%
+ </span>
+ </td>
+ <td className="px-4 py-3 text-center">
+ <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${p.stock <= 0 ? 'bg-brand-100 text-brand-500' : p.stock <= 5 ? 'bg-accent-100 text-accent-500' : 'bg-secondary-500/10 text-secondary-500'}`}>
+ {p.stock}
+ </span>
+ </td>
+ <td className="px-4 py-3 text-center">
+ <button
+ type="button"
+ onClick={() => toggleActive(p)}
+ disabled={togglingId === p.id}
+ className="p-1 rounded-lg hover:bg-gray-200 disabled:opacity-40"
+ title={p.isActive ? 'Activo (clic para desactivar)' : 'Inactivo (clic para activar)'}
+ aria-label={p.isActive ? `Desactivar ${p.name}` : `Activar ${p.name}`}
+ >
+ {p.isActive ? (
+ <CheckCircle className="w-4 h-4 text-secondary-500 inline-block" />
+ ) : (
+ <XCircle className="w-4 h-4 text-gray-400 inline-block" />
+ )}
+ </button>
+ </td>
+ <td className="px-4 py-3 text-right">
+ <button
+ onClick={() => setProdModal({ open: true, editing: p })}
+ className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors"
+ title="Editar"
+ >
+ <Edit2 className="w-4 h-4" />
+ </button>
+ </td>
+ </tr>
+ )
+ })
+ )}
+ </tbody>
+ </table>
+ </div>
+ </div>
+ )}
+
+ {/* ── CATEGORÍAS TAB ── */}
+ {activeTab === 'categorias' && (
+ loading ? (
+ <div className="flex-1 flex items-center justify-center">
+ <div className="flex flex-col items-center gap-3 text-gray-500">
+ <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-400 rounded-full animate-spin" />
+ Cargando categorias...
+ </div>
+ </div>
+ ) : filteredCategories.length === 0 ? (
+ <div className="flex-1 flex items-center justify-center">
+ <div className="flex flex-col items-center gap-4 text-gray-400">
+ <Layers className="w-14 h-14 opacity-20" />
+ <p className="text-base font-medium">{search ? 'Sin resultados para esa búsqueda.' : 'No hay categorias aún.'}</p>
+ {!search && (
+ <button
+ onClick={() => setCatModal({ open: true, editing: null })}
+ className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl font-semibold text-gray-900 transition-all active:scale-95"
+ >
+ <Plus className="w-4 h-4" /> Crear primera categoria
+ </button>
+ )}
+ </div>
+ </div>
+ ) : (
+ <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+ {filteredCategories.map(cat => {
+ const count = cat._count?.products ?? products.filter(p => p.category.id === cat.id).length
+ return (
+ <div
+ key={cat.id}
+ className="group relative bg-gray-100/60 border border-white/5 rounded-2xl overflow-hidden hover:border-blue-500/30 hover:shadow-xl hover:shadow-blue-500/5 transition-all"
+ >
+ {/* Image */}
+ <div className="aspect-square w-full bg-gray-100 overflow-hidden">
+ {cat.imageUrl ? (
+ <img
+ src={cat.imageUrl}
+ className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+ alt={cat.name}
+ />
+ ) : (
+ <div className="w-full h-full flex items-center justify-center bg-gray-200">
+ <Layers className="w-10 h-10 text-gray-400 opacity-50" />
+ </div>
+ )}
+ </div>
+ {/* Info */}
+ <div className="p-3">
+ <p className="text-sm font-bold text-gray-900 truncate">{cat.name}</p>
+ <p className="text-xs text-gray-400 mt-0.5">{count} {count === 1 ? 'producto' : 'productos'}</p>
+ </div>
+ {/* Edit button */}
+ <button
+ onClick={() => setCatModal({ open: true, editing: cat })}
+ className="absolute top-2 right-2 p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900 rounded-lg opacity-60 group-hover:opacity-100 focus:opacity-100 transition-all"
+ title="Editar categoria"
+ >
+ <Edit2 className="w-3.5 h-3.5" />
+ </button>
+ </div>
+ )
+ })}
+ </div>
+ )
+ )}
+ </main>
+
+ {/* Modals */}
+ {catModal.open && (
+ <CategoryModal
+ tenantId={tenantId}
+ editing={catModal.editing}
+ productCount={catModal.editing ? (catModal.editing._count?.products ?? products.filter(p => p.category.id === catModal.editing?.id).length) : 0}
+ onClose={() => setCatModal({ open: false, editing: null })}
+ onSaved={() => { setCatModal({ open: false, editing: null }); fetchData() }}
+ />
+ )}
+
+ {prodModal.open && (
+ <ProductModal
+ tenantId={tenantId}
+ categories={categories}
+ editing={prodModal.editing}
+ onClose={() => setProdModal({ open: false, editing: null })}
+ onSaved={() => { setProdModal({ open: false, editing: null }); fetchData() }}
+ />
+ )}
+
+ {isImportOpen && (
+ <ImportModal
+ tenantId={tenantId}
+ categoryNames={categories.map((c) => c.name)}
+ onClose={() => setIsImportOpen(false)}
+ onDone={fetchData}
+ />
+ )}
+ {isStockOpen && (
+ <StockEntryModal
+ tenantId={tenantId}
+ products={products}
+ onClose={() => setIsStockOpen(false)}
+ onSaved={() => {
+ setIsStockOpen(false)
+ fetchData()
+ }}
+ />
+ )}
+ </div>
+ )
+}
+
+
+

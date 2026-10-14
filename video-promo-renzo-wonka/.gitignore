@@ -1,0 +1,5 @@
+node_modules/
+renders/
+.thumbnails/
+.venv-voz/
+assets/audio/muestras/

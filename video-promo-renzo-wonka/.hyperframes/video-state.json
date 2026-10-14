@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "historyId": "1865b3f0-4e92-4270-a787-99fc6ccf4532",
+  "currentRevision": "187f390b-d219-43d7-886c-1fece7c5f44c",
+  "pendingChanges": false,
+  "files": {
+    "README.md": {
+      "hash": "27b1a903e37161fe5be48cd38ed01d95e5ab7d928c87abf7973e9de21e3297fa",
+      "content": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\27\\27b1a903e37161fe5be48cd38ed01d95e5ab7d928c87abf7973e9de21e3297fa"
+    },
+    "assets/audio/voz-01.wav": {
+      "hash": "827d7d3e83ff62b2b60c89d3b02bb43d346462751a370f26c849201430a1f862",
+      "content": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\82\\827d7d3e83ff62b2b60c89d3b02bb43d346462751a370f26c849201430a1f862"
+    },
+    "assets/audio/voz-02.wav": {
+      "hash": "db8480095665f95000904466a10785ce8c11bc3c86ab1bacf0a1b9ec2b2debb7",
+      "content": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\db\\db8480095665f95000904466a10785ce8c11bc3c86ab1bacf0a1b9ec2b2debb7"
+    },
+    "assets/audio/voz-03.wav": {
+      "hash": "74317b896eac97bbf71e5bdaa8bace55d11a39eaaf1e34c810724fd865eec33d",
+      "content": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\74\\74317b896eac97bbf71e5bdaa8bace55d11a39eaaf1e34c810724fd865eec33d"
+    },
+    "assets/audio/voz-04.wav": {
+      "hash": "afa6ab64ec19e0ac615b1cbe30ebacad2d40f583deeeed7210a52cff30b0b96c",
+      "content": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\af\\afa6ab64ec19e0ac615b1cbe30ebacad2d40f583deeeed7210a52cff30b0b96c"
+    },
+    "assets/audio/voz-05.wav": {
+      "hash": "3168ddb2f68cacfd1f143c6aab4be553976b1351c8aa2e5cf2cf0238d64f2f27",
+      "content": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\31\\3168ddb2f68cacfd1f143c6aab4be553976b1351c8aa2e5cf2cf0238d64f2f27"
+    },
+    "assets/brand/icon.webp": {
+      "hash": "2d7e0ae4a7068eb2ae08b936a933e3611179580e52cfbcfcef35d680916f20bb",
+      "content": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\2d\\2d7e0ae4a7068eb2ae08b936a933e3611179580e52cfbcfcef35d680916f20bb"
+    },
+    "assets/brand/logo.webp": {
+      "hash": "3eb0704b311937558cecae195fdcbd949c1555ee66fdd2da7032c0804331bf97",
+      "content": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\3e\\3eb0704b311937558cecae195fdcbd949c1555ee66fdd2da7032c0804331bf97"
+    },
+    "assets/fonts/Fredoka-OFL.txt": {
+      "hash": "5c9e7eee5c6b25f4b05b8d53b2e470ea4962f9ced742d044a98f7d95d1375bab",
+      "content": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\5c\\5c9e7eee5c6b25f4b05b8d53b2e470ea4962f9ced742d044a98f7d95d1375bab"
+    },
+    "assets/fonts/Fredoka.ttf": {
+      "hash": "2ba02e68b152868aef9ba28e24b3648c7d457fe6f25c761f2c2c53fb61a73fc8",
+      "content": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\2b\\2ba02e68b152868aef9ba28e24b3648c7d457fe6f25c761f2c2c53fb61a73fc8"
+    },
+    "assets/vendor/gsap.min.js": {
+      "hash": "92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb",
+      "content": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\92\\92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb"
+    },
+    "hyperframes.json": {
+      "hash": "53dbce1e19aa713cbb12ee0bc4d206143b45ab15e6ffbfcaa8f69572d4d24d50",
+      "content": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\53\\53dbce1e19aa713cbb12ee0bc4d206143b45ab15e6ffbfcaa8f69572d4d24d50"
+    },
+    "index.html": {
+      "hash": "bb9153a3b1d9f277d2e9fdf7fe943fb1bf23ed7d0369d634136c2b4cde9ac303",
+      "content": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\bb\\bb9153a3b1d9f277d2e9fdf7fe943fb1bf23ed7d0369d634136c2b4cde9ac303"
+    },
+    "meta.json": {
+      "hash": "7098f0f46558b56dcd374c50650e4da5442e6b7abb3be6219937b0adeb14cbfa",
+      "content": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\70\\7098f0f46558b56dcd374c50650e4da5442e6b7abb3be6219937b0adeb14cbfa"
+    },
+    "package.json": {
+      "hash": "c0017674a6acd5e49808d58609eb59ddc9ab1ca4286a717f302c67eedf8b2aa6",
+      "content": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\c0\\c0017674a6acd5e49808d58609eb59ddc9ab1ca4286a717f302c67eedf8b2aa6"
+    },
+    "scripts/componer-musica.py": {
+      "hash": "bfe6cb6a884e07dc083aca4aadfd7bd41a9d5a3c728d39181301b79a7006e5d2",
+      "content": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\bf\\bfe6cb6a884e07dc083aca4aadfd7bd41a9d5a3c728d39181301b79a7006e5d2"
+    },
+    "scripts/generar-voz.mjs": {
+      "hash": "486fc0f04d656dde3e23220bba72cebc364bba112387bbf6d20cd9bb6a804c53",
+      "content": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\48\\486fc0f04d656dde3e23220bba72cebc364bba112387bbf6d20cd9bb6a804c53"
+    },
+    "assets/audio/musica-renzo-wonka.wav": {
+      "hash": "46bd48f6f6c1df7b127a51df2882be676a41aa1ebe8aa17586d09343212c71e7",
+      "content": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\46\\46bd48f6f6c1df7b127a51df2882be676a41aa1ebe8aa17586d09343212c71e7"
+    }
+  },
+  "revisions": {
+    "39ed75fb-594d-4946-89eb-47bb86281a04": {
+      "actor": {
+        "kind": "outside",
+        "name": "Outside"
+      },
+      "label": "Changed outside the app",
+      "startedAt": 1791919150770,
+      "endedAt": 1791919150791,
+      "files": {
+        "package.json": {
+          "before": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\ac\\ac13a65912e30642e6405943d04b8ab7de1d54f569f0426b06b6bf44ae8563e0",
+          "after": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\c0\\c0017674a6acd5e49808d58609eb59ddc9ab1ca4286a717f302c67eedf8b2aa6"
+        },
+        "README.md": {
+          "before": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\cf\\cfa8c714e08041aa4b193215999662f83fe70a45c070fd52b775b0e59909ef53",
+          "after": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\27\\27b1a903e37161fe5be48cd38ed01d95e5ab7d928c87abf7973e9de21e3297fa"
+        },
+        "scripts/generar-voz.mjs": {
+          "before": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\cf\\cfb70d69bf1b5976b3490bfa7e7b8004f1ab9db9b1067b7e23414ae6ed82310f",
+          "after": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\48\\486fc0f04d656dde3e23220bba72cebc364bba112387bbf6d20cd9bb6a804c53"
+        }
+      }
+    },
+    "187f390b-d219-43d7-886c-1fece7c5f44c": {
+      "actor": {
+        "kind": "outside",
+        "name": "Outside"
+      },
+      "label": "Changed outside the app",
+      "startedAt": 1791919368094,
+      "endedAt": 1791919368121,
+      "files": {
+        "assets/audio/voz-01.wav": {
+          "before": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\18\\18a274ee453348096c9499c262b426a3c62f8a14b4c7f44b16b9905d0bbe344a",
+          "after": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\82\\827d7d3e83ff62b2b60c89d3b02bb43d346462751a370f26c849201430a1f862"
+        },
+        "assets/audio/voz-02.wav": {
+          "before": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\aa\\aa9d6008a3bb4ab9dc6f7fb4f763127fa144d60a97dcf3df7d36c2ca5265d0e3",
+          "after": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\db\\db8480095665f95000904466a10785ce8c11bc3c86ab1bacf0a1b9ec2b2debb7"
+        },
+        "assets/audio/voz-03.wav": {
+          "before": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\ba\\ba2a24544af9fd4dac5e8e93dcf37e80c8272bd33a3660665e2ce6d3a4f98a98",
+          "after": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\74\\74317b896eac97bbf71e5bdaa8bace55d11a39eaaf1e34c810724fd865eec33d"
+        },
+        "assets/audio/voz-04.wav": {
+          "before": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\cb\\cb605ccf4b5cc27ad725f7eca6d3ea4b17341f328560be5771c698246cc43759",
+          "after": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\af\\afa6ab64ec19e0ac615b1cbe30ebacad2d40f583deeeed7210a52cff30b0b96c"
+        },
+        "assets/audio/voz-05.wav": {
+          "before": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\6f\\6f57d4a7bd9735e3dc9580d27f114b4abdd06b94c4af9f8a97679ca16f99fbd8",
+          "after": "C:\\Users\\Valery\\.cache\\hyperframes\\history\\1865b3f0-4e92-4270-a787-99fc6ccf4532\\blobs\\31\\3168ddb2f68cacfd1f143c6aab4be553976b1351c8aa2e5cf2cf0238d64f2f27"
+        }
+      }
+    }
+  },
+  "checks": {
+    "latest": null,
+    "revisions": {},
+    "unversioned": []
+  },
+  "snapshots": {
+    "latest": null,
+    "revisions": {},
+    "unversioned": []
+  },
+  "renders": {
+    "latest": {
+      "id": "58b7c8d5-3d6d-43d7-ad26-6ab60718b9b2",
+      "completedAt": 1791919472571,
+      "output": "C:\\Users\\Valery\\Desktop\\Wonka\\video-promo-renzo-wonka\\renders\\renzo-wonka-promo.mp4",
+      "status": "completed",
+      "revision": "187f390b-d219-43d7-886c-1fece7c5f44c"
+    },
+    "retainedRevisions": [
+      "187f390b-d219-43d7-886c-1fece7c5f44c",
+      "39ed75fb-594d-4946-89eb-47bb86281a04"
+    ]
+  },
+  "pendingArtifactCleanup": []
+}

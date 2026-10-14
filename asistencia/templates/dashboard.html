@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Wonka Asistencia{% endblock %}
+{% block content %}
+<div class="dashboard-header">
+    <h2>Dashboard</h2>
+    <a href="/employees/new" class="btn btn-primary">+ Nuevo Empleado</a>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Total Empleados</h3>
+        <p id="totalEmployees">0</p>
+    </div>
+    <div class="stat-card">
+        <h3>Hoy Presentes</h3>
+        <p id="todayPresent">0</p>
+    </div>
+    <div class="stat-card">
+        <h3>Hoy Tardanzas</h3>
+        <p id="todayLate">0</p>
+    </div>
+</div>
+
+<div class="table-container">
+    <h3>Estado de Asistencia - Hoy</h3>
+    <table id="attendanceTable">
+        <thead>
+            <tr>
+                <th>Empleado</th>
+                <th>DNI</th>
+                <th>Estado</th>
+                <th>Hora Entrada</th>
+                <th>Hora Salida</th>
+                <th>Horas</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="attendanceBody">
+        </tbody>
+    </table>
+</div>
+
+<div class="table-container">
+    <h3>Todos los Empleados</h3>
+    <table id="employeesTable">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>DNI</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="employeesBody">
+        </tbody>
+    </table>
+</div>
+
+<script>
+async function loadDashboard() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    try {
+        const resp = await fetch('/api/admin/employees', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!resp.ok) throw new Error('Failed to fetch');
+        const employees = await resp.json();
+
+        document.getElementById('totalEmployees').textContent = employees.length;
+        document.getElementById('employeesBody').innerHTML = employees.map(emp => `
+            <tr>
+                <td>${emp.name}</td>
+                <td>${emp.dni}</td>
+                <td><span class="badge ${emp.is_active ? 'badge-active' : 'badge-inactive'}">${emp.is_active ? 'Activo' : 'Inactivo'}</span></td>
+                <td>
+                    <a href="/employees/${emp.id}/edit" class="btn btn-small">Editar</a>
+                    <a href="/employees/${emp.id}/schedule" class="btn btn-small">Horario</a>
+                    <a href="/register/${emp.id}" class="btn btn-small">Registrar Biometria</a>
+                </td>
+            </tr>
+        `).join('');
+
+        const todayResp = await fetch('/api/admin/reports', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const todayRecords = await todayResp.json();
+        const today = new Date().toISOString().split('T')[0];
+        const todayFiltered = todayRecords.filter(r => r.check_in && r.check_in.startsWith(today));
+
+        let presentCount = 0;
+        let lateCount = 0;
+        document.getElementById('attendanceBody').innerHTML = todayFiltered.map(r => {
+            if (r.check_out === null) presentCount++;
+            if (r.minutes_late > 0) lateCount++;
+            return `
+                <tr>
+                    <td>${r.employee_name}</td>
+                    <td>${r.dni}</td>
+                    <td><span class="badge ${r.check_out ? 'badge-out' : 'badge-present'}">${r.check_out ? 'Salido' : 'Presente'}</span></td>
+                    <td>${r.check_in ? new Date(r.check_in).toLocaleTimeString() : '—'}</td>
+                    <td>${r.check_out ? new Date(r.check_out).toLocaleTimeString() : '—'}</td>
+                    <td>${r.hours_worked ? parseFloat(r.hours_worked).toFixed(1) : '—'}</td>
+                    <td><a href="/qr/${r.employee_id}" class="btn btn-small">QR</a></td>
+                </tr>
+            `;
+        }).join('');
+
+        document.getElementById('todayPresent').textContent = presentCount;
+        document.getElementById('todayLate').textContent = lateCount;
+
+    } catch (err) {
+        console.error('Error loading dashboard:', err);
+    }
+}
+
+loadDashboard();
+</script>
+{% endblock %}

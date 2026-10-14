@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marcar Asistencia - Wonka Asistencia</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="mobile-body">
+    <div class="mobile-container">
+        <div class="mobile-card">
+            <h1>Marcar Asistencia</h1>
+            <div class="employee-info">
+                <p><strong>Empleado:</strong> {{ employee_name }}</p>
+            </div>
+            <p class="instruction">Presiona el boton y usa tu huella digital o rostro para marcar.</p>
+            <button id="checkinBtn" class="btn btn-primary btn-large">Marcar Asistencia</button>
+            <div id="status" class="status-message" style="display:none;"></div>
+            <div id="error" class="error-message" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const employeeId = '{{ employee_id }}';
+
+        document.getElementById('checkinBtn').addEventListener('click', async () => {
+            const statusEl = document.getElementById('status');
+            const errorEl = document.getElementById('error');
+            statusEl.style.display = 'none';
+            errorEl.style.display = 'none';
+
+            try {
+                statusEl.textContent = 'Obteniendo opciones de autenticacion...';
+                statusEl.style.display = 'block';
+
+                const optionsResp = await fetch(`/api/admin/employees/${employeeId}/login-options`);
+                if (!optionsResp.ok) {
+                    const err = await optionsResp.json();
+                    throw new Error(err.detail || 'Error getting login options');
+                }
+                const options = await optionsResp.json();
+
+                const b64ToBuf = (s) => {
+                    const bin = atob(s.replace(/-/g, '+').replace(/_/g, '/'));
+                    const bytes = new Uint8Array(bin.length);
+                    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                    return bytes;
+                };
+                const bufToB64 = (buf) => {
+                    const bytes = new Uint8Array(buf);
+                    let bin = '';
+                    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+                    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+                };
+                const encodeBuffers = (obj) => {
+                    if (obj instanceof ArrayBuffer) return bufToB64(obj);
+                    if (ArrayBuffer.isView(obj)) return bufToB64(new Uint8Array(obj.buffer, obj.byteOffset, obj.byteLength));
+                    if (Array.isArray(obj)) return obj.map(encodeBuffers);
+                    if (obj && typeof obj === 'object') {
+                        const out = {};
+                        for (const k in obj) out[k] = encodeBuffers(obj[k]);
+                        return out;
+                    }
+                    return obj;
+                };
+                options.challenge = b64ToBuf(options.challenge);
+                (options.allowCredentials || []).forEach(c => c.id = b64ToBuf(c.id));
+
+                statusEl.textContent = 'Por favor, usa tu huella o rostro...';
+
+                const credential = await navigator.credentials.get({
+                    publicKey: options
+                });
+
+                statusEl.textContent = 'Verificando...';
+
+                const checkinResp = await fetch('/api/admin/checkin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        employee_id: employeeId,
+                        credential: encodeBuffers(credential)
+                    })
+                });
+
+                if (checkinResp.ok) {
+                    const result = await checkinResp.json();
+                    const action = result.action === 'CHECK_IN' ? 'Entrada' : 'Salida';
+                    const time = new Date(result.timestamp).toLocaleTimeString();
+
+                    statusEl.textContent = `${action} registrada a las ${time}`;
+                    statusEl.className = 'status-message success';
+                    document.getElementById('checkinBtn').disabled = true;
+                    document.getElementById('checkinBtn').textContent = 'Marcado';
+                } else {
+                    const err = await checkinResp.json();
+                    throw new Error(err.detail || 'Error en la verificacion');
+                }
+            } catch (err) {
+                errorEl.textContent = 'Error: ' + err.message;
+                errorEl.style.display = 'block';
+                statusEl.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

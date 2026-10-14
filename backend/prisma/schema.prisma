@@ -1,0 +1,601 @@
+// ============================================================
+//  Wonka POS — Prisma Schema
+//  Multi-tenant architecture: every business entity carries
+//  a tenantId that references the Tenant root model.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────
+//  TENANCY ROOT
+// ─────────────────────────────────────────────
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Datos de empresa para SUNAT
+  ruc               String?
+  razonSocial       String?
+  nombreComercial   String?
+  direccion         String?
+  ubigeo            String?
+
+  // Configuración APISPeru
+  apisperuToken     String?
+  apisperuUrl       String?   @default("https://facturacion.apisperu.com/api/v1")
+
+  // Configuración fiscal
+  igvRate           Decimal   @db.Decimal(5,2) @default(18.00)
+  defaultIgvRegime  String    @default("EXONERADO") // GRAVADO, EXONERADO, INAFECTO
+  pricesIncludeIgv  Boolean   @default(false)
+  electronicInvoicingEnabled Boolean @default(false)
+
+  /// Play zone pricing: {durations:[{minutes,price,label}], extraPerMinute, freePerMinute}. null = built-in defaults
+  playzoneRates     Json?
+
+  // Series de comprobantes
+  serieBoleta       String    @default("B001")
+  serieFactura      String    @default("F001")
+  serieNotaCredito  String    @default("BC01")
+  serieNotaDebito   String    @default("BD01")
+
+  // Correlativos (contadores)
+  lastBoletaNumber  Int       @default(0)
+  lastFacturaNumber Int       @default(0)
+  lastNotaCredito   Int       @default(0)
+  lastNotaDebito    Int       @default(0)
+
+  // Relations
+  roles         Role[]
+  workers       Worker[]
+  attendances   Attendance[]
+  categories    Category[]
+  products      Product[]
+  sales         Sale[]
+  guardians     Guardian[]
+  children      Child[]
+  playSessions  PlaySession[]
+  cashCloses    CashClose[]
+  cashMovements CashMovement[]
+  billingNotes  BillingNote[]
+  voidRequests  VoidRequest[]
+
+  birthdayReservations BirthdayReservation[]
+  birthdayGuests       BirthdayGuest[]
+
+  @@map("tenants")
+}
+
+// ─────────────────────────────────────────────
+//  HR MODULE
+// ─────────────────────────────────────────────
+
+model Role {
+  id        String   @id @default(cuid())
+  name      String   // e.g. "ADMIN", "CASHIER", "MANAGER"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Multi-tenancy
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Relations
+  workers   Worker[]
+
+  @@unique([tenantId, name])
+  @@map("roles")
+}
+
+model Worker {
+  id        String   @id @default(cuid())
+  name      String
+  /// SHA256-hashed 5-digit numeric PIN used for login
+  pinHash   String
+  /// Optional SHA256-hashed 6-digit owner/admin approval code for sensitive approvals
+  approvalCodeHash String?
+  dni       String?
+  avatarUrl String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Multi-tenancy
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Role
+  roleId    String
+  role      Role     @relation(fields: [roleId], references: [id])
+
+  // Relations
+  attendances Attendance[]
+  sales       Sale[]
+  cashCloses  CashClose[]
+  cashMovements CashMovement[]
+  billingNotes BillingNote[]
+  voidRequestsMade VoidRequest[] @relation("Requester")
+  voidRequestsApproved VoidRequest[] @relation("Approver")
+
+  @@index([tenantId])
+  @@map("workers")
+}
+
+model Attendance {
+  id        String    @id @default(cuid())
+  checkIn   DateTime  @default(now())
+  checkOut  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Multi-tenancy
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Worker
+  workerId  String
+  worker    Worker    @relation(fields: [workerId], references: [id])
+
+  @@index([tenantId, workerId])
+  @@map("attendances")
+}
+
+// ─────────────────────────────────────────────
+//  INVENTORY MODULE
+// ─────────────────────────────────────────────
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String
+  imageUrl  String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Multi-tenancy
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Relations
+  products  Product[]
+
+  @@unique([tenantId, name])
+  @@map("categories")
+}
+
+model Product {
+  id          String    @id @default(cuid())
+  name        String
+  sku         String
+  imageUrl    String?
+  /// Public selling price
+  price       Decimal   @db.Decimal(10, 2)
+  /// Internal unit cost (for margin tracking)
+  cost        Decimal   @db.Decimal(10, 2)
+  /// Current real-time stock level
+  stock       Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Multi-tenancy
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Category
+  categoryId  String
+  category    Category  @relation(fields: [categoryId], references: [id])
+
+  // Track stock option
+  trackStock  Boolean   @default(true)
+
+  /// Tipo de afectación al IGV: GRAVADO, EXONERADO, INAFECTO, ICBPER, GRAVADO_10_5. null = hereda del tenant
+  igvRegime   String?
+
+  // Relations
+  saleItems   SaleItem[]
+
+  @@unique([tenantId, sku])
+  @@index([tenantId])
+  @@map("products")
+}
+
+// ─────────────────────────────────────────────
+//  POS MODULE
+// ─────────────────────────────────────────────
+
+model Sale {
+  id        String     @id @default(cuid())
+  /// Grand total calculated at time of sale (amount the customer paid)
+  total     Decimal    @db.Decimal(10, 2)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Multi-tenancy
+  tenantId  String
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Cashier who processed the sale
+  workerId  String
+  worker    Worker     @relation(fields: [workerId], references: [id])
+
+  // Comprobante type
+  tipoComprobante   String    @default("TICKET") // TICKET, BOLETA, FACTURA
+
+  // Serie and correlativo for BOLETA/FACTURA
+  serie             String?
+  correlativo       String?
+
+  // Client data (for BOLETA/FACTURA)
+  clientDocType     String?   // "1"=DNI, "6"=RUC, "-"=SIN_DOC
+  clientDocNumber   String?
+  clientName        String?
+  clientAddress     String?
+
+  // Payment method
+  paymentMethod     String    @default("efectivo") // efectivo, yape, tarjeta
+
+  // Sale status
+  status            String    @default("ACTIVE") // ACTIVE, CANCELLED, PENDING_SUNAT
+
+  // SUNAT / APISPeru response
+  sunatTicket       String?
+  sunatStatus       String?   // ACEPTADA, RECHAZADA, PENDIENTE
+  sunatXmlUrl       String?
+  sunatCdrUrl       String?
+  sunatResponse     Json?
+
+  // Cancellation
+  cancelledAt       DateTime?
+  voidReason        String?
+  creditNoteSerie   String?
+  creditNoteCorrelativo String?
+
+  // Fiscal breakdown
+  mtoOperGravadas   Decimal?  @db.Decimal(10,2)
+  mtoOperExoneradas Decimal?  @db.Decimal(10,2)
+  mtoOperInafectas  Decimal?  @db.Decimal(10,2)
+  mtoIGV            Decimal?  @db.Decimal(10,2)
+  mtoImpVenta       Decimal?  @db.Decimal(10,2)
+
+  // Relations
+  items     SaleItem[]
+  voidRequests VoidRequest[]
+
+  @@index([tenantId])
+  @@index([tenantId, workerId])
+  @@index([tenantId, createdAt])
+  @@map("sales")
+}
+
+model SaleItem {
+  id        String   @id @default(cuid())
+  /// Quantity sold
+  qty       Int
+  /// Unit price captured at time of sale (snapshot)
+  unitPrice Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+
+  // Sale
+  saleId    String
+  sale      Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  // Product (null for virtual/non-catalog line items — see isVirtual below)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+
+  // Virtual line items are not real products: `pz-*` (playzone time charges)
+  // and `free-sale-*` ("Venta libre" free-form lines). They never reference
+  // a Product row, so productId must stay null for them.
+  isVirtual    Boolean @default(false)
+  virtualLabel String?
+  virtualSku   String?
+
+  @@map("sale_items")
+}
+
+// ─────────────────────────────────────────────
+//  VOID REQUESTS MODULE
+// ─────────────────────────────────────────────
+
+model VoidRequest {
+  id                String   @id @default(cuid())
+
+  // Original sale
+  saleId            String
+  sale              Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  // Who requested the void
+  requesterWorkerId String
+  requester         Worker   @relation("Requester", fields: [requesterWorkerId], references: [id])
+
+  // Who approved/rejected the void (owner/admin)
+  approverWorkerId  String?
+  approver          Worker?  @relation("Approver", fields: [approverWorkerId], references: [id])
+
+  // Status
+  status            String   @default("PENDING") // PENDING, APPROVED, REJECTED
+
+  // Reason for voiding
+  reason            String
+
+  // Credit note generated after approval
+  creditNoteSerie   String?
+  creditNoteCorrelativo String?
+  sunatResponse     Json?
+
+  // Timestamps
+  requestedAt       DateTime @default(now())
+  resolvedAt        DateTime?
+
+  // Multi-tenancy
+  tenantId          String
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([saleId])
+  @@map("void_requests")
+}
+
+// ─────────────────────────────────────────────
+//  PLAY ZONE MODULE
+// ─────────────────────────────────────────────
+
+enum PlaySessionStatus {
+  ACTIVE
+  COMPLETED
+}
+
+/// Parent / guardian registered by DNI
+model Guardian {
+  id          String    @id @default(cuid())
+  /// Document ID — unique per tenant
+  dni         String
+  phone       String?
+  fullName    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Multi-tenancy
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Relations
+  children    Child[]
+  birthdayReservations BirthdayReservation[]
+
+  @@unique([tenantId, dni])
+  @@index([tenantId])
+  @@map("guardians")
+}
+
+model Child {
+  id           String        @id @default(cuid())
+  fullName     String
+  dni          String?
+  age          Int?
+  gender       String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  // Multi-tenancy (denormalized for fast tenant-scoped queries)
+  tenantId     String
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Guardian
+  guardianId   String
+  guardian     Guardian      @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+
+  // Relations
+  playSessions PlaySession[]
+
+  @@index([guardianId])
+  @@index([tenantId])
+  @@map("children")
+}
+
+model PlaySession {
+  id              String            @id @default(cuid())
+  /// Duration in minutes. NULL means unlimited (open-ended)
+  durationMinutes Int?
+  startTime       DateTime          @default(now())
+  endTime         DateTime?
+  status          PlaySessionStatus @default(ACTIVE)
+  /// 3-digit zero-padded code written on the wristband, e.g. "045"
+  wristbandCode   String            @db.VarChar(3)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Multi-tenancy
+  tenantId        String
+  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Child (and through child → Guardian)
+  childId         String
+  child           Child             @relation(fields: [childId], references: [id])
+
+  /// Code must be unique among ACTIVE sessions per tenant only (partial index);
+  /// the old @@unique([tenantId, wristbandCode, status]) blocked reusing a code
+  /// once two sessions with it had been COMPLETED.
+  @@unique([tenantId, wristbandCode], where: raw("status = 'ACTIVE'"), map: "play_sessions_active_wristband_key")
+  @@index([tenantId, status])
+  @@map("play_sessions")
+}
+
+// ─────────────────────────────────────────────
+//  BIRTHDAY MODULE
+// ─────────────────────────────────────────────
+
+model BirthdayReservation {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date()
+  guestCount  Int
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  guardianId  String
+  guardian    Guardian @relation(fields: [guardianId], references: [id])
+  
+  guests      BirthdayGuest[]
+
+  @@index([tenantId])
+  @@index([tenantId, date])
+  @@map("birthday_reservations")
+}
+
+model BirthdayGuest {
+  id            String   @id @default(cuid())
+  firstName     String?
+  lastName      String?
+  attended      Boolean  @default(false)
+  
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  reservationId String
+  reservation   BirthdayReservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@index([reservationId])
+  @@map("birthday_guests")
+}
+
+// ─────────────────────────────────────────────
+//  CASH MANAGEMENT MODULE
+// ─────────────────────────────────────────────
+
+model CashClose {
+  id                   String    @id @default(cuid())
+  /// Opening balance at start of day (in PEN)
+  openingBalance       Decimal   @db.Decimal(10, 2)
+  /// Total sales registered for the day
+  totalSales           Decimal   @db.Decimal(10, 2)
+  /// Expected cash from efectivo payments
+  expectedEfectivo     Decimal   @db.Decimal(10, 2) @default(0)
+  /// Expected cash from yape payments
+  expectedYape         Decimal   @db.Decimal(10, 2) @default(0)
+  /// Expected cash from tarjeta payments
+  expectedTarjeta      Decimal   @db.Decimal(10, 2) @default(0)
+  /// Expected cash from unclassified/historical sales
+  expectedUnknown      Decimal   @db.Decimal(10, 2) @default(0)
+  /// Total expected = expectedEfectivo + expectedYape + expectedTarjeta + expectedUnknown
+  totalExpected        Decimal   @db.Decimal(10, 2)
+  /// Actual cash counted at end of shift
+  countedCash          Decimal   @db.Decimal(10, 2)
+  /// Difference = countedCash - totalExpected (positive=surplus, negative=shortage)
+  difference           Decimal   @db.Decimal(10, 2)
+
+  /// Approval workflow: cashier requests, owner approves with PIN
+  status               String    @default("PENDING_APPROVAL") // PENDING_APPROVAL, APPROVED
+  approvedByWorkerId   String?
+  approvedAt           DateTime?
+
+  /// Date of the close (for grouping by day)
+  closedDate           DateTime  @db.Date()
+  /// Timestamp when close was recorded
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  // Multi-tenancy
+  tenantId             String
+  tenant               Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Cashier who closed the drawer
+  workerId             String
+  worker               Worker    @relation(fields: [workerId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, closedDate])
+  @@index([tenantId, workerId])
+  @@unique([tenantId, closedDate, workerId])
+  @@map("cash_closes")
+}
+
+model CashMovement {
+  id        String   @id @default(cuid())
+  /// OPENING, IN, OUT
+  type      String
+  amount    Decimal  @db.Decimal(10, 2)
+  currency  String   @default("PEN")
+  reason    String
+  createdAt DateTime @default(now())
+
+  // Multi-tenancy
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Worker who created the movement
+  workerId  String
+  worker    Worker   @relation(fields: [workerId], references: [id])
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, workerId])
+  @@map("cash_movements")
+}
+
+// ─────────────────────────────────────────────
+//  BILLING MODULE
+// ─────────────────────────────────────────────
+
+enum BillingNoteType {
+  CREDIT_NOTE
+  DEBIT_NOTE
+}
+
+model BillingNote {
+  id                          String          @id @default(cuid())
+  type                        BillingNoteType
+  /// Serie of this note (e.g. FC01, BC01)
+  serie                       String
+  /// Correlative number of this note (e.g. 000001)
+  correlative                 String
+  /// Serie of the original modified document
+  modifiedDocumentSerie       String
+  /// Correlative of the original modified document
+  modifiedDocumentCorrelative String
+
+  /// SUNAT reason code (e.g. "01" for Cancellation)
+  reasonCode        String
+  reasonDescription String
+
+  /// "1" (DNI), "6" (RUC), etc.
+  clientDocType     String
+  clientDocNumber   String
+  clientName        String
+
+  totalAmount       Decimal   @db.Decimal(10, 2)
+
+  // SUNAT / APISPeru result of sending this note
+  sunatStatus       String?   // null = legacy note (never retried automatically)
+  sunatResponse     Json?
+  sunatXmlUrl       String?
+  sunatCdrUrl       String?
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Multi-tenancy
+  tenantId          String
+  tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Worker who created this note
+  workerId          String
+  worker            Worker    @relation(fields: [workerId], references: [id])
+
+  @@index([tenantId])
+  @@map("billing_notes")
+}

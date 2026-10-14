@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Reportes - Wonka Asistencia{% endblock %}
+{% block content %}
+<div class="reports-header">
+    <h2>Reportes de Asistencia</h2>
+    <button onclick="exportToExcel()" class="btn btn-primary">Exportar a Excel</button>
+</div>
+
+<div class="filters">
+    <div class="form-group">
+        <label for="startDate">Fecha Inicio</label>
+        <input type="date" id="startDate">
+    </div>
+    <div class="form-group">
+        <label for="endDate">Fecha Fin</label>
+        <input type="date" id="endDate">
+    </div>
+    <div class="form-group">
+        <label for="employeeFilter">Empleado</label>
+        <select id="employeeFilter">
+            <option value="">Todos</option>
+        </select>
+    </div>
+    <button onclick="loadReports()" class="btn btn-primary">Filtrar</button>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Total Registros</h3>
+        <p id="totalRecords">0</p>
+    </div>
+    <div class="stat-card">
+        <h3>Total Horas</h3>
+        <p id="totalHours">0</p>
+    </div>
+    <div class="stat-card">
+        <h3>Promedio Tardanza</h3>
+        <p id="avgLate">0 min</p>
+    </div>
+</div>
+
+<div class="table-container">
+    <table id="reportsTable">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Empleado</th>
+                <th>DNI</th>
+                <th>Entrada</th>
+                <th>Salida</th>
+                <th>Horas</th>
+                <th>Tardanza</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody id="reportsBody">
+        </tbody>
+    </table>
+</div>
+
+<script>
+let allEmployees = [];
+
+async function loadEmployees() {
+    const token = localStorage.getItem('token');
+    const resp = await fetch('/api/admin/employees', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    allEmployees = await resp.json();
+    const select = document.getElementById('employeeFilter');
+    allEmployees.forEach(emp => {
+        const option = document.createElement('option');
+        option.value = emp.id;
+        option.textContent = emp.name;
+        select.appendChild(option);
+    });
+}
+
+async function loadReports() {
+    const token = localStorage.getItem('token');
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    const employeeId = document.getElementById('employeeFilter').value;
+
+    let url = '/api/admin/reports?';
+    if (startDate) url += `start_date=${startDate}&`;
+    if (endDate) url += `end_date=${endDate}&`;
+    if (employeeId) url += `employee_id=${employeeId}&`;
+
+    const resp = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const records = await resp.json();
+
+    let totalHours = 0;
+    let totalLate = 0;
+    let lateCount = 0;
+
+    document.getElementById('reportsBody').innerHTML = records.map(r => {
+        const checkIn = r.check_in ? new Date(r.check_in) : null;
+        const checkOut = r.check_out ? new Date(r.check_out) : null;
+        const hours = r.hours_worked ? parseFloat(r.hours_worked) : 0;
+        const late = r.minutes_late || 0;
+
+        totalHours += hours;
+        if (late > 0) {
+            totalLate += late;
+            lateCount++;
+        }
+
+        let status = 'A tiempo';
+        let statusClass = 'badge-present';
+        if (late > 0) {
+            status = 'Tardanza';
+            statusClass = 'badge-late';
+        }
+        if (checkOut) {
+            status += ' (Salido)';
+        }
+
+        return `
+            <tr>
+                <td>${checkIn ? checkIn.toLocaleDateString() : '—'}</td>
+                <td>${r.employee_name}</td>
+                <td>${r.dni}</td>
+                <td>${checkIn ? checkIn.toLocaleTimeString() : '—'}</td>
+                <td>${checkOut ? checkOut.toLocaleTimeString() : '—'}</td>
+                <td>${hours.toFixed(1)}</td>
+                <td>${late} min</td>
+                <td><span class="badge ${statusClass}">${status}</span></td>
+            </tr>
+        `;
+    }).join('');
+
+    document.getElementById('totalRecords').textContent = records.length;
+    document.getElementById('totalHours').textContent = totalHours.toFixed(1);
+    document.getElementById('avgLate').textContent = records.length > 0 ? (totalLate / records.length).toFixed(0) + ' min' : '0 min';
+}
+
+async function exportToExcel() {
+    // /reports/export now requires the admin Authorization header (it's a
+    // protected admin route), so a plain `window.location.href` navigation
+    // can no longer be used — fetch the file and trigger the download instead.
+    const token = localStorage.getItem('token');
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    const employeeId = document.getElementById('employeeFilter').value;
+
+    let url = '/api/admin/reports/export?';
+    if (startDate) url += `start_date=${startDate}&`;
+    if (endDate) url += `end_date=${endDate}&`;
+    if (employeeId) url += `employee_id=${employeeId}&`;
+
+    try {
+        const resp = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!resp.ok) {
+            alert('Error al exportar el reporte.');
+            return;
+        }
+        const blob = await resp.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = 'reporte_asistencia.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+        console.error('Error exporting report:', err);
+        alert('Error al exportar el reporte.');
+    }
+}
+
+loadEmployees();
+loadReports();
+</script>
+{% endblock %}

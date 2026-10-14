@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>Renzo Wonka · Promo 9:16</title>
+    <!-- GSAP empaquetado localmente: el render no depende de la red -->
+    <script src="assets/vendor/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "Fredoka";
+        src: url("assets/fonts/Fredoka.ttf") format("truetype");
+        font-weight: 300 700;
+        font-display: block;
+      }
+      :root {
+        --rojo: #f4323d;
+        --azul: #5567b3;
+        --amarillo: #f8a428;
+        --blanco: #ffffff;
+        --verde: #3dbb6c;
+        --tinta: #23295a;
+        --crema: #fff6e8;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: #ffffff;
+      }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: "Fredoka", system-ui, sans-serif;
+        background: #ffffff;
+      }
+      .scene {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+      .layer {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1080px;
+        height: 1920px;
+      }
+      .abs { position: absolute; display: block; }
+      svg { overflow: visible; }
+
+      /* ---------- tipografía ---------- */
+      .headline {
+        position: absolute;
+        left: 90px;
+        width: 900px;
+        text-align: center;
+        font-weight: 700;
+        line-height: 1.04;
+        letter-spacing: -0.01em;
+      }
+      .w { display: inline-block; white-space: nowrap; }
+      .pill-row {
+        position: absolute;
+        left: 0;
+        width: 1080px;
+        display: flex;
+        justify-content: center;
+      }
+      .pill {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        height: 118px;
+        padding: 0 46px 0 30px;
+        border-radius: 60px;
+        font-weight: 600;
+        font-size: 56px;
+        white-space: nowrap;
+        box-shadow: 0 10px 0 rgba(35, 41, 90, 0.16);
+      }
+      .pill svg { flex: 0 0 auto; }
+
+      /* ---------- escena 1: apertura ---------- */
+      #s1 { background: #ffffff; }
+      #s1-logo { left: 110px; top: 380px; width: 860px; height: 244px; }
+      #s1-title { top: 720px; font-size: 104px; color: var(--azul); }
+      #s1-title .rojo { color: var(--rojo); }
+
+      /* ---------- escena 2: juego ---------- */
+      #s2-wipe { background: var(--amarillo); }
+      #s2-sky { background: linear-gradient(180deg, #cfe8ff 0%, #eaf5ff 62%, #f6fbff 100%); }
+      #s2-title { top: 250px; font-size: 136px; color: var(--azul); }
+      #s2-title .rojo { color: var(--rojo); }
+      #s2-pill-row { top: 580px; }
+      #s2-pill { background: var(--amarillo); color: var(--tinta); }
+
+      /* ---------- escena 3: antojitos ---------- */
+      #s3-wipe { background: var(--rojo); }
+      #s3-bg { background: var(--crema); }
+      #s3-plate {
+        left: 320px; top: 480px; width: 440px; height: 440px;
+        border-radius: 50%;
+        background: #ffffff;
+        box-shadow: 0 18px 0 rgba(244, 50, 61, 0.14);
+      }
+      #s3-icon { left: 365px; top: 525px; width: 350px; height: 350px; }
+      #s3-title { top: 1185px; font-size: 104px; color: var(--azul); }
+      #s3-title .rojo { color: var(--rojo); }
+
+      /* ---------- escena 4: cumpleaños ---------- */
+      #s4-bg { background: #fff0f2; }
+      #s4-title { top: 330px; font-size: 118px; color: var(--rojo); }
+      #s4-title .azul { color: var(--azul); }
+      #s4-pill-row { top: 745px; }
+      #s4-pill { background: var(--azul); color: #ffffff; }
+
+      /* ---------- confeti ---------- */
+      #confetti { pointer-events: none; }
+      .cf { position: absolute; display: block; }
+
+      /* ---------- escena 5: cierre ---------- */
+      #s5-bg { background: radial-gradient(circle at 50% 42%, #ffffff 0%, #ffffff 46%, #fff4ea 100%); }
+      #s5-logo { left: 70px; top: 560px; width: 940px; height: 267px; }
+      #s5-tag { top: 1000px; font-size: 86px; color: var(--azul); }
+      #s5-tag .rojo { color: var(--rojo); }
+      #s5-pill-row { top: 1345px; }
+      #s5-pill { background: var(--rojo); color: #ffffff; font-size: 54px; }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="renzo-wonka-promo"
+      data-start="0"
+      data-duration="35"
+      data-width="1080"
+      data-height="1920"
+      data-fps="30"
+    >
+      <!-- ============ ESCENA 1 · APERTURA (0–4 s) ============ -->
+      <section id="s1" class="scene clip" data-start="0" data-duration="4.3" data-track-index="0">
+        <svg id="s1-svg" class="layer" viewBox="0 0 1080 1920" width="1080" height="1920">
+          <path
+            id="s1-path"
+            d="M -60 1520 C 120 1520 170 1330 320 1330 C 470 1330 470 1520 360 1540 C 250 1560 250 1380 420 1300 C 600 1220 640 1460 780 1440 C 920 1420 900 1230 1000 1200 C 1060 1182 1100 1210 1140 1240"
+            fill="none"
+            stroke="#f4323d"
+            stroke-width="16"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <g id="s1-shapes"></g>
+        </svg>
+        <img id="s1-logo" class="abs" src="assets/brand/logo.webp" alt="Renzo Wonka" />
+        <h1 id="s1-title" class="headline">
+          <span class="w">¡Un</span> <span class="w">mundo</span> <span class="w">de</span>
+          <span class="w rojo">diversión</span> <span class="w">te</span> <span class="w">espera!</span>
+        </h1>
+      </section>
+
+      <!-- ============ ESCENA 2 · JUEGO (4–12 s) ============ -->
+      <section id="s2" class="scene clip" data-start="3.6" data-duration="8.8" data-track-index="1">
+        <div id="s2-wipe" class="layer"></div>
+        <div id="s2-sky" class="layer">
+          <svg id="s2-back" class="layer" viewBox="0 0 1080 1920" width="1080" height="1920"></svg>
+          <div id="s2-kids" class="layer"></div>
+          <h1 id="s2-title" class="headline">
+            <span class="w">Juega,</span> <span class="w rojo">ríe</span> <span class="w">y</span>
+            <span class="w">disfruta</span>
+          </h1>
+          <div id="s2-pill-row" class="pill-row"><div id="s2-pill" class="pill">
+            <svg id="s2-clock" width="78" height="78" viewBox="-40 -40 80 80">
+              <circle r="34" fill="#ffffff" stroke="#23295a" stroke-width="6" />
+              <line id="s2-clock-m" x1="0" y1="0" x2="0" y2="-22" stroke="#f4323d" stroke-width="6" stroke-linecap="round" />
+              <line id="s2-clock-h" x1="0" y1="0" x2="14" y2="0" stroke="#23295a" stroke-width="6" stroke-linecap="round" />
+              <circle r="5" fill="#23295a" />
+            </svg>
+            <span>Diversión por tiempo</span>
+          </div></div>
+        </div>
+      </section>
+
+      <!-- ============ ESCENA 3 · ANTOJITOS (12–19 s) ============ -->
+      <section id="s3" class="scene clip" data-start="11.6" data-duration="8" data-track-index="2">
+        <div id="s3-wipe" class="layer"></div>
+        <div id="s3-bg" class="layer">
+          <svg id="s3-burst" class="layer" viewBox="0 0 1080 1920" width="1080" height="1920"></svg>
+          <div id="s3-plate" class="abs"></div>
+          <img id="s3-icon" class="abs" src="assets/brand/icon.webp" alt="" />
+          <div id="s3-sweets" class="layer"></div>
+          <h1 id="s3-title" class="headline">
+            <span class="w rojo">Dulces,</span> <span class="w rojo">canchita</span> <span class="w">y</span>
+            <span class="w">tus</span> <span class="w">antojos</span> <span class="w">favoritos</span>
+          </h1>
+        </div>
+      </section>
+
+      <!-- ============ ESCENA 4 · CUMPLEAÑOS (19–28 s) ============ -->
+      <section id="s4" class="scene clip" data-start="19" data-duration="9.6" data-track-index="3">
+        <div id="s4-bg" class="layer">
+          <div id="s4-inner" class="layer">
+            <svg id="s4-deco" class="layer" viewBox="0 0 1080 1920" width="1080" height="1920"></svg>
+            <div id="s4-party" class="layer"></div>
+            <h1 id="s4-title" class="headline">
+              <span class="w">¡Celebra</span> <span class="w">tu</span> <span class="w azul">cumpleaños</span>
+              <span class="w">en</span> <span class="w">Wonka!</span>
+            </h1>
+            <div id="s4-pill-row" class="pill-row"><div id="s4-pill" class="pill">
+              <svg width="76" height="76" viewBox="0 0 76 76">
+                <rect x="6" y="12" width="64" height="58" rx="12" fill="#ffffff" />
+                <rect x="6" y="12" width="64" height="18" rx="9" fill="#f4323d" />
+                <rect x="20" y="4" width="8" height="18" rx="4" fill="#23295a" />
+                <rect x="48" y="4" width="8" height="18" rx="4" fill="#23295a" />
+                <path id="s4-check" d="M24 50 L34 59 L53 39" fill="none" stroke="#3dbb6c" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <span>Consulta y reserva tu fecha</span>
+            </div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- confeti de la transición al cumpleaños (capa propia, sobre la escena 4) -->
+      <div id="confetti" class="scene clip" data-start="18.9" data-duration="2.8" data-track-index="4"></div>
+
+      <!-- ============ ESCENA 5 · CIERRE / CTA (28–35 s) ============ -->
+      <section id="s5" class="scene clip" data-start="27.6" data-duration="7.4" data-track-index="5">
+        <div id="s5-bg" class="layer">
+          <div id="s5-decor" class="layer"></div>
+          <img id="s5-logo" class="abs" src="assets/brand/logo.webp" alt="Renzo Wonka" />
+          <h2 id="s5-tag" class="headline">
+            <div><span class="w">Ven</span> <span class="w">a</span> <span class="w">jugar.</span></div>
+            <div><span class="w rojo">Reserva</span> <span class="w rojo">tu</span> <span class="w rojo">cumpleaños.</span></div>
+          </h2>
+          <div id="s5-pill-row" class="pill-row"><div id="s5-pill" class="pill">
+            <svg width="70" height="70" viewBox="0 0 70 70">
+              <circle cx="35" cy="35" r="33" fill="#ffffff" />
+              <path d="M35 14 C37 28 42 33 56 35 C42 37 37 42 35 56 C33 42 28 37 14 35 C28 33 33 28 35 14 Z" fill="#f4323d" />
+            </svg>
+            <span>TikTok: @renzowonkapark</span>
+          </div></div>
+        </div>
+      </section>
+
+      <!-- ============ AUDIO ============ -->
+      <!-- Música original (scripts/componer-musica.py), baja de volumen bajo cada frase de la voz -->
+      <audio
+        id="music"
+        src="assets/audio/musica-renzo-wonka.wav"
+        data-start="0"
+        data-duration="35"
+        data-track-index="10"
+        data-automation='{"version":1,"lanes":[{"target":"volume","points":[{"t":0,"v":0.55},{"t":0.3,"v":0.55},{"t":0.5,"v":0.26},{"t":7.9,"v":0.26},{"t":8.3,"v":0.55},{"t":12.3,"v":0.55},{"t":12.5,"v":0.26},{"t":16.9,"v":0.26},{"t":17.3,"v":0.55},{"t":19.4,"v":0.6},{"t":19.6,"v":0.26},{"t":24.0,"v":0.26},{"t":24.4,"v":0.55},{"t":28.8,"v":0.55},{"t":29.0,"v":0.26},{"t":32.4,"v":0.26},{"t":32.9,"v":0.5},{"t":35,"v":0.5}]}]}'
+      ></audio>
+      <!-- Voz en off (se genera con `npm run voz`; puedes reemplazar los .wav por grabaciones propias) -->
+      <audio id="vo-1" src="assets/audio/voz-01.wav" data-start="0.45" data-track-index="11" data-volume="1"></audio>
+      <audio id="vo-2" src="assets/audio/voz-02.wav" data-start="4.6" data-track-index="12" data-volume="1"></audio>
+      <audio id="vo-3" src="assets/audio/voz-03.wav" data-start="12.5" data-track-index="11" data-volume="1"></audio>
+      <audio id="vo-4" src="assets/audio/voz-04.wav" data-start="19.6" data-track-index="12" data-volume="1"></audio>
+      <audio id="vo-5" src="assets/audio/voz-05.wav" data-start="29" data-track-index="11" data-volume="1"></audio>
+    </div>
+
+    <script>
+      (function () {
+        // ------------------------------------------------------------------
+        // utilidades deterministas
+        // ------------------------------------------------------------------
+        function mulberry32(a) {
+          return function () {
+            a |= 0; a = (a + 0x6d2b79f5) | 0;
+            var t = Math.imul(a ^ (a >>> 15), 1 | a);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+          };
+        }
+        var rand = mulberry32(20261013);
+        var C = { rojo: "#f4323d", azul: "#5567b3", amarillo: "#f8a428", verde: "#3dbb6c", tinta: "#23295a", blanco: "#ffffff" };
+        var $ = function (s) { return document.querySelector(s); };
+        var SPARK = "M0 -50 C6 -12 12 -6 50 0 C12 6 6 12 0 50 C-6 12 -12 6 -50 0 C-12 -6 -6 -12 0 -50 Z";
+        function reps(windowSec, cycleSec) { return Math.max(0, Math.floor(windowSec / cycleSec) - 1); }
+
+        // ------------------------------------------------------------------
+        // ilustraciones originales (SVG)
+        // ------------------------------------------------------------------
+        var HAIR = {
+          corto: function (c) { return '<path d="M50 84 Q46 26 100 24 Q154 26 150 84 Q142 52 100 50 Q58 52 50 84 Z" fill="' + c + '"/>'; },
+          puffs: function (c) { return '<path d="M52 78 Q50 30 100 28 Q150 30 148 78 Q138 52 100 50 Q62 52 52 78 Z" fill="' + c + '"/><circle cx="50" cy="44" r="24" fill="' + c + '"/><circle cx="150" cy="44" r="24" fill="' + c + '"/>'; },
+          cola: function (c) { return '<path d="M50 88 Q46 26 100 24 Q154 26 150 88 Q144 54 100 50 Q56 54 50 88 Z" fill="' + c + '"/><circle cx="158" cy="98" r="20" fill="' + c + '"/><circle cx="149" cy="70" r="8" fill="#f4323d"/>'; },
+          rulos: function (c) {
+            var s = "";
+            for (var i = 0; i <= 8; i++) {
+              var a = Math.PI * (1.02 + i * 0.12);
+              s += '<circle cx="' + (100 + 50 * Math.cos(a)).toFixed(1) + '" cy="' + (82 + 50 * Math.sin(a)).toFixed(1) + '" r="19" fill="' + c + '"/>';
+            }
+            return s;
+          },
+          melena: function (c) { return '<path d="M44 112 Q38 24 100 22 Q162 24 156 112 L140 112 Q140 56 100 52 Q60 56 60 112 Z" fill="' + c + '"/>'; },
+        };
+
+        // Figura infantil (o adulta) original: cabeza redonda, cuerpo de cápsula, extremidades redondeadas.
+        function person(o) {
+          var id = o.id, sk = o.skin, sh = o.shirt, pa = o.pants || C.tinta, shoe = o.shoe || "#ffffff";
+          var adult = !!o.adult;
+          var hy = adult ? 262 : 214, legEnd = adult ? 352 : 294, bodyTop = adult ? 126 : 128, bodyH = adult ? 146 : 100;
+          var hat = o.hat
+            ? '<g><path d="M76 42 L100 -24 L124 42 Z" fill="' + o.hat + '"/><path d="M84 20 L116 20 L120 31 L80 31 Z" fill="#ffffff" opacity="0.85"/><path d="M92 -2 L108 -2 L111 8 L89 8 Z" fill="#ffffff" opacity="0.85"/><circle cx="100" cy="-26" r="11" fill="' + C.amarillo + '"/></g>'
+            : "";
+          return (
+            '<svg class="abs person" id="' + id + '" viewBox="0 -50 200 ' + (adult ? 420 : 360) + '" width="' + o.w + '" height="' + (o.w * (adult ? 2.1 : 1.8)).toFixed(0) + '" style="left:' + o.x + "px;top:" + o.y + 'px">' +
+            '<ellipse cx="100" cy="' + (legEnd + 12) + '" rx="62" ry="10" fill="#23295a" opacity="0.12"/>' +
+            '<g id="' + id + '-all">' +
+            '<g id="' + id + '-legL"><line x1="86" y1="' + hy + '" x2="86" y2="' + legEnd + '" stroke="' + pa + '" stroke-width="24" stroke-linecap="round"/><ellipse cx="80" cy="' + (legEnd + 4) + '" rx="19" ry="11" fill="' + shoe + '" stroke="' + C.tinta + '" stroke-width="3"/></g>' +
+            '<g id="' + id + '-legR"><line x1="114" y1="' + hy + '" x2="114" y2="' + legEnd + '" stroke="' + pa + '" stroke-width="24" stroke-linecap="round"/><ellipse cx="120" cy="' + (legEnd + 4) + '" rx="19" ry="11" fill="' + shoe + '" stroke="' + C.tinta + '" stroke-width="3"/></g>' +
+            '<g id="' + id + '-armL"><line x1="70" y1="' + (bodyTop + 22) + '" x2="42" y2="' + (bodyTop + 84) + '" stroke="' + sk + '" stroke-width="17" stroke-linecap="round"/><line x1="70" y1="' + (bodyTop + 22) + '" x2="60" y2="' + (bodyTop + 44) + '" stroke="' + sh + '" stroke-width="22" stroke-linecap="round"/></g>' +
+            '<g id="' + id + '-armR"><line x1="130" y1="' + (bodyTop + 22) + '" x2="158" y2="' + (bodyTop + 84) + '" stroke="' + sk + '" stroke-width="17" stroke-linecap="round"/><line x1="130" y1="' + (bodyTop + 22) + '" x2="140" y2="' + (bodyTop + 44) + '" stroke="' + sh + '" stroke-width="22" stroke-linecap="round"/></g>' +
+            '<rect x="62" y="' + bodyTop + '" width="76" height="' + bodyH + '" rx="32" fill="' + sh + '"/>' +
+            (o.badge ? '<path transform="translate(100 ' + (bodyTop + 50) + ') scale(0.32)" d="' + SPARK + '" fill="#ffffff"/>' : '<rect x="62" y="' + (bodyTop + 52) + '" width="76" height="12" fill="#ffffff" opacity="0.55"/>') +
+            '<g id="' + id + '-head">' +
+            '<circle cx="100" cy="84" r="' + (adult ? 46 : 52) + '" fill="' + sk + '"/>' +
+            HAIR[o.hair](o.hairC) +
+            '<circle cx="82" cy="88" r="6" fill="' + C.tinta + '"/><circle cx="118" cy="88" r="6" fill="' + C.tinta + '"/>' +
+            '<circle cx="72" cy="104" r="8" fill="#ff7b86" opacity="0.45"/><circle cx="128" cy="104" r="8" fill="#ff7b86" opacity="0.45"/>' +
+            '<path d="M84 103 Q100 125 116 103 Z" fill="#8a1d2a"/>' +
+            hat +
+            "</g></g></svg>"
+          );
+        }
+
+        function sparkSVG(id, color, size, x, y) {
+          return '<svg class="abs" id="' + id + '" width="' + size + '" height="' + size + '" viewBox="-50 -50 100 100" style="left:' + x + "px;top:" + y + 'px"><path d="' + SPARK + '" fill="' + color + '"/></svg>';
+        }
+        function ballSVG(id, size, x, y, c1, c2) {
+          return '<svg class="abs" id="' + id + '" width="' + size + '" height="' + size + '" viewBox="-50 -50 100 100" style="left:' + x + "px;top:" + y + 'px"><circle r="46" fill="' + c1 + '"/><path d="M-46 0 A46 46 0 0 1 46 0 Z" fill="' + c2 + '"/><circle r="46" fill="none" stroke="#23295a" stroke-width="4"/><circle cx="-16" cy="-20" r="9" fill="#ffffff" opacity="0.7"/></svg>';
+        }
+        function balloonSVG(id, color, w, x, y) {
+          return '<svg class="abs" id="' + id + '" width="' + w + '" height="' + (w * 2.1).toFixed(0) + '" viewBox="0 0 100 210" style="left:' + x + "px;top:" + y + 'px">' +
+            '<path d="M50 112 C46 140 58 160 48 186 C42 200 52 206 50 210" fill="none" stroke="#23295a" stroke-width="2.5" opacity="0.6"/>' +
+            '<ellipse cx="50" cy="56" rx="44" ry="54" fill="' + color + '"/><path d="M43 112 L57 112 L50 103 Z" fill="' + color + '"/>' +
+            '<ellipse cx="34" cy="36" rx="9" ry="15" fill="#ffffff" opacity="0.45" transform="rotate(-20 34 36)"/></svg>';
+        }
+        function popcornSVG(id, w, x, y) {
+          var s = '<svg class="abs" id="' + id + '" width="' + w + '" height="' + w + '" viewBox="0 0 200 200" style="left:' + x + "px;top:" + y + 'px">';
+          var puffs = [[62, 70, 22], [92, 56, 26], [124, 62, 24], [146, 76, 20], [76, 48, 18], [108, 40, 20], [136, 46, 17], [52, 84, 16], [100, 78, 22]];
+          puffs.forEach(function (p) { s += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="' + p[2] + '" fill="#fff4d6" stroke="#f3b24c" stroke-width="4"/>'; });
+          for (var i = 0; i < 6; i++) {
+            var x0 = 42 + i * 19.33, x1 = x0 + 19.33, b0 = 58 + i * 14, b1 = b0 + 14;
+            s += '<path d="M' + x0 + " 92 L" + x1 + " 92 L" + b1 + " 192 L" + b0 + ' 192 Z" fill="' + (i % 2 ? "#ffffff" : C.rojo) + '"/>';
+          }
+          s += '<path d="M42 92 L158 92 L142 192 L58 192 Z" fill="none" stroke="#23295a" stroke-width="5" stroke-linejoin="round"/>';
+          s += '<path transform="translate(100 140) scale(0.36)" d="' + SPARK + '" fill="' + C.amarillo + '" stroke="#23295a" stroke-width="10"/></svg>';
+          return s;
+        }
+        function lollipopSVG(id, w, x, y, color) {
+          var d = "M100 80";
+          for (var i = 1; i <= 60; i++) {
+            var a = i * 0.32, r = i * 0.9;
+            d += " L" + (100 + r * Math.cos(a)).toFixed(1) + " " + (80 + r * Math.sin(a)).toFixed(1);
+          }
+          return '<svg class="abs" id="' + id + '" width="' + w + '" height="' + w + '" viewBox="0 0 200 200" style="left:' + x + "px;top:" + y + 'px">' +
+            '<rect x="94" y="120" width="12" height="78" rx="6" fill="#ffffff" stroke="#23295a" stroke-width="4"/>' +
+            '<circle cx="100" cy="80" r="60" fill="' + color + '" stroke="#23295a" stroke-width="5"/>' +
+            '<path d="' + d + '" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round"/></svg>';
+        }
+        function candySVG(id, w, x, y, c1, c2) {
+          return '<svg class="abs" id="' + id + '" width="' + w + '" height="' + (w * 0.6).toFixed(0) + '" viewBox="0 0 200 120" style="left:' + x + "px;top:" + y + 'px">' +
+            '<path d="M48 60 L8 26 L16 60 L8 94 Z" fill="' + c1 + '" stroke="#23295a" stroke-width="4" stroke-linejoin="round"/>' +
+            '<path d="M152 60 L192 26 L184 60 L192 94 Z" fill="' + c1 + '" stroke="#23295a" stroke-width="4" stroke-linejoin="round"/>' +
+            '<ellipse cx="100" cy="60" rx="56" ry="42" fill="' + c1 + '" stroke="#23295a" stroke-width="5"/>' +
+            '<path d="M70 26 Q60 60 70 94 M100 18 Q90 60 100 102 M130 26 Q120 60 130 94" fill="none" stroke="' + c2 + '" stroke-width="10" stroke-linecap="round"/></svg>';
+        }
+        function chocoSVG(id, w, x, y) {
+          var s = '<svg class="abs" id="' + id + '" width="' + w + '" height="' + (w * 1.2).toFixed(0) + '" viewBox="0 0 160 192" style="left:' + x + "px;top:" + y + 'px">' +
+            '<rect x="20" y="10" width="120" height="172" rx="16" fill="#7a3e25" stroke="#23295a" stroke-width="5"/>';
+          for (var r = 0; r < 3; r++) for (var c = 0; c < 2; c++) s += '<rect x="' + (32 + c * 50) + '" y="' + (22 + r * 34) + '" width="42" height="26" rx="6" fill="#924d30"/>';
+          s += '<path d="M20 112 L140 98 L140 166 Q140 182 124 182 L36 182 Q20 182 20 166 Z" fill="' + C.azul + '" stroke="#23295a" stroke-width="5"/>' +
+            '<path transform="translate(80 146) scale(0.3)" d="' + SPARK + '" fill="#ffffff"/></svg>';
+          return s;
+        }
+        function gumdropsSVG(id, w, x, y) {
+          var s = '<svg class="abs" id="' + id + '" width="' + w + '" height="' + (w * 0.7).toFixed(0) + '" viewBox="0 0 200 140" style="left:' + x + "px;top:" + y + 'px">';
+          [[52, C.verde], [148, C.azul], [100, C.rojo]].forEach(function (g) {
+            s += '<path d="M' + (g[0] - 44) + ' 130 Q' + (g[0] - 44) + " 40 " + g[0] + " 40 Q" + (g[0] + 44) + " 40 " + (g[0] + 44) + ' 130 Z" fill="' + g[1] + '" stroke="#23295a" stroke-width="5"/>';
+            for (var k = 0; k < 6; k++) s += '<circle cx="' + (g[0] - 22 + (k % 3) * 22) + '" cy="' + (72 + Math.floor(k / 3) * 26) + '" r="3.5" fill="#ffffff" opacity="0.8"/>';
+          });
+          return s + "</svg>";
+        }
+        function cakeSVG(id, w, x, y) {
+          var s = '<svg class="abs" id="' + id + '" width="' + w + '" height="' + (w * 1.1).toFixed(0) + '" viewBox="0 0 400 440" style="left:' + x + "px;top:" + y + 'px">' +
+            '<ellipse cx="200" cy="404" rx="190" ry="26" fill="#ffffff" stroke="#23295a" stroke-width="5"/>' +
+            '<rect x="56" y="262" width="288" height="140" rx="26" fill="' + C.rojo + '" stroke="#23295a" stroke-width="6"/>' +
+            '<path d="M56 290 Q56 262 82 262 L318 262 Q344 262 344 290 L344 300 Q326 318 312 300 Q296 330 280 300 Q262 322 246 300 Q228 336 212 300 Q194 322 178 300 Q160 330 144 300 Q126 318 110 300 Q92 334 76 300 Q64 316 56 300 Z" fill="#ffffff"/>' +
+            '<rect x="100" y="160" width="200" height="106" rx="22" fill="' + C.amarillo + '" stroke="#23295a" stroke-width="6"/>';
+          var sp = [[128, 196, C.azul, 20], [168, 226, C.verde, -30], [214, 190, "#ffffff", 40], [250, 230, C.rojo, -10], [270, 196, C.azul, 60], [150, 244, "#ffffff", 10], [232, 248, C.azul, -50]];
+          sp.forEach(function (p) { s += '<rect x="' + p[0] + '" y="' + p[1] + '" width="18" height="7" rx="3.5" fill="' + p[2] + '" transform="rotate(' + p[3] + " " + (p[0] + 9) + " " + (p[1] + 3) + ')"/>'; });
+          [140, 200, 260].forEach(function (cx, i) {
+            s += '<rect x="' + (cx - 9) + '" y="100" width="18" height="62" rx="6" fill="#ffffff" stroke="#23295a" stroke-width="4"/>' +
+              '<path d="M' + (cx - 9) + " 116 L" + (cx + 9) + " 108 M" + (cx - 9) + " 136 L" + (cx + 9) + ' 128" stroke="' + [C.azul, C.rojo, C.verde][i] + '" stroke-width="5"/>' +
+              '<g id="' + id + "-flame" + i + '"><path d="M' + cx + " 58 C" + (cx + 16) + " 76 " + (cx + 12) + " 96 " + cx + " 96 C" + (cx - 12) + " 96 " + (cx - 16) + " 76 " + cx + ' 58 Z" fill="' + C.amarillo + '"/><path d="M' + cx + " 74 C" + (cx + 7) + " 84 " + (cx + 6) + " 94 " + cx + " 94 C" + (cx - 6) + " 94 " + (cx - 7) + " 84 " + cx + ' 74 Z" fill="#ffffff"/></g>';
+          });
+          return s + "</svg>";
+        }
+        function cloudSVG(id, w, x, y) {
+          return '<g id="' + id + '" transform="translate(' + x + " " + y + ") scale(" + w / 200 + ')"><path d="M30 90 Q0 90 4 66 Q8 44 34 46 Q40 10 80 14 Q110 -6 136 22 Q170 14 178 46 Q204 50 198 74 Q194 92 170 90 Z" fill="#ffffff"/></g>';
+        }
+
+        // ------------------------------------------------------------------
+        // construcción de escenas
+        // ------------------------------------------------------------------
+        // Escena 1: formas que siguen la línea roja
+        var s1Path = $("#s1-path");
+        var s1Len = s1Path.getTotalLength();
+        var s1Fr = [0.12, 0.27, 0.42, 0.58, 0.74, 0.9];
+        var s1Kinds = [["circle", C.amarillo], ["spark", C.azul], ["tri", C.verde], ["circle", C.azul], ["spark", C.amarillo], ["circle", C.verde]];
+        var g = "";
+        s1Fr.forEach(function (f, i) {
+          var p = s1Path.getPointAtLength(f * s1Len);
+          var ox = (i % 2 ? 1 : -1) * 70, oy = i % 2 ? 80 : -86;
+          var k = s1Kinds[i], cx = (p.x + ox).toFixed(1), cy = (p.y + oy).toFixed(1);
+          var inner = k[0] === "circle" ? '<circle r="30" fill="' + k[1] + '"/>' : k[0] === "tri" ? '<path d="M0 -36 L32 22 L-32 22 Z" fill="' + k[1] + '" stroke="' + k[1] + '" stroke-width="10" stroke-linejoin="round"/>' : '<path d="' + SPARK + '" fill="' + k[1] + '" transform="scale(0.8)"/>';
+          g += '<g transform="translate(' + cx + " " + cy + ')"><g id="s1-shape' + i + '">' + inner + "</g></g>";
+        });
+        $("#s1-shapes").innerHTML = g;
+
+        // Escena 2: fondo (nubes, colinas, destellos) + niños
+        $("#s2-back").innerHTML =
+          '<g id="s2-clouds">' + cloudSVG("s2-cloud0", 230, 70, 760) + cloudSVG("s2-cloud1", 170, 820, 840) + cloudSVG("s2-cloud2", 140, 470, 900) + "</g>" +
+          '<ellipse cx="200" cy="1720" rx="620" ry="330" fill="#56c97f"/>' +
+          '<ellipse cx="930" cy="1760" rx="560" ry="320" fill="' + C.verde + '"/>' +
+          '<rect x="0" y="1660" width="1080" height="260" fill="#2fa85d"/>' +
+          '<g transform="translate(130 1040)"><path id="s2-sp0" d="' + SPARK + '" fill="' + C.amarillo + '" transform="scale(0.5)"/></g>' +
+          '<g transform="translate(960 1000)"><path id="s2-sp1" d="' + SPARK + '" fill="' + C.rojo + '" transform="scale(0.42)"/></g>' +
+          '<g transform="translate(560 1010)"><path id="s2-sp2" d="' + SPARK + '" fill="#ffffff" transform="scale(0.36)"/></g>';
+        $("#s2-kids").innerHTML =
+          person({ id: "adult", w: 210, x: 780, y: 990, skin: "#c98e62", shirt: C.verde, pants: C.tinta, hair: "melena", hairC: "#3b2418", adult: true, badge: true }) +
+          person({ id: "kidA", w: 210, x: 40, y: 1170, skin: "#f1c7a3", shirt: C.rojo, pants: C.azul, hair: "corto", hairC: "#6b3b1e" }) +
+          person({ id: "kidB", w: 200, x: 300, y: 1150, skin: "#8d5a3b", shirt: C.amarillo, pants: C.tinta, hair: "puffs", hairC: "#22140c" }) +
+          person({ id: "kidC", w: 200, x: 560, y: 1190, skin: "#e8b48a", shirt: C.azul, pants: "#2fa85d", hair: "cola", hairC: "#a5532a", badge: true }) +
+          ballSVG("s2-ball", 96, 760, 1450, C.rojo, C.amarillo) +
+          person({ id: "kidD", w: 190, x: 820, y: 1300, skin: "#5e3a26", shirt: "#ff8a3d", pants: C.azul, hair: "rulos", hairC: "#1a0f08" });
+
+        // Escena 3: rayos y dulces alrededor de la marca
+        var rays = "";
+        for (var i = 0; i < 20; i++) {
+          var a0 = (i / 20) * Math.PI * 2, a1 = ((i + 0.5) / 20) * Math.PI * 2;
+          rays += '<path d="M0 0 L' + (1500 * Math.cos(a0)).toFixed(0) + " " + (1500 * Math.sin(a0)).toFixed(0) + " L" + (1500 * Math.cos(a1)).toFixed(0) + " " + (1500 * Math.sin(a1)).toFixed(0) + ' Z" fill="#ffe2b0" opacity="0.7"/>';
+        }
+        $("#s3-burst").innerHTML = '<g transform="translate(540 700)"><g id="s3-rays">' + rays + "</g></g>";
+        $("#s3-sweets").innerHTML =
+          popcornSVG("sw-pop", 300, 40, 820) +
+          lollipopSVG("sw-lolli", 250, 70, 330, C.rojo) +
+          candySVG("sw-candy1", 250, 780, 330, C.amarillo, C.rojo) +
+          chocoSVG("sw-choco", 190, 850, 730) +
+          candySVG("sw-candy2", 210, 410, 990, C.azul, "#ffffff") +
+          gumdropsSVG("sw-gum", 240, 760, 1010) +
+          sparkSVG("sw-sp0", C.azul, 70, 300, 250) +
+          sparkSVG("sw-sp1", C.verde, 56, 720, 260) +
+          sparkSVG("sw-sp2", C.amarillo, 60, 230, 1060);
+
+        // Escena 4: banderines, globos, torta y niños festejando
+        var bunt = '<g id="s4-bunting"><path d="M-20 130 Q540 300 1100 130" fill="none" stroke="#23295a" stroke-width="5"/>';
+        var flagC = [C.rojo, C.amarillo, C.azul, C.verde];
+        for (var f = 0; f < 11; f++) {
+          var t = (f + 0.5) / 11, bx = -20 + 1120 * t, by = 130 + 340 * t * (1 - t);
+          bunt += '<g transform="translate(' + bx.toFixed(1) + " " + by.toFixed(1) + ')"><path id="s4-flag' + f + '" d="M-36 0 L36 0 L0 70 Z" fill="' + flagC[f % 4] + '"/></g>';
+        }
+        $("#s4-deco").innerHTML = bunt + "</g>";
+        $("#s4-party").innerHTML =
+          balloonSVG("bl0", C.rojo, 150, 40, 860) +
+          balloonSVG("bl1", C.amarillo, 130, 210, 960) +
+          balloonSVG("bl2", C.azul, 150, 870, 860) +
+          balloonSVG("bl3", C.verde, 125, 730, 980) +
+          cakeSVG("cake", 420, 330, 1050) +
+          person({ id: "kidE", w: 200, x: 70, y: 1340, skin: "#a86b45", shirt: C.verde, pants: C.azul, hair: "rulos", hairC: "#2a170c", hat: C.azul }) +
+          person({ id: "kidF", w: 200, x: 810, y: 1340, skin: "#f3cfae", shirt: C.rojo, pants: C.tinta, hair: "puffs", hairC: "#c0782f", hat: C.amarillo, badge: true });
+
+        // Confeti
+        var cf = "", cfColors = [C.rojo, C.azul, C.amarillo, C.verde, "#ffffff"];
+        for (var n = 0; n < 72; n++) {
+          var sz = 16 + Math.floor(rand() * 18), round = rand() < 0.35;
+          var col = cfColors[n % 5];
+          cf += '<div class="cf" id="cf' + n + '" style="left:532px;top:900px;width:' + sz + "px;height:" + (round ? sz : Math.round(sz * 0.55)) + "px;background:" + col + ";border-radius:" + (round ? "50%" : "3px") + (col === "#ffffff" ? ";outline:2px solid #23295a" : "") + '"></div>';
+        }
+        $("#confetti").innerHTML = cf;
+
+        // Escena 5: decoración que converge y enmarca el logo
+        $("#s5-decor").innerHTML =
+          balloonSVG("d5-bl0", C.rojo, 120, 60, 150) +
+          balloonSVG("d5-bl1", C.azul, 105, 900, 170) +
+          sparkSVG("d5-sp0", C.amarillo, 90, 300, 300) +
+          sparkSVG("d5-sp1", C.verde, 70, 700, 250) +
+          lollipopSVG("d5-lolli", 170, 510, 230, C.azul) +
+          popcornSVG("d5-pop", 200, 70, 1520) +
+          candySVG("d5-candy", 200, 800, 1560, C.amarillo, C.rojo) +
+          ballSVG("d5-ball", 100, 460, 1590, C.azul, C.amarillo) +
+          sparkSVG("d5-sp2", C.rojo, 64, 340, 1530) +
+          sparkSVG("d5-sp3", C.azul, 56, 660, 1530);
+
+        // ------------------------------------------------------------------
+        // LÍNEA DE TIEMPO (una sola, pausada)
+        // Personalidad: Playful. Easing firma: back.out (rebote 10–20 %).
+        // Duraciones: rápida 0.3 s · estándar 0.5 s · lenta 0.8 s.
+        // ------------------------------------------------------------------
+        var tl = gsap.timeline({ paused: true });
+        var POP = "back.out(1.7)", SOFT = "back.out(1.3)";
+
+        function words(sel, t0, step) {
+          tl.fromTo(sel + " .w", { y: 46, opacity: 0, scale: 0.86 }, { y: 0, opacity: 1, scale: 1, duration: 0.5, ease: SOFT, stagger: step || 0.07 }, t0);
+        }
+        function floaty(sel, t0, t1, amp, period, rot) {
+          var n = reps(t1 - t0, period);
+          tl.fromTo(sel, { y: 0, rotation: 0 }, { y: -amp, rotation: rot || 0, duration: period / 2, ease: "sine.inOut", yoyo: true, repeat: n * 2 + 1 }, t0);
+        }
+        function run(id, t0, t1, speed) {
+          var cyc = speed || 0.36, n = reps(t1 - t0, cyc) * 2 + 1;
+          tl.fromTo("#" + id + "-legL", { rotation: -26 }, { rotation: 26, duration: cyc / 2, ease: "sine.inOut", yoyo: true, repeat: n, svgOrigin: "86 214" }, t0);
+          tl.fromTo("#" + id + "-legR", { rotation: 26 }, { rotation: -26, duration: cyc / 2, ease: "sine.inOut", yoyo: true, repeat: n, svgOrigin: "114 214" }, t0);
+          tl.fromTo("#" + id + "-armL", { rotation: 30 }, { rotation: -30, duration: cyc / 2, ease: "sine.inOut", yoyo: true, repeat: n, svgOrigin: "70 150" }, t0);
+          tl.fromTo("#" + id + "-armR", { rotation: 30 }, { rotation: -30, duration: cyc / 2, ease: "sine.inOut", yoyo: true, repeat: n, svgOrigin: "130 150" }, t0);
+          tl.fromTo("#" + id + "-all", { y: 0 }, { y: -10, duration: cyc / 4, ease: "sine.inOut", yoyo: true, repeat: n * 2 + 1 }, t0);
+        }
+        function jump(id, t0, t1, h, cyc) {
+          cyc = cyc || 0.9;
+          var n = reps(t1 - t0, cyc);
+          tl.fromTo("#" + id + "-armL", { rotation: 0 }, { rotation: 120, duration: 0.3, ease: SOFT, svgOrigin: "70 150" }, t0);
+          tl.fromTo("#" + id + "-armR", { rotation: 0 }, { rotation: -120, duration: 0.3, ease: SOFT, svgOrigin: "130 150" }, t0);
+          tl.fromTo("#" + id + "-all", { y: 0 }, { y: -h, duration: cyc / 2, ease: "power2.out", yoyo: true, repeat: n * 2 + 1 }, t0);
+          tl.fromTo("#" + id + "-legL", { rotation: 0 }, { rotation: 14, duration: cyc / 2, ease: "sine.inOut", yoyo: true, repeat: n * 2 + 1, svgOrigin: "86 214" }, t0);
+          tl.fromTo("#" + id + "-legR", { rotation: 0 }, { rotation: -14, duration: cyc / 2, ease: "sine.inOut", yoyo: true, repeat: n * 2 + 1, svgOrigin: "114 214" }, t0);
+        }
+        function wave(id, t0, t1, adult) {
+          var o = adult ? "130 148" : "130 150", n = reps(t1 - t0 - 0.3, 0.7) * 2 + 1;
+          tl.fromTo("#" + id + "-armR", { rotation: 0 }, { rotation: -140, duration: 0.35, ease: SOFT, svgOrigin: o }, t0);
+          tl.fromTo("#" + id + "-armR", { rotation: -140 }, { rotation: -110, duration: 0.35, ease: "sine.inOut", yoyo: true, repeat: n, svgOrigin: o, immediateRender: false }, t0 + 0.35);
+        }
+
+        // ===== ESCENA 1 · APERTURA =====
+        tl.fromTo("#s1-path", { strokeDasharray: s1Len, strokeDashoffset: s1Len }, { strokeDashoffset: 0, duration: 1.6, ease: "power2.inOut" }, 0.1);
+        s1Fr.forEach(function (f, i) {
+          var tp = 0.1 + 1.6 * f * 0.95;
+          tl.fromTo("#s1-shape" + i, { scale: 0, rotation: -40 }, { scale: 1, rotation: 0, duration: 0.42, ease: POP, svgOrigin: "0 0" }, tp);
+          tl.fromTo("#s1-shape" + i, { y: 0 }, { y: -14, duration: 0.8, ease: "sine.inOut", yoyo: true, repeat: 3, immediateRender: false }, tp + 0.45);
+        });
+        // anticipación breve y entrada con rebote corto del logo
+        tl.fromTo("#s1-logo", { y: -150, opacity: 0, scale: 0.9 }, { y: 0, opacity: 1, scale: 1, duration: 0.6, ease: "back.out(1.6)" }, 1.0);
+        words("#s1-title", 1.65, 0.07);
+        // sombra/eco del gancho: el título se asienta y respira apenas
+        tl.to("#s1-title", { y: -6, duration: 0.9, ease: "sine.inOut", yoyo: true, repeat: 1 }, 2.6);
+
+        // ===== TRANSICIÓN 1 · barrido de color =====
+        tl.fromTo("#s2-wipe", { clipPath: "circle(0% at 50% 104%)" }, { clipPath: "circle(130% at 50% 104%)", duration: 0.55, ease: "power3.in" }, 3.6);
+        tl.fromTo("#s2-sky", { clipPath: "circle(0% at 50% 104%)" }, { clipPath: "circle(130% at 50% 104%)", duration: 0.6, ease: "power3.inOut" }, 3.78);
+
+        // ===== ESCENA 2 · JUEGO =====
+        floaty("#s2-cloud0", 4.0, 12.4, 14, 3.2);
+        tl.fromTo("#s2-clouds", { x: 0 }, { x: -60, duration: 8.4, ease: "none" }, 4.0);
+        ["#s2-sp0", "#s2-sp1", "#s2-sp2"].forEach(function (s, i) {
+          tl.fromTo(s, { scale: 0 }, { scale: 0.5 - i * 0.07, duration: 0.4, ease: POP, svgOrigin: "0 0" }, 4.6 + i * 0.12);
+          tl.fromTo(s, { rotation: 0 }, { rotation: 90, duration: 7, ease: "none", svgOrigin: "0 0" }, 5.0);
+        });
+        // los niños entran corriendo desde los lados (arco corto, no cruzan más de 1/3 de pantalla)
+        tl.fromTo("#kidA", { x: -300, opacity: 0 }, { x: 0, opacity: 1, duration: 0.8, ease: "power2.out" }, 4.15);
+        tl.fromTo("#kidB", { y: 260, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: SOFT }, 4.35);
+        tl.fromTo("#kidC", { y: 260, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: SOFT }, 4.5);
+        tl.fromTo("#kidD", { x: 300, opacity: 0 }, { x: 0, opacity: 1, duration: 0.8, ease: "power2.out" }, 4.6);
+        tl.fromTo("#adult", { y: 120, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: "power2.out" }, 5.0);
+        run("kidA", 4.15, 12.4, 0.36);
+        jump("kidB", 5.0, 12.4, 90, 0.9);
+        run("kidD", 4.6, 12.4, 0.4);
+        wave("adult", 5.6, 12.4, true);
+        // niña con pelota: brazos arriba, la pelota rebota a su lado
+        tl.fromTo("#kidC-armL", { rotation: 0 }, { rotation: 60, duration: 0.4, ease: SOFT, svgOrigin: "70 150" }, 5.2);
+        tl.fromTo("#kidC-armR", { rotation: 0 }, { rotation: -60, duration: 0.4, ease: SOFT, svgOrigin: "130 150" }, 5.2);
+        tl.fromTo("#kidC-all", { rotation: 0 }, { rotation: 4, duration: 0.6, ease: "sine.inOut", yoyo: true, repeat: reps(6.8, 1.2) * 2 + 1, svgOrigin: "100 300" }, 5.4);
+        tl.fromTo("#s2-ball", { scale: 0 }, { scale: 1, duration: 0.4, ease: POP }, 5.0);
+        tl.fromTo("#s2-ball", { y: 0 }, { y: -230, duration: 0.42, ease: "power2.out", yoyo: true, repeat: reps(7.0, 0.84) * 2 + 1 }, 5.4);
+        tl.fromTo("#s2-ball", { rotation: 0 }, { rotation: 720, duration: 7, ease: "none" }, 5.4);
+        // texto: primero la escena, luego el mensaje
+        words("#s2-title", 4.75, 0.12);
+        tl.fromTo("#s2-pill", { y: 40, opacity: 0, scale: 0.8 }, { y: 0, opacity: 1, scale: 1, duration: 0.5, ease: POP }, 5.9);
+        tl.fromTo("#s2-clock-m", { rotation: 0 }, { rotation: 720, duration: 6, ease: "none", svgOrigin: "0 0" }, 6.1);
+        tl.fromTo("#s2-clock-h", { rotation: 0 }, { rotation: 60, duration: 6, ease: "none", svgOrigin: "0 0" }, 6.1);
+
+        // ===== TRANSICIÓN 2 · barrido diagonal =====
+        tl.fromTo("#s3-wipe", { clipPath: "polygon(0% 0%, 0% 0%, -30% 100%, -30% 100%)" }, { clipPath: "polygon(0% 0%, 140% 0%, 110% 100%, -30% 100%)", duration: 0.5, ease: "power3.in" }, 11.6);
+        tl.fromTo("#s3-bg", { clipPath: "polygon(0% 0%, 0% 0%, -30% 100%, -30% 100%)" }, { clipPath: "polygon(0% 0%, 140% 0%, 110% 100%, -30% 100%)", duration: 0.55, ease: "power3.inOut" }, 11.75);
+
+        // ===== ESCENA 3 · ANTOJITOS =====
+        tl.fromTo("#s3-rays", { rotation: 0 }, { rotation: 40, duration: 7.6, ease: "none", svgOrigin: "0 0" }, 12.0);
+        tl.fromTo("#s3-plate", { scale: 0 }, { scale: 1, duration: 0.5, ease: POP }, 12.25);
+        tl.fromTo("#s3-icon", { scale: 0, rotation: -12 }, { scale: 1, rotation: 0, duration: 0.55, ease: POP }, 12.4);
+        tl.fromTo("#s3-icon", { y: 0 }, { y: -10, duration: 0.8, ease: "sine.inOut", yoyo: true, repeat: reps(5.6, 1.6) * 2 + 1, immediateRender: false }, 13.0);
+        var sweets = [
+          ["#sw-lolli", -180, -120, -30], ["#sw-candy1", 200, -120, 25], ["#sw-choco", 220, 40, 20],
+          ["#sw-gum", 160, 200, -15], ["#sw-candy2", 0, 240, 20], ["#sw-pop", -220, 120, -18],
+        ];
+        sweets.forEach(function (s, i) {
+          var t0 = 12.65 + i * 0.09;   // stagger total < 0.5 s
+          tl.fromTo(s[0], { x: s[1], y: s[2], scale: 0.3, rotation: s[3], opacity: 0 }, { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, duration: 0.6, ease: POP }, t0);
+          floaty(s[0], t0 + 0.7, 19.6, 10 + (i % 3) * 4, 1.6 + (i % 3) * 0.3, i % 2 ? 4 : -4);
+        });
+        ["#sw-sp0", "#sw-sp1", "#sw-sp2"].forEach(function (s, i) {
+          tl.fromTo(s, { scale: 0, rotation: -90 }, { scale: 1, rotation: 0, duration: 0.45, ease: POP }, 13.2 + i * 0.12);
+          tl.fromTo(s, { opacity: 1 }, { opacity: 0.55, duration: 0.6, ease: "sine.inOut", yoyo: true, repeat: reps(5.4, 1.2) * 2 + 1, immediateRender: false }, 13.8 + i * 0.2);
+        });
+        words("#s3-title", 13.45, 0.08);
+
+        // ===== TRANSICIÓN 3 · confeti festivo =====
+        for (var c2 = 0; c2 < 72; c2++) {
+          var ang = rand() * Math.PI * 2, dist = 380 + rand() * 520;
+          var dx = Math.cos(ang) * dist, dy = Math.sin(ang) * dist * 1.25 - 160;
+          var tStart = 18.92 + rand() * 0.12;
+          tl.fromTo("#cf" + c2, { x: 0, y: 0, rotation: 0, scale: 0.4, opacity: 1 },
+            { x: dx, y: dy, rotation: (rand() - 0.5) * 720, scale: 1, duration: 0.7, ease: "power3.out" }, tStart);
+          tl.to("#cf" + c2, { y: dy + 500 + rand() * 400, x: dx + (rand() - 0.5) * 160, rotation: "+=" + Math.round((rand() - 0.5) * 540), duration: 1.6, ease: "power1.in" }, tStart + 0.7);
+          tl.to("#cf" + c2, { opacity: 0, duration: 0.4, ease: "power1.in" }, tStart + 1.85);
+        }
+        tl.fromTo("#s4-bg", { clipPath: "circle(0% at 50% 47%)" }, { clipPath: "circle(120% at 50% 47%)", duration: 0.65, ease: "power3.inOut" }, 19.1);
+
+        // ===== ESCENA 4 · CUMPLEAÑOS =====
+        tl.fromTo("#s4-bunting", { y: -260 }, { y: 0, duration: 0.7, ease: SOFT }, 19.5);
+        for (var fl = 0; fl < 11; fl++) {
+          tl.fromTo("#s4-flag" + fl, { rotation: -8 }, { rotation: 8, duration: 0.7, ease: "sine.inOut", yoyo: true, repeat: reps(7.6, 1.4) * 2 + 1, svgOrigin: "0 0" }, 20.2 + (fl % 3) * 0.1);
+        }
+        tl.fromTo("#cake", { y: 300, scale: 0.6, opacity: 0 }, { y: 0, scale: 1, opacity: 1, duration: 0.65, ease: POP }, 19.85);
+        for (var fi = 0; fi < 3; fi++) {
+          var fx = [140, 200, 260][fi];
+          tl.fromTo("#cake-flame" + fi, { scaleY: 1, scaleX: 1 }, { scaleY: 1.18, scaleX: 0.9, duration: 0.18 + fi * 0.03, ease: "sine.inOut", yoyo: true, repeat: 2 * reps(7.8, 0.4 + fi * 0.06) + 1, svgOrigin: fx + " 96" }, 20.3);
+        }
+        [["#bl0", 19.95], ["#bl1", 20.1], ["#bl2", 20.0], ["#bl3", 20.15]].forEach(function (b, i) {
+          tl.fromTo(b[0], { y: 900, opacity: 0 }, { y: 0, opacity: 1, duration: 0.9, ease: "power2.out" }, b[1]);
+          floaty(b[0], b[1] + 0.9, 28.0, 18, 2.2 + i * 0.25, i % 2 ? 5 : -5);
+        });
+        tl.fromTo("#kidE", { y: 260, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: SOFT }, 20.3);
+        tl.fromTo("#kidF", { y: 260, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: SOFT }, 20.42);
+        jump("kidE", 21.0, 27.6, 70, 0.84);
+        jump("kidF", 21.2, 27.6, 70, 0.84);
+        words("#s4-title", 20.7, 0.09);
+        tl.fromTo("#s4-pill", { y: 40, opacity: 0, scale: 0.8 }, { y: 0, opacity: 1, scale: 1, duration: 0.5, ease: POP }, 22.0);
+        tl.fromTo("#s4-check", { strokeDasharray: 50, strokeDashoffset: 50 }, { strokeDashoffset: 0, duration: 0.4, ease: "power2.out" }, 22.45);
+
+        // ===== TRANSICIÓN 4 · todo converge al logo =====
+        tl.to("#s4-inner", { scale: 0.9, opacity: 0, duration: 0.6, ease: "power2.in", transformOrigin: "50% 50%" }, 27.6);
+        tl.fromTo("#s5-bg", { clipPath: "circle(0% at 50% 36%)" }, { clipPath: "circle(125% at 50% 36%)", duration: 0.7, ease: "power3.inOut" }, 27.65);
+
+        // ===== ESCENA 5 · CIERRE =====
+        var conv = [
+          ["#d5-bl0", 260, 520], ["#d5-bl1", -260, 560], ["#d5-sp0", 120, 380], ["#d5-sp1", -100, 400], ["#d5-lolli", 0, 420],
+          ["#d5-pop", 260, -420], ["#d5-candy", -260, -460], ["#d5-ball", 0, -420], ["#d5-sp2", 140, -360], ["#d5-sp3", -140, -360],
+        ];
+        // los elementos llegan desde el centro (donde estaba la fiesta) y se ubican en el marco, dejando el logo despejado
+        conv.forEach(function (c, i) {
+          var t0 = 27.85 + (i % 5) * 0.08;
+          tl.fromTo(c[0], { x: c[1], y: c[2], scale: 0.2, rotation: i % 2 ? 90 : -90, opacity: 0 }, { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, duration: 0.8, ease: SOFT }, t0);
+          floaty(c[0], t0 + 0.9, 35.0, 8, 2.4 + (i % 4) * 0.3, i % 2 ? 3 : -3);
+        });
+        tl.fromTo("#s5-logo", { y: 70, opacity: 0, scale: 0.86 }, { y: 0, opacity: 1, scale: 1, duration: 0.7, ease: "back.out(1.4)" }, 28.2);
+        words("#s5-tag", 29.05, 0.07);
+        tl.fromTo("#s5-pill", { y: 40, opacity: 0, scale: 0.8 }, { y: 0, opacity: 1, scale: 1, duration: 0.5, ease: POP }, 29.6);
+        // desde 30.1 s el logo, el texto y el CTA quedan totalmente estables hasta el final (≈4.9 s)
+
+        window.__timelines["renzo-wonka-promo"] = tl;
+      })();
+    </script>
+  </body>
+</html>
