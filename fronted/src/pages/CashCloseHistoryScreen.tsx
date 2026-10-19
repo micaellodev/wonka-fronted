@@ -1,12 +1,17 @@
 ﻿import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
+import { apiErrorMessage } from '@/lib/api-error'
+import { formatCurrency } from '@/lib/format'
 import { useAuthStore } from '@/store/authStore'
-import { Calendar, TrendingUp, AlertTriangle, CheckCircle2, RefreshCw, Lock, X, Loader2 } from 'lucide-react'
+import { useCan } from '@/lib/permissions'
+import { Calendar, TrendingUp, AlertTriangle, CheckCircle2, RefreshCw, Lock, Loader2 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { TerminalShell } from '@/components/TerminalShell'
 import { PinPad } from '@/components/PinPad'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ExportButtons } from '@/components/ExportButtons'
 
 interface CashCloseRecord {
  id: string
@@ -28,8 +33,6 @@ interface CashCloseRecord {
  }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const apiErrorMessage = (e: any): string => e?.value?.message ?? e?.value?.error ?? 'Error de conexión'
 
 interface CashCloseHistoryScreenProps {
  title?: string
@@ -42,8 +45,8 @@ export function CashCloseHistoryScreen({
  subtitle = 'Cierre de caja diario',
  section = 'cash-history',
 }: CashCloseHistoryScreenProps = {}) {
- const { tenantId, activeWorker } = useAuthStore()
- const isAdmin = activeWorker?.role?.name === 'ADMIN' || activeWorker?.role?.name === 'ADMINISTRADOR'
+ const { tenantId } = useAuthStore()
+ const isAdmin = useCan().canEnterAdmin
  const navigate = useNavigate()
 
  const [records, setRecords] = useState<CashCloseRecord[]>([])
@@ -67,7 +70,7 @@ export function CashCloseHistoryScreen({
  setRecords((response.data.data as CashCloseRecord[]) || [])
  setTotals((response.data as unknown as { totals: typeof totals }).totals)
  } catch (error) {
- setLoadError(apiErrorMessage(error))
+ setLoadError(apiErrorMessage(error, 'Error de conexión'))
  } finally {
  setLoading(false)
  }
@@ -89,10 +92,6 @@ export function CashCloseHistoryScreen({
  : 'text-destructive bg-danger-soft',
  }))
 
- function formatCurrency(v: number) {
- return new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN', minimumFractionDigits: 2 }).format(v)
- }
-
  function formatDate(value: string | Date) {
  // closedDate is a plain YYYY-MM-DD (Lima day); Eden may already hand it over as a Date at UTC midnight
  const d = value instanceof Date ? value : new Date(`${value.slice(0, 10)}T00:00:00Z`)
@@ -110,13 +109,13 @@ export function CashCloseHistoryScreen({
  approverCode: pin,
  })
  if (error) {
- setApprovePinError(apiErrorMessage(error))
+ setApprovePinError(apiErrorMessage(error, 'Error de conexión'))
  return
  }
  setApprovingRecord(null)
  fetchHistory()
  } catch (err) {
- setApprovePinError(apiErrorMessage(err))
+ setApprovePinError(apiErrorMessage(err, 'Error de conexión'))
  } finally {
  setApproving(false)
  }
@@ -141,6 +140,11 @@ export function CashCloseHistoryScreen({
  <p className="text-xs text-muted-foreground uppercase tracking-widest">{subtitle}</p>
  </div>
  </div>
+ <div className="flex items-center gap-2">
+ <ExportButtons name="cierres-caja" disabled={records.length === 0} getRows={() => [
+ ['Fecha', 'Cajero', 'Apertura', 'Ventas', 'Esperado efectivo', 'Esperado Yape', 'Esperado tarjeta', 'Total esperado', 'Efectivo contado', 'Diferencia', 'Balance', 'Estado'],
+ ...recordsWithBalance.map((r) => [formatDate(r.closedDate), r.worker?.name ?? '', Number(r.openingBalance), Number(r.totalSales), Number(r.expectedEfectivo), Number(r.expectedYape), Number(r.expectedTarjeta), Number(r.totalExpected), Number(r.countedCash), Number(r.difference), r.balance, r.status]),
+ ]} />
  <Button
  onClick={fetchHistory}
  variant="outline"
@@ -148,6 +152,7 @@ export function CashCloseHistoryScreen({
  >
  <RefreshCw className="w-4 h-4" /> Actualizar
  </Button>
+ </div>
  </header>
 
  <main className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto">
@@ -212,7 +217,7 @@ export function CashCloseHistoryScreen({
  <Card>
  <CardHeader>
  <CardTitle className="flex items-center gap-2">
- <TrendingUp className="w-4 h-4 text-gray-600" />
+ <TrendingUp className="w-4 h-4 text-muted-foreground" />
  Historial Detallado
  </CardTitle>
  <CardDescription>Récord de cada cierre de caja por dia</CardDescription>
@@ -299,46 +304,28 @@ export function CashCloseHistoryScreen({
  </Card>
  </main>
 
- {/* Pending close approval modal */}
+ <Dialog open={!!approvingRecord} onOpenChange={(o) => !o && !approving && setApprovingRecord(null)}>
+ <DialogContent size="md" showCloseButton={!approving}>
+ <DialogHeader>
+ <DialogTitle className="flex items-center gap-2">
+ <Lock className="h-4 w-4 text-warning" aria-hidden /> Aprobar Cierre Pendiente
+ </DialogTitle>
+ <DialogDescription>
+ Ingrese el código de aprobación (6 dígitos) del administrador para aprobar este cierre.
+ </DialogDescription>
+ </DialogHeader>
  {approvingRecord && (
- <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
- <Card className="w-full max-w-md bg-white border-gray-200 rounded-2xl shadow-2xl p-6">
- <div className="flex justify-between items-center border-b border-gray-100 pb-3 mb-4">
- <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
- <Lock className="w-4 h-4 text-orange-600" />
- Aprobar Cierre Pendiente
- </h3>
- <button
- onClick={() => { if (!approving) setApprovingRecord(null) }}
- className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
- >
- <X className="h-5 w-5" />
- </button>
- </div>
-
- <div className="text-center text-xs text-gray-500 mb-6 space-y-1">
- <p>Ingrese el código de aprobación (6 dígitos) del administrador para aprobar este cierre.</p>
- <p className="font-semibold text-gray-800">
+ <p className="text-center text-xs font-semibold text-foreground">
  {formatDate(approvingRecord.closedDate)} · {approvingRecord.worker.name} · Diferencia: {formatCurrency(approvingRecord.difference)}
  </p>
- </div>
-
+ )}
  <PinPad onComplete={handleApprovePin} disabled={approving} hasError={!!approvePinError} length={6} />
-
- {approvePinError && (
- <p className="text-center text-xs text-destructive font-medium mt-3">
- {approvePinError}
- </p>
- )}
-
+ {approvePinError && <p role="alert" className="text-center text-xs font-medium text-destructive">{approvePinError}</p>}
  {approving && (
- <div className="flex justify-center mt-4">
- <Loader2 className="w-6 h-6 animate-spin text-orange-600" />
- </div>
+ <div className="flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-warning" aria-label="Aprobando" /></div>
  )}
- </Card>
- </div>
- )}
+ </DialogContent>
+ </Dialog>
  </div>
  </TerminalShell>
  )

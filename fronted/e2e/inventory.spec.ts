@@ -10,8 +10,14 @@ const CAT2 = `Cat E2E ed ${RUN}`
 async function login(page: Page) {
   await page.goto('/')
   for (const d of '060904') await page.getByRole('button', { name: `Dígito ${d}` }).click()
-  await page.waitForURL(/\/(pos|cash-guard)/)
-  await page.getByRole("button", { name: "Admin", exact: true }).click()
+  // admin: /cash-guard (con modal de apertura si la caja del día no está abierta) → /admin
+  const opening = page.locator('input[type=number]')
+  await Promise.race([page.waitForURL(/\/admin/), opening.waitFor()])
+  if (await opening.isVisible().catch(() => false)) {
+    await opening.fill('100')
+    await page.getByRole('button', { name: 'Confirmar apertura' }).click()
+  }
+  await page.waitForURL(/\/admin/)
   await page.getByText("Inventario", { exact: true }).first().click()
   await expect(page.getByTestId('tab-productos')).toBeVisible()
 }

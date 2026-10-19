@@ -26,3 +26,11 @@ export function formatTime(value: string | Date): string {
  minute: '2-digit',
  })
 }
+
+/** Alias: S/ amount, es-PE, 2 decimals. Use instead of local formatPEN/money copies. */
+export const formatPEN = (v: number): string =>
+ `S/ ${Number(v || 0).toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+export function formatDateTime(value: string | Date): string {
+ return `${formatDate(value)} ${formatTime(value)}`
+}

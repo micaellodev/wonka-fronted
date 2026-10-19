@@ -3,15 +3,15 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "main": "electron/main.js",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "tauri": "tauri",
     "electron:dev": "vite build && electron .",
-    "electron:build": "vite build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win"
+    "electron:build": "vite build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --publish never",
+    "electron:release": "node scripts/release.mjs"
   },
   "build": {
     "appId": "com.renzowonka.pos",
@@ -29,8 +29,9 @@
     },
     "forceCodeSigning": false,
     "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
       "installerIcon": "icon.ico",
       "uninstallerIcon": "icon.ico"
     }
@@ -39,14 +40,10 @@
     "@base-ui/react": "^1.3.0",
     "@elysiajs/eden": "^1.4.8",
     "@fontsource-variable/geist": "^5.2.8",
-    "@tauri-apps/api": "^2.10.1",
-    "@tauri-apps/cli": "^2.10.1",
-    "@tauri-apps/plugin-process": "^2.3.1",
-    "@tauri-apps/plugin-updater": "^2.10.0",
-    "@tauri-apps/plugin-window": "^2.0.0-alpha.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "electron-updater": "^6.8.9",
     "elysia": "^1.4.27",
     "lucide-react": "^0.577.0",
     "react": "^19.2.0",

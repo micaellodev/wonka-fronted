@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { CheckCircle2, XCircle, Receipt, Loader2 } from 'lucide-react'
 import { api } from '@/lib/api'
+import { apiErrorMessage } from '@/lib/api-error'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PinPad } from '@/components/PinPad'
@@ -34,8 +36,46 @@ interface VoidRequest {
  creditNoteCorrelativo: string | null
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const apiErrorMessage = (e: any): string => e?.value?.message ?? e?.value?.error ?? 'Error de conexión'
+function VoidPinDialog({ open, title, prompt, request, label, resultMessage, processing, pinError, onPin, onClose }: {
+ open: boolean
+ title: string
+ prompt: string
+ request: VoidRequest | null
+ label: (s: VoidRequest['sale']) => string
+ resultMessage: string | null
+ processing: boolean
+ pinError: string | null
+ onPin: (pin: string) => void
+ onClose: () => void
+}) {
+ return (
+ <Dialog open={open} onOpenChange={(o) => !o && !processing && onClose()}>
+ <DialogContent size="md" showCloseButton={!processing}>
+ <DialogHeader>
+ <DialogTitle>{title}</DialogTitle>
+ <DialogDescription>{request ? `${label(request.sale)} — ${formatCurrency(request.sale.total)} · Motivo: ${request.reason}` : ''}</DialogDescription>
+ </DialogHeader>
+ {resultMessage ? (
+ <div role="status" className={`rounded-lg px-4 py-3 text-center text-sm ${resultMessage.startsWith('Error') ? 'bg-danger-soft text-destructive' : 'bg-success-soft text-success'}`}>
+ {resultMessage}
+ </div>
+ ) : (
+ <>
+ <p className="text-center text-sm text-muted-foreground">{prompt}</p>
+ <PinPad onComplete={onPin} disabled={processing} hasError={!!pinError} length={6} />
+ {pinError && <p role="alert" className="text-center text-sm text-destructive">{pinError}</p>}
+ {processing && (
+ <div className="flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-primary" aria-label="Procesando" /></div>
+ )}
+ </>
+ )}
+ <DialogFooter>
+ <Button variant="outline" className="w-full" onClick={onClose} disabled={processing}>Cerrar</Button>
+ </DialogFooter>
+ </DialogContent>
+ </Dialog>
+ )
+}
 
 export function ApprovalsScreen() {
  const { activeWorker, tenantId } = useAuthStore()
@@ -60,7 +100,7 @@ export function ApprovalsScreen() {
  if (error) throw error
  setRequests((data?.data as VoidRequest[]) ?? [])
  } catch (err) {
- setLoadError(apiErrorMessage(err))
+ setLoadError(apiErrorMessage(err, 'Error de conexión'))
  } finally {
  setLoading(false)
  }
@@ -84,7 +124,7 @@ export function ApprovalsScreen() {
  })
 
  if (error) {
- setPinError(apiErrorMessage(error))
+ setPinError(apiErrorMessage(error, 'Error de conexión'))
  return
  }
 
@@ -103,7 +143,7 @@ export function ApprovalsScreen() {
  fetchRequests()
  }, 2000)
  } catch (err) {
- setPinError(apiErrorMessage(err))
+ setPinError(apiErrorMessage(err, 'Error de conexión'))
  } finally {
  setProcessing(false)
  }
@@ -123,7 +163,7 @@ export function ApprovalsScreen() {
  })
 
  if (error) {
- setRejectPinError(apiErrorMessage(error))
+ setRejectPinError(apiErrorMessage(error, 'Error de conexión'))
  return
  }
 
@@ -134,7 +174,7 @@ export function ApprovalsScreen() {
  fetchRequests()
  }, 1500)
  } catch (err) {
- setRejectPinError(apiErrorMessage(err))
+ setRejectPinError(apiErrorMessage(err, 'Error de conexión'))
  } finally {
  setRejectProcessing(false)
  }
@@ -157,43 +197,43 @@ export function ApprovalsScreen() {
  {/* Content */}
  {loading ? (
  <div className="space-y-4">
- <Skeleton className="h-24 rounded-xl bg-white" />
- <Skeleton className="h-24 rounded-xl bg-white" />
+ <Skeleton className="h-24 rounded-xl bg-muted" />
+ <Skeleton className="h-24 rounded-xl bg-muted" />
  </div>
  ) : loadError ? (
- <Card className="bg-white border-gray-200 rounded-xl">
+ <Card className="bg-card border-border rounded-xl">
  <CardContent className="py-12 text-center space-y-3">
  <p className="text-destructive">No se pudieron cargar las solicitudes: {loadError}</p>
  <Button variant="outline" onClick={() => { setLoading(true); fetchRequests() }}>Reintentar</Button>
  </CardContent>
  </Card>
  ) : requests.length === 0 ? (
- <Card className="bg-white border-gray-200 rounded-xl">
+ <Card className="bg-card border-border rounded-xl">
  <CardContent className="py-12 text-center">
- <Receipt className="w-12 h-12 mx-auto text-gray-500 mb-3" />
- <p className="text-gray-500">No hay solicitudes de anulación pendientes.</p>
+ <Receipt aria-hidden className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+ <p className="text-muted-foreground">No hay solicitudes de anulación pendientes.</p>
  </CardContent>
  </Card>
  ) : (
  <div className="space-y-4">
  {requests.map((request) => (
- <Card key={request.id} className="bg-white border-gray-200 rounded-xl">
+ <Card key={request.id} className="bg-card border-border rounded-xl">
  <CardContent className="p-5">
  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
  <div className="space-y-1">
  <div className="flex items-center gap-2">
  <Badge variant="warning">Pendiente</Badge>
- <span className="text-sm text-gray-500">
+ <span className="text-sm text-muted-foreground">
  {formatTime(request.requestedAt)}
  </span>
  </div>
  <p className="text-lg font-semibold">
  {saleLabel(request.sale)} — {formatCurrency(request.sale.total)}
  </p>
- <p className="text-sm text-gray-500">
+ <p className="text-sm text-muted-foreground">
  Cajero: {request.requester.name} · Motivo: {request.reason}
  </p>
- <p className="text-xs text-gray-400">
+ <p className="text-xs text-muted-foreground">
  {request.sale.items
  .map((item) => `${item.qty}x ${item.product.name}`)
  .join(', ')}
@@ -213,7 +253,7 @@ export function ApprovalsScreen() {
  Rechazar
  </Button>
  <Button
- className="bg-secondary-500 hover:bg-secondary-600"
+ className="bg-success text-success-foreground hover:bg-success/90"
  onClick={() => {
  setSelectedRequest(request)
  setPinError(null)
@@ -231,133 +271,30 @@ export function ApprovalsScreen() {
  </div>
  )}
 
- {/* Approval modal */}
- {selectedRequest && (
- <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/80 p-4">
- <Card className="w-full max-w-md bg-white border-gray-200 rounded-xl">
- <CardHeader>
- <CardTitle className="text-center text-lg">
- Aprobar anulación
- </CardTitle>
- </CardHeader>
- <CardContent className="space-y-6">
- <div className="text-center text-sm text-gray-500">
- <p className="font-medium text-gray-700">
- {saleLabel(selectedRequest.sale)} — {formatCurrency(selectedRequest.sale.total)}
- </p>
- <p>Motivo: {selectedRequest.reason}</p>
- </div>
-
- {resultMessage ? (
- <div className="rounded-lg bg-secondary-500/20 text-secondary-500 px-4 py-3 text-center text-sm">
- {resultMessage}
- </div>
- ) : (
- <>
- <p className="text-center text-sm text-gray-500">
- Ingrese el código de aprobación del dueño para confirmar
- </p>
- <PinPad
- onComplete={handleApprove}
- disabled={processing}
- hasError={!!pinError}
- length={6}
+ <VoidPinDialog
+ open={!!selectedRequest}
+ title="Aprobar anulación"
+ prompt="Ingrese el código de aprobación del dueño para confirmar"
+ request={selectedRequest}
+ label={saleLabel}
+ resultMessage={resultMessage}
+ processing={processing}
+ pinError={pinError}
+ onPin={handleApprove}
+ onClose={() => { setSelectedRequest(null); setPinError(null); setResultMessage(null) }}
  />
- {pinError && (
- <p className="text-center text-sm text-brand-500">{pinError}</p>
- )}
- {processing && (
- <div className="flex justify-center">
- <Loader2 className="w-5 h-5 animate-spin text-brand-500" />
- </div>
- )}
- </>
- )}
-
- <Button
- variant="outline"
- className="w-full"
- onClick={() => {
- if (!processing) {
- setSelectedRequest(null)
- setPinError(null)
- setResultMessage(null)
- }
- }}
- disabled={processing}
- >
- Cerrar
- </Button>
- </CardContent>
- </Card>
- </div>
- )}
-
- {/* Reject modal */}
- {rejectingRequest && (
- <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/80 p-4">
- <Card className="w-full max-w-md bg-white border-gray-200 rounded-xl">
- <CardHeader>
- <CardTitle className="text-center text-lg">
- Rechazar anulación
- </CardTitle>
- </CardHeader>
- <CardContent className="space-y-6">
- <div className="text-center text-sm text-gray-500">
- <p className="font-medium text-gray-700">
- {saleLabel(rejectingRequest.sale)} — {formatCurrency(rejectingRequest.sale.total)}
- </p>
- <p>Motivo: {rejectingRequest.reason}</p>
- </div>
-
- {rejectResultMessage && rejectResultMessage.startsWith('Error') ? (
- <div className="rounded-lg bg-danger-soft text-destructive px-4 py-3 text-center text-sm">
- {rejectResultMessage}
- </div>
- ) : rejectResultMessage ? (
- <div className="rounded-lg bg-secondary-500/20 text-secondary-500 px-4 py-3 text-center text-sm">
- {rejectResultMessage}
- </div>
- ) : (
- <>
- <p className="text-center text-sm text-gray-500">
- Ingrese el código de aprobación del dueño para confirmar el rechazo
- </p>
- <PinPad
- onComplete={handleRejectConfirm}
- disabled={rejectProcessing}
- hasError={!!rejectPinError}
- length={6}
+ <VoidPinDialog
+ open={!!rejectingRequest}
+ title="Rechazar anulación"
+ prompt="Ingrese el código de aprobación del dueño para confirmar el rechazo"
+ request={rejectingRequest}
+ label={saleLabel}
+ resultMessage={rejectResultMessage}
+ processing={rejectProcessing}
+ pinError={rejectPinError}
+ onPin={handleRejectConfirm}
+ onClose={() => { setRejectingRequest(null); setRejectPinError(null); setRejectResultMessage(null) }}
  />
- {rejectPinError && (
- <p className="text-center text-sm text-brand-500">{rejectPinError}</p>
- )}
- {rejectProcessing && (
- <div className="flex justify-center">
- <Loader2 className="w-5 h-5 animate-spin text-brand-500" />
- </div>
- )}
- </>
- )}
-
- <Button
- variant="outline"
- className="w-full"
- onClick={() => {
- if (!rejectProcessing) {
- setRejectingRequest(null)
- setRejectPinError(null)
- setRejectResultMessage(null)
- }
- }}
- disabled={rejectProcessing}
- >
- Cerrar
- </Button>
- </CardContent>
- </Card>
- </div>
- )}
  </div>
  )
 }

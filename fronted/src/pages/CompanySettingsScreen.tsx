@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
-import { Save, Building2, AlertCircle, X } from 'lucide-react'
+import { Save, Building2, AlertCircle } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 import { PinPad } from '@/components/PinPad'
 
 // ============================================================
@@ -22,6 +25,7 @@ interface TenantSettings {
  nombreComercial: string | null
  direccion: string | null
  ubigeo: string | null
+ receiptFooter: string | null
  hasApisperuToken: boolean
  apisperuUrl: string | null
  igvRate: number
@@ -45,6 +49,7 @@ const emptySettings: TenantSettings = {
  nombreComercial: '',
  direccion: '',
  ubigeo: '',
+ receiptFooter: '',
  hasApisperuToken: false,
  apisperuUrl: DEFAULT_APISPERU_URL,
  igvRate: 18,
@@ -114,6 +119,7 @@ export function CompanySettingsScreen() {
  nombreComercial: settings.nombreComercial,
  direccion: settings.direccion,
  ubigeo: settings.ubigeo,
+ receiptFooter: settings.receiptFooter ?? '',
  ...(apisperuTokenInput.trim() ? { apisperuToken: apisperuTokenInput.trim() } : {}),
  apisperuUrl: settings.apisperuUrl,
  igvRate: Number(settings.igvRate),
@@ -184,14 +190,14 @@ export function CompanySettingsScreen() {
 
  {loading ? (
  <div className="space-y-4">
- <Skeleton className="h-12 rounded-xl bg-white" />
- <Skeleton className="h-12 rounded-xl bg-white" />
- <Skeleton className="h-12 rounded-xl bg-white" />
+ <Skeleton className="h-12 rounded-xl bg-background" />
+ <Skeleton className="h-12 rounded-xl bg-background" />
+ <Skeleton className="h-12 rounded-xl bg-background" />
  </div>
  ) : (
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
  {/* Company data */}
- <Card className="bg-white border-gray-200 rounded-xl">
+ <Card className="bg-background border-border rounded-xl">
  <CardHeader>
  <CardTitle className="flex items-center gap-2 text-base">
  <Building2 className="w-5 h-5 text-brand-500" />
@@ -201,66 +207,76 @@ export function CompanySettingsScreen() {
  <CardContent className="space-y-4">
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
  <div className="space-y-1.5">
- <label className="text-xs font-medium text-gray-500">RUC</label>
+ <Label className="text-xs text-muted-foreground">RUC</Label>
  <Input
  value={settings.ruc ?? ''}
  onChange={(e) => handleChange('ruc', e.target.value)}
  placeholder="20123456789"
- className="bg-gray-50 border-gray-200"
+ className="bg-muted border-border"
  />
  </div>
  <div className="space-y-1.5">
- <label className="text-xs font-medium text-gray-500">Nombre comercial</label>
+ <Label className="text-xs text-muted-foreground">Nombre comercial</Label>
  <Input
  value={settings.nombreComercial ?? ''}
  onChange={(e) => handleChange('nombreComercial', e.target.value)}
  placeholder="Mi Tienda"
- className="bg-gray-50 border-gray-200"
+ className="bg-muted border-border"
  />
  </div>
  </div>
  <div className="space-y-1.5">
- <label className="text-xs font-medium text-gray-500">Razón social</label>
+ <Label className="text-xs text-muted-foreground">Razón social</Label>
  <Input
  value={settings.razonSocial ?? ''}
  onChange={(e) => handleChange('razonSocial', e.target.value)}
  placeholder="EMPRESA SAC"
- className="bg-gray-50 border-gray-200"
+ className="bg-muted border-border"
  />
  </div>
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
  <div className="space-y-1.5">
- <label className="text-xs font-medium text-gray-500">Dirección fiscal</label>
+ <Label className="text-xs text-muted-foreground">Dirección fiscal</Label>
  <Input
  value={settings.direccion ?? ''}
  onChange={(e) => handleChange('direccion', e.target.value)}
  placeholder="Av. Principal 123"
- className="bg-gray-50 border-gray-200"
+ className="bg-muted border-border"
  />
  </div>
  <div className="space-y-1.5">
- <label className="text-xs font-medium text-gray-500">Ubigeo</label>
+ <Label className="text-xs text-muted-foreground">Ubigeo</Label>
  <Input
  value={settings.ubigeo ?? ''}
  onChange={(e) => handleChange('ubigeo', e.target.value)}
  placeholder="150101"
- className="bg-gray-50 border-gray-200"
+ className="bg-muted border-border"
  />
  </div>
+ </div>
+ <div className="space-y-1.5">
+ <Label className="text-xs text-muted-foreground">Pie del recibo (vacío = texto por defecto)</Label>
+ <Textarea
+ value={settings.receiptFooter ?? ''}
+ onChange={(e) => handleChange('receiptFooter', e.target.value)}
+ maxLength={300}
+ rows={2}
+ className="bg-muted border-border"
+ />
  </div>
  </CardContent>
  </Card>
 
  {/* APISPeru */}
- <Card className="bg-white border-gray-200 rounded-xl">
+ <Card className="bg-background border-border rounded-xl">
  <CardHeader>
  <CardTitle className="text-base">APISPeru</CardTitle>
  </CardHeader>
  <CardContent className="space-y-4">
- <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3">
+ <div className="flex items-center justify-between rounded-lg border border-border bg-muted p-3">
  <div>
- <p className="text-sm font-medium text-gray-700">Facturación electrónica</p>
- <p className="text-xs text-gray-400">
+ <p className="text-sm font-medium text-foreground">Facturación electrónica</p>
+ <p className="text-xs text-muted-foreground">
  {settings.electronicInvoicingEnabled
  ? 'Emisión a SUNAT habilitada'
  : 'Solo tickets internos; sin envío a SUNAT'}
@@ -271,67 +287,67 @@ export function CompanySettingsScreen() {
  onClick={() => handleChange('electronicInvoicingEnabled', !settings.electronicInvoicingEnabled)}
  className={cn(
  'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
- settings.electronicInvoicingEnabled ? 'bg-primary' : 'bg-gray-200'
+ settings.electronicInvoicingEnabled ? 'bg-primary' : 'bg-muted'
  )}
  aria-label="Activar facturación electrónica"
  >
  <span
  className={cn(
- 'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+ 'inline-block h-4 w-4 transform rounded-full bg-background transition-transform',
  settings.electronicInvoicingEnabled ? 'translate-x-6' : 'translate-x-1'
  )}
  />
  </button>
  </div>
  <div className="space-y-1.5">
- <label className="text-xs font-medium text-gray-500">Token APISPeru</label>
+ <Label className="text-xs text-muted-foreground">Token APISPeru</Label>
  <Input
  type="password"
  value={apisperuTokenInput}
  onChange={(e) => setApisperuTokenInput(e.target.value)}
  placeholder={settings.hasApisperuToken ? '•••••••• configurado' : 'No configurado'}
- className="bg-gray-50 border-gray-200"
+ className="bg-muted border-border"
  />
- <p className="text-xs text-gray-400">
+ <p className="text-xs text-muted-foreground">
  {settings.hasApisperuToken
  ? 'Token configurado. Déjalo en blanco para no cambiarlo.'
  : 'Sin token solo se podrán emitir tickets internos.'}
  </p>
  </div>
  <div className="space-y-1.5">
- <label className="text-xs font-medium text-gray-500">URL APISPeru</label>
+ <Label className="text-xs text-muted-foreground">URL APISPeru</Label>
  <Input
  value={settings.apisperuUrl ?? ''}
  onChange={(e) => handleChange('apisperuUrl', e.target.value)}
  placeholder={DEFAULT_APISPERU_URL}
- className="bg-gray-50 border-gray-200"
+ className="bg-muted border-border"
  />
  </div>
  </CardContent>
  </Card>
 
  {/* Fiscal settings */}
- <Card className="bg-white border-gray-200 rounded-xl">
+ <Card className="bg-background border-border rounded-xl">
  <CardHeader>
  <CardTitle className="text-base">Configuración fiscal</CardTitle>
  </CardHeader>
  <CardContent className="space-y-4">
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
  <div className="space-y-1.5">
- <label className="text-xs font-medium text-gray-500">Tasa IGV (%)</label>
+ <Label className="text-xs text-muted-foreground">Tasa IGV (%)</Label>
  <Input
  type="number"
  value={settings.igvRate}
  onChange={(e) => handleChange('igvRate', Number(e.target.value))}
- className="bg-gray-50 border-gray-200"
+ className="bg-muted border-border"
  />
  </div>
  <div className="space-y-1.5">
- <label className="text-xs font-medium text-gray-500">Régimen IGV default</label>
+ <Label className="text-xs text-muted-foreground">Régimen IGV default</Label>
  <select
  value={settings.defaultIgvRegime}
  onChange={(e) => handleChange('defaultIgvRegime', e.target.value)}
- className="w-full h-10 rounded-md border border-gray-200 bg-gray-50 px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+ className="w-full h-10 rounded-md border border-border bg-muted px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-brand-500"
  >
  <option value="GRAVADO">Gravado</option>
  <option value="GRAVADO_10_5">Gravado 10.5%</option>
@@ -347,9 +363,9 @@ export function CompanySettingsScreen() {
  id="pricesIncludeIgv"
  checked={settings.pricesIncludeIgv}
  onChange={(e) => handleChange('pricesIncludeIgv', e.target.checked)}
- className="h-4 w-4 rounded border-gray-200 bg-gray-50 text-brand-500 focus:ring-brand-500"
+ className="h-4 w-4 rounded border-border bg-muted text-brand-500 focus:ring-brand-500"
  />
- <label htmlFor="pricesIncludeIgv" className="text-sm text-gray-600">
+ <label htmlFor="pricesIncludeIgv" className="text-sm text-muted-foreground">
  Los precios de productos incluyen IGV
  </label>
  </div>
@@ -360,42 +376,42 @@ export function CompanySettingsScreen() {
  </Card>
 
  {/* Series */}
- <Card className="bg-white border-gray-200 rounded-xl">
+ <Card className="bg-background border-border rounded-xl">
  <CardHeader>
  <CardTitle className="text-base">Series de comprobantes</CardTitle>
  </CardHeader>
  <CardContent className="space-y-4">
  <div className="grid grid-cols-2 gap-4">
  <div className="space-y-1.5">
- <label className="text-xs font-medium text-gray-500">Boleta</label>
+ <Label className="text-xs text-muted-foreground">Boleta</Label>
  <Input
  value={settings.serieBoleta}
  onChange={(e) => handleChange('serieBoleta', e.target.value)}
- className="bg-gray-50 border-gray-200"
+ className="bg-muted border-border"
  />
  </div>
  <div className="space-y-1.5">
- <label className="text-xs font-medium text-gray-500">Factura</label>
+ <Label className="text-xs text-muted-foreground">Factura</Label>
  <Input
  value={settings.serieFactura}
  onChange={(e) => handleChange('serieFactura', e.target.value)}
- className="bg-gray-50 border-gray-200"
+ className="bg-muted border-border"
  />
  </div>
  <div className="space-y-1.5">
- <label className="text-xs font-medium text-gray-500">Nota de crédito</label>
+ <Label className="text-xs text-muted-foreground">Nota de crédito</Label>
  <Input
  value={settings.serieNotaCredito}
  onChange={(e) => handleChange('serieNotaCredito', e.target.value)}
- className="bg-gray-50 border-gray-200"
+ className="bg-muted border-border"
  />
  </div>
  <div className="space-y-1.5">
- <label className="text-xs font-medium text-gray-500">Nota de débito</label>
+ <Label className="text-xs text-muted-foreground">Nota de débito</Label>
  <Input
  value={settings.serieNotaDebito}
  onChange={(e) => handleChange('serieNotaDebito', e.target.value)}
- className="bg-gray-50 border-gray-200"
+ className="bg-muted border-border"
  />
  </div>
  </div>
@@ -405,28 +421,19 @@ export function CompanySettingsScreen() {
  )}
 
  {/* Admin PIN confirmation modal */}
- {showAdminPinModal && (
- <div className="fixed inset-0 bg-gray-900/80 flex items-center justify-center p-4 z-50">
- <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-sm p-6 shadow-2xl flex flex-col gap-5">
- <div className="flex items-center justify-between">
- <h2 className="text-lg font-bold text-gray-900">PIN de Administrador</h2>
- <button
- onClick={() => { if (!saving) setShowAdminPinModal(false) }}
- className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-200 rounded-xl transition-colors"
- >
- <X className="w-5 h-5" />
- </button>
- </div>
- <p className="text-center text-sm text-gray-500">
+
+<Dialog open={showAdminPinModal} onOpenChange={(o) => { if (!o && !saving) setShowAdminPinModal(false) }}>
+ <DialogContent size="sm" className="gap-5">
+ <DialogHeader><DialogTitle className="text-lg font-bold">PIN de Administrador</DialogTitle></DialogHeader>
+ <p className="text-center text-sm text-muted-foreground">
  Ingresa el PIN de un administrador (5 dígitos) para guardar la configuración.
  </p>
  <PinPad onComplete={performSave} disabled={saving} hasError={adminPinError} />
  {adminPinError && message?.text && (
- <p className="text-center text-sm text-brand-500">{message.text}</p>
+ <p className="text-center text-sm text-destructive">{message.text}</p>
  )}
- </div>
- </div>
- )}
+ </DialogContent>
+ </Dialog>
  </div>
  )
 }

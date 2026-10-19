@@ -4,7 +4,7 @@ import { defineConfig } from '@playwright/test'
 export default defineConfig({
   testDir: './e2e',
   // integration.spec needs its own throwaway tenant: run it with playwright.integration.config.ts
-  testIgnore: 'integration.spec.ts',
+  testIgnore: ['integration.spec.ts', 'ui-keys.spec.ts', 'roles.spec.ts', 'shifts.spec.ts'],
   timeout: 60_000,
   expect: { timeout: 8_000 },
   workers: 1,

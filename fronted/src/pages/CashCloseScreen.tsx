@@ -1,21 +1,20 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  Printer,
-  Inbox,
-  HelpCircle,
-  Loader2,
-  X,
-  CheckCircle2,
-  Lock,
-} from 'lucide-react'
+import { Printer, Inbox, Loader2 } from 'lucide-react'
 import { api } from '@/lib/api'
+import { apiErrorMessage } from '@/lib/api-error'
+import { formatPEN } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/authStore'
-import { useCashDrawerStore } from '@/store/cashDrawerStore'
+import { useCashStatusStore } from '@/store/cashStatusStore'
 import { TerminalShell } from '@/components/TerminalShell'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { PinPad } from '@/components/PinPad'
+import { toast } from '@/components/ui/toast'
+import { CountRow } from './cash-close/CountRow'
+import { PrintVoucherDialog } from './cash-close/PrintVoucherDialog'
+import { ApprovalDialog, CloseSuccessDialog } from './cash-close/ApprovalDialogs'
+import { formatSpanishDate, type CashCloseRecord } from './cash-close/helpers'
 
 // ============================================================
 // CashCloseScreen — Open Cash Register Dashboard & Close Flow
@@ -28,89 +27,49 @@ interface TenantSettings {
   nombreComercial: string | null
 }
 
-// Subset of the backend DaySummary (GET /cash/summary)
-interface ShiftSummary {
-  date: string
-  cashStatus: 'NO_ABIERTA' | 'ABIERTA' | 'PENDIENTE' | 'CERRADA'
-  opening: { amount: number; at: string; workerName: string } | null
-  sales: { count: number; total: number; byMethod: { efectivo: number; yape: number; tarjeta: number } }
-  voided: { count: number; total: number }
-  movements: { in: number; out: number; inCount: number; outCount: number }
-  expectedCash: number
-  cashInflow: number
-  close: { id: string; status: string; difference: number } | null
-}
+const cardCls = 'rounded-xl border border-border bg-card p-6 shadow-2xs'
+const theadCls = 'border-b border-border text-xs font-medium text-muted-foreground'
+const tbodyCls = 'divide-y divide-border text-foreground'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const apiErrorMessage = (e: any): string => e?.value?.message ?? e?.value?.error ?? 'Error de conexión'
-
-interface CashCloseRecord {
-  id: string
-  openingBalance: number
-  totalSales: number
-  expectedEfectivo: number
-  expectedYape: number
-  expectedTarjeta: number
-  expectedUnknown: number
-  totalExpected: number
-  countedCash: number
-  difference: number
-  status: string
-  closedDate: string
-}
-
-function formatSpanishDate(isoDate: string | null): string {
-  const d = isoDate ? new Date(isoDate) : new Date()
-  const days = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
-  const months = [
-    'enero',
-    'febrero',
-    'marzo',
-    'abril',
-    'mayo',
-    'junio',
-    'julio',
-    'agosto',
-    'septiembre',
-    'octubre',
-    'noviembre',
-    'diciembre',
-  ]
-  const dayName = days[d.getDay()]
-  const dayNum = d.getDate()
-  const monthName = months[d.getMonth()]
-  const year = d.getFullYear()
-  const hours = String(d.getHours()).padStart(2, '0')
-  const mins = String(d.getMinutes()).padStart(2, '0')
-  return `${dayName} ${dayNum} ${monthName} ${year}, ${hours}:${mins}`
-}
-
-function formatPEN(val: number): string {
-  return `S/ ${Number(val || 0).toLocaleString('es-PE', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`
+function SimpleTable({ rows }: { rows: { label: string; qty: number | string; amount: string }[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[320px] text-left text-xs">
+        <thead>
+          <tr className={theadCls}>
+            <th className="w-[50%] pb-3"><span className="sr-only">Concepto</span></th>
+            <th className="w-[25%] pb-3">Cantidad</th>
+            <th className="w-[25%] pb-3">Monto</th>
+          </tr>
+        </thead>
+        <tbody className={tbodyCls}>
+          {rows.map((r) => (
+            <tr key={r.label} className="h-10">
+              <th scope="row" className="py-2.5 text-left font-medium">{r.label}</th>
+              <td className="py-2.5">{r.qty}</td>
+              <td className="py-2.5">{r.amount}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
 }
 
 export function CashCloseScreen() {
   const navigate = useNavigate()
   const { tenantId, activeWorker, logout } = useAuthStore()
-  const { openedAt: cachedOpenedAt, clearOpening } = useCashDrawerStore()
+  const { summary, error: summaryError, refresh } = useCashStatusStore()
 
-  // State
   const [currencyTab, setCurrencyTab] = useState<'soles' | 'dolares'>('soles')
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const [settingsError, setSettingsError] = useState<string | null>(null)
   const [tenantSettings, setTenantSettings] = useState<TenantSettings | null>(null)
-  const [summary, setSummary] = useState<ShiftSummary | null>(null)
 
   // User input counts (empty = counted equals expected)
   const [countedEfectivo, setCountedEfectivo] = useState<string>('')
   const [countedYape, setCountedYape] = useState<string>('')
   const [countedTarjeta, setCountedTarjeta] = useState<string>('')
 
-  // UI feedback & modals
-  const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [showCloseModal, setShowCloseModal] = useState(false)
   const [showPrintModal, setShowPrintModal] = useState(false)
   const [pendingClose, setPendingClose] = useState<CashCloseRecord | null>(null)
@@ -119,63 +78,51 @@ export function CashCloseScreen() {
   const [approving, setApproving] = useState(false)
   const [successClose, setSuccessClose] = useState(false)
 
-  // Redirect if not logged in
   useEffect(() => {
-    if (!activeWorker) {
-      navigate('/')
-    }
+    if (!activeWorker) navigate('/')
   }, [activeWorker, navigate])
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg)
-    setTimeout(() => setToastMessage(null), 3000)
-  }
-
-  // All totals come from the backend (GET /cash/summary): today's Lima day,
-  // CANCELLED sales excluded, opening + manual movements read from the DB.
+  // Totals come from the shared cash store (GET /cash/summary, auto-refreshed); settings only name the business.
   const fetchData = useCallback(async () => {
     if (!tenantId) return
-    setLoading(true)
-    setLoadError(null)
+    setSettingsError(null)
     try {
-      const [settingsRes, summaryRes] = await Promise.all([
-        api.dashboard.settings.get({ query: { tenantId } }),
-        api.cash.summary.get({ query: { tenantId } }),
-      ])
-      if (settingsRes.data?.data) {
-        setTenantSettings(settingsRes.data.data as TenantSettings)
-      }
-      if (summaryRes.error) throw summaryRes.error
-      setSummary(summaryRes.data.data as ShiftSummary)
+      const { data, error } = await api.dashboard.settings.get({ query: { tenantId } })
+      if (error) throw error
+      if (data?.data) setTenantSettings(data.data as TenantSettings)
     } catch (err) {
-      setLoadError(apiErrorMessage(err))
-    } finally {
-      setLoading(false)
+      setSettingsError(apiErrorMessage(err, 'Error de conexión'))
     }
-  }, [tenantId])
+    await refresh(tenantId)
+  }, [tenantId, refresh])
 
   useEffect(() => {
     fetchData()
   }, [fetchData])
 
+  const loading = !summary && !summaryError
+  const loadError = summary ? null : summaryError ?? settingsError
+
   const currentOpening = summary?.opening?.amount ?? 0
-  const salesEfectivoTotal = summary?.sales.byMethod.efectivo ?? 0
-  const totalTransactions = summary?.sales.count ?? 0
-  const salesYapeTotal = summary?.sales.byMethod.yape ?? 0
-  const salesTarjetaTotal = summary?.sales.byMethod.tarjeta ?? 0
-  const totalNetSales = summary?.sales.total ?? 0
-  const cancelledCount = summary?.voided.count ?? 0
-  const cancelledAmount = summary?.voided.total ?? 0
+  // Todo lo que se cuadra es del TURNO actual (igual al día si hubo una sola apertura)
+  const shiftData = summary?.shift
+  const salesEfectivoTotal = shiftData?.sales.byMethod.efectivo ?? 0
+  const totalTransactions = shiftData?.sales.count ?? 0
+  const salesYapeTotal = shiftData?.sales.byMethod.yape ?? 0
+  const salesTarjetaTotal = shiftData?.sales.byMethod.tarjeta ?? 0
+  const totalNetSales = shiftData?.sales.total ?? 0
+  const cancelledCount = shiftData?.voided.count ?? 0
+  const cancelledAmount = shiftData?.voided.total ?? 0
   const totalCashIngresos = summary?.cashInflow ?? 0
-  const totalCashSalidas = summary?.movements.out ?? 0
+  const totalCashSalidas = shiftData?.movements.out ?? 0
   const expectedEfectivo = summary?.expectedCash ?? 0
+  const usdIn = shiftData?.movements.inUSD ?? 0
+  const usdOut = shiftData?.movements.outUSD ?? 0
 
   const valCountedEfectivo = countedEfectivo !== '' ? Number(countedEfectivo) : expectedEfectivo
   const diffEfectivo = valCountedEfectivo - expectedEfectivo
-
   const valCountedYape = countedYape !== '' ? Number(countedYape) : salesYapeTotal
   const diffYape = valCountedYape - salesYapeTotal
-
   const valCountedTarjeta = countedTarjeta !== '' ? Number(countedTarjeta) : salesTarjetaTotal
   const diffTarjeta = valCountedTarjeta - salesTarjetaTotal
 
@@ -184,23 +131,19 @@ export function CashCloseScreen() {
     (v) => Number.isFinite(v) && v >= 0
   )
 
-  const cashInCount = summary?.movements.inCount ?? 0
-  const cashOutCount = summary?.movements.outCount ?? 0
-
-  // Handlers
   const handleOpenDrawer = () => {
     // shortcut: no cash-drawer hardware integration yet; only informs the user.
-    showToast('Gaveta de dinero abierta')
+    toast.info('Gaveta de dinero abierta')
   }
 
   const handleStartClose = async () => {
     if (!activeWorker || !tenantId) return
     if (!summary?.opening) {
-      showToast('La caja de hoy no tiene apertura registrada')
+      toast.error('La caja de hoy no tiene apertura registrada')
       return
     }
     if (!countsValid) {
-      showToast('Montos contados inválidos')
+      toast.error('Montos contados inválidos')
       return
     }
     setSubmittingClose(true)
@@ -214,10 +157,11 @@ export function CashCloseScreen() {
       })
       if (error) throw error
       setPendingClose(data.data as CashCloseRecord)
+      void refresh(tenantId)
       setShowCloseModal(true)
       setPinError(null)
     } catch (err) {
-      showToast(`Error al solicitar cierre: ${apiErrorMessage(err)}`)
+      toast.error(`Error al solicitar cierre: ${apiErrorMessage(err, 'Error de conexión')}`)
     } finally {
       setSubmittingClose(false)
     }
@@ -227,7 +171,6 @@ export function CashCloseScreen() {
     if (!pendingClose || !tenantId) return
     setApproving(true)
     setPinError(null)
-
     try {
       // The backend identifies the approving admin from the code (approval code or admin PIN)
       const { error } = await api.cash.close({ id: pendingClose.id }).approve.post({
@@ -235,602 +178,264 @@ export function CashCloseScreen() {
         approverCode: pin,
       })
       if (error) {
-        setPinError(apiErrorMessage(error))
+        setPinError(apiErrorMessage(error, 'Error de conexión'))
         return
       }
-
       setSuccessClose(true)
-      clearOpening()
-
+      void refresh(tenantId)
       setTimeout(() => {
         logout()
         navigate('/')
       }, 2000)
     } catch (err) {
-      setPinError(apiErrorMessage(err))
+      setPinError(apiErrorMessage(err, 'Error de conexión'))
     } finally {
       setApproving(false)
     }
   }
 
-  const companyTitle = `Caja ${tenantSettings?.nombreComercial || tenantSettings?.name || 'Emiliani Pizzas karaoke'}`
-  const companyLegal = tenantSettings?.razonSocial || 'EMILIANI PIZZAS Y PASTAS EMPRESA INDIVIDUAL DE RESPONSABILIDAD LIMITADA'
+  const companyTitle = `Caja ${tenantSettings?.nombreComercial || tenantSettings?.name || ''}`.trim()
+  const companyLegal = tenantSettings?.razonSocial ?? ''
   const openingTimeString = summary?.opening
     ? formatSpanishDate(summary.opening.at)
-    : cachedOpenedAt
-      ? formatSpanishDate(cachedOpenedAt)
-      : 'Sin apertura registrada'
+    : 'Sin apertura registrada'
+
+  const banner = {
+    SIN_DATOS: { tag: '...', sign: 'bg-muted-foreground', title: 'Estado de caja no disponible', text: 'Consultando al servidor...' },
+    NO_ABIERTA: { tag: 'CERRADO', sign: 'bg-muted-foreground', title: 'Caja no abierta', text: 'Registra la apertura para empezar a vender.' },
+    ABIERTA: { tag: 'ABIERTO', sign: 'bg-success', title: 'Caja Abierta', text: '¡Qué tengas un excelente día lleno de ventas!' },
+    PENDIENTE: { tag: 'PENDIENTE', sign: 'bg-warning', title: 'Cierre pendiente de aprobación', text: 'Esperando la aprobación de un administrador.' },
+    CERRADA: { tag: 'CERRADO', sign: 'bg-destructive', title: 'Caja Cerrada', text: 'El turno terminó. Puedes abrir un turno nuevo.' },
+  }[summary?.cashStatus ?? 'SIN_DATOS']
+
+  const tabCls = (active: boolean) =>
+    cn(
+      'relative pb-2.5 text-xs font-semibold transition-colors md:text-sm',
+      active ? 'border-b-2 border-success font-bold text-success' : 'text-muted-foreground hover:text-foreground'
+    )
+  const outlineBtn = 'h-10 gap-2 border-border bg-card px-4 text-xs font-semibold text-foreground shadow-2xs hover:bg-muted'
 
   return (
     <TerminalShell activeSection="cash-close">
-      <div className="flex min-h-full flex-col bg-gray-50/50 p-4 md:p-8 text-gray-900">
-        {/* Toast Alert */}
-        {toastMessage && (
-          <div className="fixed top-6 right-6 z-50 flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-xs text-white shadow-xl animate-fade-in">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            {toastMessage}
-          </div>
-        )}
-
+      <div className="flex min-h-full flex-col bg-muted/50 p-4 text-foreground md:p-8">
         {/* ── Top Header ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900">
-            Apertura y cierre de caja
-          </h1>
-
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              onClick={() => setShowPrintModal(true)}
-              className="bg-white border-gray-200 text-gray-700 hover:bg-gray-50 h-10 px-4 text-xs font-semibold gap-2 shadow-2xs"
-            >
-              <Printer className="w-4 h-4" />
-              Imprimir
+        <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Apertura y cierre de caja</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="outline" onClick={() => setShowPrintModal(true)} className={outlineBtn}>
+              <Printer className="h-4 w-4" aria-hidden /> Imprimir
             </Button>
-            <Button
-              variant="outline"
-              onClick={handleOpenDrawer}
-              className="bg-white border-gray-200 text-gray-700 hover:bg-gray-50 h-10 px-4 text-xs font-semibold gap-2 shadow-2xs"
-            >
-              <Inbox className="w-4 h-4" />
-              Abrir gaveta
+            {summary?.cashStatus === 'CERRADA' && (
+              <Button onClick={() => navigate('/cash-guard')} className="h-10 px-5 text-xs font-bold tracking-wide">
+                Abrir turno nuevo
+              </Button>
+            )}
+            <Button variant="outline" onClick={handleOpenDrawer} className={outlineBtn}>
+              <Inbox className="h-4 w-4" aria-hidden /> Abrir gaveta
             </Button>
             <Button
               onClick={handleStartClose}
               disabled={submittingClose || loading || !summary || !countsValid || !!summary.close}
-              className="bg-red-600 hover:bg-red-700 text-white h-10 px-5 text-xs font-bold tracking-wide shadow-2xs transition-colors"
+              className="h-10 bg-primary px-5 text-xs font-bold tracking-wide text-primary-foreground shadow-2xs transition-colors hover:bg-primary/90"
             >
-              {submittingClose ? (
-                <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-              ) : null}
+              {submittingClose ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden /> : null}
               Cerrar Caja
             </Button>
           </div>
         </div>
 
-        {/* ── Status Banner Card (Hanging Open Sign) ── */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 mb-6 shadow-2xs flex items-center gap-6">
-          {/* Hanging "ABIERTO" Sign */}
-          <div className="relative flex flex-col items-center select-none shrink-0">
-            {/* Hanging Cord & Pin SVG */}
+        {/* ── Status Banner Card: always reflects the backend cashStatus ── */}
+        <div className={cn(cardCls, 'mb-6 flex items-center gap-6')}>
+          <div className="relative flex shrink-0 select-none flex-col items-center" aria-hidden>
             <svg width="44" height="18" viewBox="0 0 44 18" className="overflow-visible">
-              <circle cx="22" cy="2" r="2.5" fill="#9ca3af" />
-              <circle cx="22" cy="2" r="1" fill="#4b5563" />
-              <line x1="22" y1="2" x2="6" y2="18" stroke="#d1d5db" strokeWidth="1.5" />
-              <line x1="22" y1="2" x2="38" y2="18" stroke="#d1d5db" strokeWidth="1.5" />
+              <circle cx="22" cy="2" r="2.5" className="fill-muted-foreground" />
+              <circle cx="22" cy="2" r="1" className="fill-foreground" />
+              <line x1="22" y1="2" x2="6" y2="18" className="stroke-border" strokeWidth="1.5" />
+              <line x1="22" y1="2" x2="38" y2="18" className="stroke-border" strokeWidth="1.5" />
             </svg>
-            <div className="bg-[#00c569] text-white font-extrabold text-xs tracking-wider px-3.5 py-1.5 rounded-sm shadow-xs">
-              ABIERTO
+            <div className={cn(banner.sign, 'rounded-sm px-3.5 py-1.5 text-xs font-extrabold tracking-wider text-primary-foreground shadow-xs')}>
+              {banner.tag}
             </div>
           </div>
 
           <div>
-            <h2 className="text-xl font-bold text-gray-900 tracking-tight">Caja Abierta</h2>
-            <p className="text-xs md:text-sm text-gray-400 mt-0.5">
-              ¡Qué tengas un excelente día lleno de ventas!
-            </p>
-            {loading && <p className="text-xs text-gray-400 mt-1">Cargando totales...</p>}
+            <h2 className="text-xl font-bold tracking-tight">{banner.title}</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground md:text-sm">{banner.text}</p>
+            {loading && <p className="mt-1 text-xs text-muted-foreground">Cargando totales...</p>}
             {loadError && (
-              <p className="text-xs text-red-600 mt-1">
+              <p role="alert" className="mt-1 text-xs text-destructive">
                 No se pudieron cargar los totales: {loadError}{' '}
                 <button className="underline" onClick={fetchData}>Reintentar</button>
               </p>
             )}
             {summary?.close && (
-              <p className="text-xs text-orange-600 mt-1">
-                Cierre de hoy {summary.close.status === 'APPROVED' ? 'aprobado' : 'pendiente de aprobación'} ·
-                diferencia {formatPEN(summary.close.difference)}..
+              <p className="mt-1 text-xs text-warning">
+                Cierre del turno {summary.close.status === 'APPROVED' ? 'aprobado' : 'pendiente de aprobación'} ·
+                diferencia {formatPEN(summary.close.difference)}
               </p>
             )}
           </div>
         </div>
 
         {/* ── Company Metadata & Key Totals Card ── */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 mb-6 shadow-2xs space-y-6">
-          {/* Row 1: Company info & Opening Details */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pb-6 border-b border-gray-100">
-            {/* Col 1 */}
+        <div className={cn(cardCls, 'mb-6 space-y-6')}>
+          <div className="grid grid-cols-1 gap-6 border-b border-border pb-6 sm:grid-cols-2 lg:grid-cols-3">
             <div>
-              <h3 className="text-sm font-bold text-gray-900">{companyTitle}</h3>
-              <p className="text-[11px] text-gray-400 font-medium uppercase mt-0.5 leading-snug">
-                {companyLegal}
-              </p>
+              <h3 className="text-sm font-bold">{companyTitle}</h3>
+              <p className="mt-0.5 text-[11px] font-medium uppercase leading-snug text-muted-foreground">{companyLegal}</p>
             </div>
-
-            {/* Col 2 */}
             <div>
-              <p className="text-xs text-gray-400 font-medium">Hora de apertura</p>
-              <p className="text-xs md:text-sm text-gray-700 font-medium mt-1">
-                {openingTimeString}
-              </p>
+              <p className="text-xs font-medium text-muted-foreground">Hora de apertura</p>
+              <p className="mt-1 text-xs font-medium md:text-sm">{openingTimeString}</p>
             </div>
-
-            {/* Col 3 */}
             <div>
-              <p className="text-xs text-gray-400 font-medium">Apertura de caja (S/)</p>
-              <p className="text-xs md:text-sm text-gray-700 font-medium mt-1">
-                {formatPEN(currentOpening)}
-              </p>
-            </div>
-
-            {/* Col 4 */}
-            <div>
-              <p className="text-xs text-gray-400 font-medium">Apertura de caja ($)</p>
-              <p className="text-xs md:text-sm text-gray-700 font-medium mt-1">$0.00</p>
+              <p className="text-xs font-medium text-muted-foreground">Apertura de caja (S/)</p>
+              <p className="mt-1 text-xs font-medium md:text-sm">{formatPEN(currentOpening)}</p>
             </div>
           </div>
 
-          {/* Row 2: Sales Totals & Metrics */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Metric 1 */}
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <div>
-              <p className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">
-                {formatPEN(currencyTab === 'soles' ? totalNetSales : 0)}
-              </p>
-              <p className="text-xs text-gray-500 font-medium mt-1">
-                Total de ventas neto soles
-              </p>
+              <p className="text-2xl font-black tracking-tight md:text-3xl">{formatPEN(totalNetSales)}</p>
+              <p className="mt-1 text-xs font-medium text-muted-foreground">Total de ventas neto soles</p>
               <span
-                className={`inline-block mt-2 px-2.5 py-0.5 text-xs font-semibold rounded ${
-                  diffEfectivo >= 0
-                    ? 'bg-emerald-50 text-emerald-700'
-                    : 'bg-red-50 text-red-700'
-                }`}
+                className={cn(
+                  'mt-2 inline-block rounded px-2.5 py-0.5 text-xs font-semibold',
+                  totalDifference >= 0 ? 'bg-success-soft text-success' : 'bg-danger-soft text-destructive'
+                )}
               >
-                {diffEfectivo >= 0 ? '+ ' : '- '}
-                {formatPEN(Math.abs(diffEfectivo))} de diferencia
+                {totalDifference >= 0 ? '+ ' : '- '}
+                {formatPEN(Math.abs(totalDifference))} de diferencia
               </span>
             </div>
-
-            {/* Metric 2 */}
             <div>
-              <p className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">
-                $0.00
-              </p>
-              <p className="text-xs text-gray-500 font-medium mt-1">
-                Total de ventas neto dólares
-              </p>
-              <span className="inline-block mt-2 px-2.5 py-0.5 text-xs font-semibold bg-emerald-50 text-emerald-700 rounded">
-                + $0.00 de diferencia
-              </span>
-            </div>
-
-            {/* Metric 3 */}
-            <div>
-              <p className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">
-                {totalTransactions}
-              </p>
-              <p className="text-xs text-gray-500 font-medium mt-1">Transacciones</p>
+              <p className="text-2xl font-black tracking-tight md:text-3xl">{totalTransactions}</p>
+              <p className="mt-1 text-xs font-medium text-muted-foreground">Transacciones</p>
             </div>
           </div>
         </div>
 
         {/* ── Currency Tabs (Centered) ── */}
-        <div className="flex justify-center mb-6">
-          <div className="flex items-center gap-8 border-b border-gray-200 px-6">
-            <button
-              onClick={() => setCurrencyTab('soles')}
-              className={`pb-2.5 text-xs md:text-sm font-semibold transition-colors relative ${
-                currencyTab === 'soles'
-                  ? 'text-emerald-700 font-bold border-b-2 border-emerald-500'
-                  : 'text-gray-500 hover:text-gray-900'
-              }`}
-            >
+        <div className="mb-6 flex justify-center">
+          <div role="tablist" aria-label="Moneda" className="flex items-center gap-8 border-b border-border px-6">
+            <button role="tab" aria-selected={currencyTab === 'soles'} onClick={() => setCurrencyTab('soles')} className={tabCls(currencyTab === 'soles')}>
               Soles
             </button>
-            <button
-              onClick={() => setCurrencyTab('dolares')}
-              className={`pb-2.5 text-xs md:text-sm font-semibold transition-colors relative ${
-                currencyTab === 'dolares'
-                  ? 'text-emerald-700 font-bold border-b-2 border-emerald-500'
-                  : 'text-gray-500 hover:text-gray-900'
-              }`}
-            >
+            <button role="tab" aria-selected={currencyTab === 'dolares'} onClick={() => setCurrencyTab('dolares')} className={tabCls(currencyTab === 'dolares')}>
               Dólares
             </button>
           </div>
         </div>
 
         {/* ── Main Data Sections ── */}
-        <div className="space-y-6">
-          {/* Section 1: Resultados de turno por método de pago */}
-          <Card className="rounded-xl border border-gray-200 bg-white p-6 shadow-2xs">
-            <h3 className="text-sm font-bold text-gray-800 mb-4">
-              Resultados de turno por método de pago
-            </h3>
-
-            <div className="overflow-x-auto">
-              {/* Cash Table */}
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-gray-100 text-gray-400 font-medium">
-                    <th className="pb-3 w-[24%]">-</th>
-                    <th className="pb-3 w-[16%]">Ventas + ingresos</th>
-                    <th className="pb-3 w-[16%]">Anulaciones + salidas</th>
-                    <th className="pb-3 w-[16%]">Monto esperado</th>
-                    <th className="pb-3 w-[14%]">Monto contado</th>
-                    <th className="pb-3 w-[14%]">Diferencia</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50 text-gray-700">
-                  <tr className="h-14">
-                    <td className="py-3 font-medium flex items-center gap-1">
-                      <span>Efectivo en caja</span>
-                      <HelpCircle className="w-3.5 h-3.5 text-gray-400 inline cursor-help" />
-                    </td>
-                    <td className="py-3">
-                      <span>{formatPEN(totalCashIngresos)}</span>
-                      <HelpCircle className="w-3.5 h-3.5 text-gray-400 inline ml-1 cursor-help" />
-                    </td>
-                    <td className="py-3">
-                      <span>
-                        {totalCashSalidas > 0 ? `-` : ''}
-                        {formatPEN(totalCashSalidas)}
-                      </span>
-                      <HelpCircle className="w-3.5 h-3.5 text-gray-400 inline ml-1 cursor-help" />
-                    </td>
-                    <td className="py-3 font-medium">{formatPEN(expectedEfectivo)}</td>
-                    <td className="py-3">
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={countedEfectivo}
-                        onChange={(e) => setCountedEfectivo(e.target.value)}
-                        placeholder="0.00"
-                        className="w-28 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </td>
-                    <td
-                      className={`py-3 font-semibold ${
-                        diffEfectivo >= 0 ? 'text-emerald-700' : 'text-red-600'
-                      }`}
-                    >
-                      {formatPEN(diffEfectivo)}
-                    </td>
-                  </tr>
-                  <tr className="h-12 text-gray-500">
-                    <td className="py-3">Redondeo total por vueltos</td>
-                    <td className="py-3">S/ 0.00</td>
-                    <td className="py-3">S/ 0.00</td>
-                    <td className="py-3">S/ 0.00</td>
-                    <td className="py-3">-</td>
-                    <td className="py-3">-</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* Divider */}
-              <div className="border-t border-gray-100 my-4" />
-
-              {/* Digital Methods Table */}
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-gray-100 text-gray-400 font-medium">
-                    <th className="pb-3 w-[24%]">-</th>
-                    <th className="pb-3 w-[16%]">Ventas</th>
-                    <th className="pb-3 w-[16%]">Anulaciones</th>
-                    <th className="pb-3 w-[16%]">Monto esperado</th>
-                    <th className="pb-3 w-[14%]">Monto contado</th>
-                    <th className="pb-3 w-[14%]">Diferencia</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50 text-gray-700">
-                  {/* QR YAPE */}
-                  <tr className="h-14">
-                    <td className="py-3 font-medium">QR YAPE</td>
-                    <td className="py-3">{formatPEN(salesYapeTotal)}</td>
-                    <td className="py-3">S/ 0.00</td>
-                    <td className="py-3 font-medium">{formatPEN(salesYapeTotal)}</td>
-                    <td className="py-3">
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={countedYape}
-                        onChange={(e) => setCountedYape(e.target.value)}
-                        placeholder="0.00"
-                        className="w-28 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </td>
-                    <td
-                      className={`py-3 font-semibold ${
-                        diffYape >= 0 ? 'text-emerald-700' : 'text-red-600'
-                      }`}
-                    >
-                      {formatPEN(diffYape)}
-                    </td>
-                  </tr>
-
-                  {/* Tarjeta */}
-                  <tr className="h-14">
-                    <td className="py-3 font-medium">Tarjeta</td>
-                    <td className="py-3">{formatPEN(salesTarjetaTotal)}</td>
-                    <td className="py-3">S/ 0.00</td>
-                    <td className="py-3 font-medium">{formatPEN(salesTarjetaTotal)}</td>
-                    <td className="py-3">
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={countedTarjeta}
-                        onChange={(e) => setCountedTarjeta(e.target.value)}
-                        placeholder="0.00"
-                        className="w-28 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </td>
-                    <td
-                      className={`py-3 font-semibold ${
-                        diffTarjeta >= 0 ? 'text-emerald-700' : 'text-red-600'
-                      }`}
-                    >
-                      {formatPEN(diffTarjeta)}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+        {currencyTab === 'dolares' ? (
+          <Card className={cardCls}>
+            <h3 className="mb-4 text-sm font-bold">Movimientos de caja en dólares</h3>
+            <SimpleTable
+              rows={[
+                { label: 'Entrada de dinero', qty: '-', amount: `$ ${usdIn.toFixed(2)}` },
+                { label: 'Salida de dinero', qty: '-', amount: `$ ${usdOut.toFixed(2)}` },
+              ]}
+            />
+            <p className="mt-3 text-xs text-muted-foreground">Las ventas se registran solo en soles.</p>
           </Card>
+        ) : (
+          <div className="space-y-6">
+            <Card className={cardCls}>
+              <h3 className="mb-4 text-sm font-bold">Resultados de turno por método de pago</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] text-left text-xs">
+                  <thead>
+                    <tr className={theadCls}>
+                      <th className="w-[24%] pb-3"><span className="sr-only">Método</span></th>
+                      <th className="w-[16%] pb-3">Ventas + ingresos</th>
+                      <th className="w-[16%] pb-3">Salidas</th>
+                      <th className="w-[16%] pb-3">Monto esperado</th>
+                      <th className="w-[14%] pb-3">Monto contado</th>
+                      <th className="w-[14%] pb-3">Diferencia</th>
+                    </tr>
+                  </thead>
+                  <tbody className={tbodyCls}>
+                    <CountRow
+                      id="counted-efectivo"
+                      label="Efectivo en caja"
+                      income={totalCashIngresos}
+                      outcome={totalCashSalidas}
+                      expected={expectedEfectivo}
+                      counted={countedEfectivo}
+                      onCounted={setCountedEfectivo}
+                      diff={diffEfectivo}
+                    />
+                  </tbody>
+                </table>
 
-          {/* Section 2: Resumen del turno */}
-          <Card className="rounded-xl border border-gray-200 bg-white p-6 shadow-2xs">
-            <h3 className="text-sm font-bold text-gray-800 mb-4">Resumen del turno</h3>
+                <div className="my-4 border-t border-border" />
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-gray-100 text-gray-400 font-medium">
-                    <th className="pb-3 w-[50%]">-</th>
-                    <th className="pb-3 w-[25%]">Cantidad</th>
-                    <th className="pb-3 w-[25%]">Monto</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50 text-gray-700">
-                  <tr className="h-10">
-                    <td className="py-2.5 font-medium">Descuentos</td>
-                    <td className="py-2.5">0</td>
-                    <td className="py-2.5">S/ 0.00</td>
-                  </tr>
-                  <tr className="h-10">
-                    <td className="py-2.5 font-medium">Devoluciones (Nota de Crédito)</td>
-                    <td className="py-2.5">0</td>
-                    <td className="py-2.5">S/ 0.00</td>
-                  </tr>
-                  <tr className="h-10">
-                    <td className="py-2.5 font-medium">Anulaciones</td>
-                    <td className="py-2.5">{cancelledCount}</td>
-                    <td className="py-2.5">{formatPEN(cancelledAmount)}</td>
-                  </tr>
-                  <tr className="h-10 font-bold text-gray-900 border-t border-gray-200">
-                    <td className="py-2.5">Total de ventas neto</td>
-                    <td className="py-2.5">-</td>
-                    <td className="py-2.5">{formatPEN(totalNetSales)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </Card>
-
-          {/* Section 3: Movimientos de caja */}
-          <Card className="rounded-xl border border-gray-200 bg-white p-6 shadow-2xs">
-            <h3 className="text-sm font-bold text-gray-800 mb-4">Movimientos de caja</h3>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-gray-100 text-gray-400 font-medium">
-                    <th className="pb-3 w-[50%]">-</th>
-                    <th className="pb-3 w-[25%]">Cantidad</th>
-                    <th className="pb-3 w-[25%]">Monto</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50 text-gray-700">
-                  <tr className="h-10">
-                    <td className="py-2.5 font-medium">Entrada de dinero</td>
-                    <td className="py-2.5">{cashInCount}</td>
-                    <td className="py-2.5">{formatPEN(summary?.movements.in ?? 0)}</td>
-                  </tr>
-                  <tr className="h-10">
-                    <td className="py-2.5 font-medium">Salida de dinero</td>
-                    <td className="py-2.5">{cashOutCount}</td>
-                    <td className="py-2.5">{formatPEN(totalCashSalidas)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </div>
-
-        {/* ── Print Shift Voucher Modal ── */}
-        {showPrintModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-gray-200">
-              <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
-                <div className="flex items-center gap-2">
-                  <Printer className="h-5 w-5 text-gray-800" />
-                  <h2 className="text-base font-bold text-gray-900">
-                    Reporte de Cierre de Caja
-                  </h2>
-                </div>
-                <button
-                  onClick={() => setShowPrintModal(false)}
-                  className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-                >
-                  <X className="h-5 w-5" />
-                </button>
+                <table className="w-full min-w-[640px] text-left text-xs">
+                  <thead>
+                    <tr className={theadCls}>
+                      <th className="w-[24%] pb-3"><span className="sr-only">Método</span></th>
+                      <th className="w-[16%] pb-3">Ventas</th>
+                      <th className="w-[16%] pb-3">Monto esperado</th>
+                      <th className="w-[14%] pb-3">Monto contado</th>
+                      <th className="w-[14%] pb-3">Diferencia</th>
+                    </tr>
+                  </thead>
+                  <tbody className={tbodyCls}>
+                    <CountRow id="counted-yape" label="QR YAPE" income={salesYapeTotal} expected={salesYapeTotal} counted={countedYape} onCounted={setCountedYape} diff={diffYape} />
+                    <CountRow id="counted-tarjeta" label="Tarjeta" income={salesTarjetaTotal} expected={salesTarjetaTotal} counted={countedTarjeta} onCounted={setCountedTarjeta} diff={diffTarjeta} />
+                  </tbody>
+                </table>
               </div>
+            </Card>
 
-              {/* Printable Voucher Content */}
-              <div className="space-y-4 rounded-xl border border-gray-100 bg-gray-50/50 p-4 text-xs font-mono text-gray-800">
-                <div className="text-center border-b border-dashed border-gray-300 pb-3">
-                  <p className="font-bold text-sm text-gray-900 uppercase">
-                    {companyTitle}
-                  </p>
-                  <p className="text-[10px] text-gray-500 uppercase">{companyLegal}</p>
-                  <p className="text-[10px] text-gray-400 mt-1">
-                    APERTURA: {openingTimeString}
-                  </p>
-                  <p className="text-[10px] text-gray-400">
-                    CAJERO: {activeWorker?.name || 'Administrador'}
-                  </p>
-                </div>
-
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Apertura Inicial:</span>
-                    <span className="font-semibold">{formatPEN(currentOpening)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Ventas Efectivo:</span>
-                    <span className="font-semibold">{formatPEN(salesEfectivoTotal)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Ventas Yape:</span>
-                    <span className="font-semibold">{formatPEN(salesYapeTotal)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Ventas Tarjeta:</span>
-                    <span className="font-semibold">{formatPEN(salesTarjetaTotal)}</span>
-                  </div>
-                  <div className="border-t border-dashed border-gray-300 pt-1.5 flex justify-between font-bold">
-                    <span>Total Ventas Neto:</span>
-                    <span>{formatPEN(totalNetSales)}</span>
-                  </div>
-                  <div className="flex justify-between font-bold">
-                    <span>Total Esperado Efectivo:</span>
-                    <span>{formatPEN(expectedEfectivo)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Efectivo Contado:</span>
-                    <span className="font-semibold">{formatPEN(valCountedEfectivo)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Diferencia Efectivo:</span>
-                    <span
-                      className={`font-bold ${
-                        diffEfectivo >= 0 ? 'text-emerald-700' : 'text-red-600'
-                      }`}
-                    >
-                      {formatPEN(diffEfectivo)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-5 flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setShowPrintModal(false)}
-                >
-                  Cerrar
-                </Button>
-                <Button
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white gap-1.5"
-                  onClick={() => window.print()}
-                >
-                  <Printer className="h-4 w-4" />
-                  Imprimir
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── Cash Close PIN Approval Modal ── */}
-        {showCloseModal && pendingClose && !successClose && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-            <Card className="w-full max-w-md bg-white border-gray-200 rounded-2xl shadow-2xl p-6">
-              <div className="flex justify-between items-center border-b border-gray-100 pb-3 mb-4">
-                <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-red-600" />
-                  Aprobación de Cierre de Caja
-                </h3>
-                <button
-                  onClick={() => {
-                    if (!approving) setShowCloseModal(false)
-                  }}
-                  className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="text-center text-xs text-gray-500 mb-6 space-y-1">
-                <p>Ingrese el código de aprobación (6 dígitos) del administrador para confirmar el cierre.</p>
-                <p className="font-semibold text-gray-800">
-                  Diferencia total: {totalDifference >= 0 ? '+ ' : ''}
-                  {formatPEN(totalDifference)}
-                </p>
-              </div>
-
-              <PinPad
-                onComplete={handleApprovePin}
-                disabled={approving}
-                hasError={!!pinError}
-                length={6}
+            <Card className={cardCls}>
+              <h3 className="mb-4 text-sm font-bold">Resumen del turno</h3>
+              <SimpleTable
+                rows={[
+                  { label: 'Anulaciones', qty: cancelledCount, amount: formatPEN(cancelledAmount) },
+                  { label: 'Total de ventas neto', qty: totalTransactions, amount: formatPEN(totalNetSales) },
+                ]}
               />
+            </Card>
 
-              {pinError && (
-                <p className="text-center text-xs text-red-600 font-medium mt-3">
-                  {pinError}
-                </p>
-              )}
-
-              {approving && (
-                <div className="flex justify-center mt-4">
-                  <Loader2 className="w-6 h-6 animate-spin text-red-600" />
-                </div>
-              )}
-
-              <Button
-                variant="outline"
-                className="w-full mt-6"
-                onClick={() => {
-                  if (!approving) setShowCloseModal(false)
-                }}
-                disabled={approving}
-              >
-                Cancelar
-              </Button>
+            <Card className={cardCls}>
+              <h3 className="mb-4 text-sm font-bold">Movimientos de caja</h3>
+              <SimpleTable
+                rows={[
+                  { label: 'Entrada de dinero', qty: shiftData?.movements.inCount ?? 0, amount: formatPEN(shiftData?.movements.in ?? 0) },
+                  { label: 'Salida de dinero', qty: summary?.movements.outCount ?? 0, amount: formatPEN(totalCashSalidas) },
+                ]}
+              />
             </Card>
           </div>
         )}
 
-        {/* ── Success Close Overlay ── */}
-        {successClose && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-            <Card className="w-full max-w-sm bg-white border-0 rounded-2xl shadow-2xl p-8 text-center">
-              <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 className="w-7 h-7" />
-              </div>
-              <p className="text-lg font-bold text-gray-900">Cierre de Caja Aprobado</p>
-              <p className="text-xs text-gray-500 mt-1">
-                El turno ha finalizado exitosamente. Redirigiendo...
-              </p>
-            </Card>
-          </div>
-        )}
+        <PrintVoucherDialog
+          open={showPrintModal}
+          onClose={() => setShowPrintModal(false)}
+          companyTitle={companyTitle}
+          companyLegal={companyLegal}
+          openingTime={openingTimeString}
+          cashier={activeWorker?.name || 'Administrador'}
+          opening={currentOpening}
+          salesEfectivo={salesEfectivoTotal}
+          salesYape={salesYapeTotal}
+          salesTarjeta={salesTarjetaTotal}
+          totalNet={totalNetSales}
+          expected={expectedEfectivo}
+          counted={valCountedEfectivo}
+          diff={diffEfectivo}
+        />
+        <ApprovalDialog
+          open={showCloseModal && !!pendingClose && !successClose}
+          onClose={() => setShowCloseModal(false)}
+          onPin={handleApprovePin}
+          approving={approving}
+          pinError={pinError}
+          totalDifference={totalDifference}
+        />
+        <CloseSuccessDialog open={successClose} />
       </div>
     </TerminalShell>
   )

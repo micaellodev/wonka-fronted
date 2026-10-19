@@ -6,7 +6,7 @@ import { defineConfig } from '@playwright/test'
 //  ui:      VITE_API_URL=http://localhost:3043 VITE_TENANT_ID=$TID bunx vite --port 5183 --strictPort
 export default defineConfig({
   testDir: './e2e',
-  testMatch: /integration\.spec\.ts/,
+  testMatch: /(integration|ui-keys|roles|shifts)\.spec\.ts/,
   timeout: 120_000,
   expect: { timeout: 8_000 },
   workers: 1,

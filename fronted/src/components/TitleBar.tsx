@@ -15,6 +15,7 @@ export function TitleBar() {
       <div className="flex h-full" style={{ appRegion: 'no-drag' } as React.CSSProperties}>
         <button
           onClick={() => api.minimize()}
+          aria-label="Minimizar"
           className="h-full px-3 hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
         >
           <svg width="10" height="1" viewBox="0 0 10 1" fill="currentColor">
@@ -23,6 +24,7 @@ export function TitleBar() {
         </button>
         <button
           onClick={() => api.maximize()}
+          aria-label="Maximizar"
           className="h-full px-3 hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
         >
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1">
@@ -31,7 +33,8 @@ export function TitleBar() {
         </button>
         <button
           onClick={() => api.close()}
-          className="h-full px-3 hover:bg-destructive transition-colors text-muted-foreground hover:text-white"
+          aria-label="Cerrar ventana"
+          className="h-full px-3 hover:bg-destructive transition-colors text-muted-foreground hover:text-destructive-foreground"
         >
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2">
             <line x1="0" y1="0" x2="10" y2="10" />

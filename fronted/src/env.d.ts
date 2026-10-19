@@ -17,6 +17,9 @@ interface ElectronAPI {
  maximize: () => void
  close: () => void
  printSilent: (html: string) => void
+ getVersion: () => Promise<string>
+ onUpdateStatus: (cb: (s: { state: 'downloading' | 'ready'; version?: string; percent?: number }) => void) => () => void
+ installUpdate: () => void
 }
 
 interface Window {

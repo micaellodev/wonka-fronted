@@ -3,7 +3,6 @@
 // ============================================================
 
 import { useState, useCallback, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Logo } from '@/components/Logo'
 import { PinPad } from '@/components/PinPad'
 import { api } from '@/lib/api'
@@ -17,7 +16,6 @@ interface ToastState {
 
 export function LoginScreen() {
  const { tenantId, setSession } = useAuthStore()
- const navigate = useNavigate()
 
  const [loading, setLoading] = useState(false)
  const [hasError, setHasError] = useState(false)
@@ -46,10 +44,9 @@ export function LoginScreen() {
  showToast({ type: 'error', message: (error.value as { message?: string })?.message ?? 'PIN inválido.' })
  return
  }
- const { data: worker, token } = data as { data: Worker; token: string }
- setSession(worker, token)
+ const { data: worker, token, permissions } = data as { data: Worker; token: string; permissions?: string[] }
+ setSession(worker, token, permissions)
  showToast({ type: 'success', message: `Bienvenido, ${worker.name}!` })
- setTimeout(() => navigate('/pos'), 800)
  } catch {
  triggerError()
  showToast({ type: 'error', message: 'Error de conexión. Verifica el servidor.' })
@@ -57,21 +54,21 @@ export function LoginScreen() {
  setLoading(false)
  }
  },
- [loading, tenantId, setSession, triggerError, showToast, navigate],
+ [loading, tenantId, setSession, triggerError, showToast],
  )
 
  return (
- <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gray-50 px-4">
- <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-gray-50 via-white to-gray-100" />
+ <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-muted px-4">
+ <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-muted via-background to-muted" />
 
- <div className="relative z-10 w-full max-w-sm rounded-2xl border border-gray-200 bg-white shadow-2xl">
+ <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-background shadow-2xl">
  <div className="flex flex-col items-center gap-7 px-7 py-10">
  <div className="flex flex-col items-center gap-3 text-center">
  <Logo variant="full" className="h-16 w-auto" />
- <p className="text-xs font-medium uppercase tracking-[0.3em] text-gray-400">Sistema de Punto de Venta</p>
+ <p className="text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">Sistema de Punto de Venta</p>
  </div>
 
- <p className="min-h-4 text-center text-sm text-gray-400 transition-all duration-200">
+ <p className="min-h-4 text-center text-sm text-muted-foreground transition-all duration-200">
  Ingresa tu PIN para entrar al sistema
  </p>
 
@@ -79,7 +76,7 @@ export function LoginScreen() {
  <PinPad onComplete={handlePinComplete} disabled={loading} hasError={hasError} />
  </div>
 
- <span className="rounded-full border border-gray-200 px-3 py-1 font-mono text-[10px] tracking-widest text-gray-500">
+ <span className="rounded-full border border-border px-3 py-1 font-mono text-[11px] tracking-widest text-muted-foreground">
  {tenantId}
  </span>
  </div>
@@ -99,7 +96,7 @@ export function LoginScreen() {
  ? 'bg-secondary-50 border-secondary-200 text-secondary-600'
  : toast.type === 'error'
  ? 'bg-brand-50 border-brand-200 text-brand-600'
- : 'bg-white border-gray-200 text-gray-600'
+ : 'bg-background border-border text-muted-foreground'
  }
  `}
  >

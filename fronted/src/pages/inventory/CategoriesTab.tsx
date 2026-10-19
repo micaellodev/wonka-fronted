@@ -8,6 +8,7 @@ import type { Category } from '@/types'
 import { ImageCropModal } from './ImageCropModal'
 import { ConfirmModal, ErrorBox, ErrorRetry, Field, Modal } from './shared'
 import { apiMsg } from './utils'
+import { useCan } from '@/lib/permissions'
 
 export type CategoryWithCount = Category & { _count?: { products: number } }
 
@@ -137,12 +138,13 @@ export function CategoriesTab({ tenantId, categories, loading, error, onReload }
  tenantId: string; categories: CategoryWithCount[]; loading: boolean; error: string; onReload: () => void
 }) {
  const [modal, setModal] = useState<{ editing: CategoryWithCount | null } | null>(null)
+ const canEdit = useCan().can('inventory.edit')
 
  return (
   <div className="space-y-4" data-testid="categories-tab">
-   <div className="flex justify-end">
+   {canEdit && <div className="flex justify-end">
     <Button onClick={() => setModal({ editing: null })} data-testid="category-new"><Plus /> Nueva categoría</Button>
-   </div>
+   </div>}
    {error && <ErrorRetry message={error} onRetry={onReload} />}
    {loading ? (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
@@ -167,8 +169,8 @@ export function CategoriesTab({ tenantId, categories, loading, error, onReload }
          <p className="truncate text-sm font-bold text-foreground">{cat.name}</p>
          <p className="mt-0.5 text-xs text-muted-foreground">{count} {count === 1 ? 'producto' : 'productos'}</p>
         </div>
-        <Button size="icon" variant="outline" className="absolute right-2 top-2 size-8" aria-label={`Editar ${cat.name}`}
-         onClick={() => setModal({ editing: cat })} data-testid="category-edit"><Edit2 /></Button>
+        {canEdit && <Button size="icon" variant="outline" className="absolute right-2 top-2 size-8" aria-label={`Editar ${cat.name}`}
+         onClick={() => setModal({ editing: cat })} data-testid="category-edit"><Edit2 /></Button>}
        </div>
       )
      })}

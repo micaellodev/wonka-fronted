@@ -8,6 +8,7 @@ import React, { useState } from 'react'
 import { X, Save, FileText } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { PinPad } from '@/components/PinPad'
 
 export type BillingNoteResult = {
@@ -149,15 +150,15 @@ export function CreateBillingNoteModal({ isOpen, onClose, onSuccess }: Props) {
  const inputCls = 'w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors'
 
  return (
- <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-50">
- <div className="bg-muted border border-border rounded-2xl w-full max-w-2xl p-6 shadow-2xl flex flex-col gap-5 max-h-[90vh] overflow-y-auto custom-scrollbar">
+ <Dialog open onOpenChange={(o) => { if (!o) close() }}>
+ <DialogContent size="xl" showCloseButton={false} className="gap-5">
  {/* Header */}
  <div className="flex items-center justify-between">
  <div>
- <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+ <DialogTitle className="text-xl font-bold flex items-center gap-2">
  <FileText className="w-5 h-5 text-primary" />
  Nueva Nota de Crédito/Débito
- </h2>
+ </DialogTitle>
  <p className="text-sm text-muted-foreground mt-0.5">Se emite a SUNAT. La serie, el correlativo y el cliente se toman del documento modificado.</p>
  </div>
  <button onClick={close} disabled={loading} aria-label="Cerrar" className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-colors disabled:opacity-50">
@@ -233,11 +234,10 @@ export function CreateBillingNoteModal({ isOpen, onClose, onSuccess }: Props) {
  </form>
 
  {/* Approval code modal */}
- {showApprovalModal && (
- <div className="fixed inset-0 bg-gray-900/80 flex items-center justify-center p-4 z-[60]">
- <div className="bg-card border border-border rounded-2xl w-full max-w-sm p-6 shadow-2xl flex flex-col gap-5">
+ <Dialog open={showApprovalModal} onOpenChange={(o) => { if (!o && !loading) setShowApprovalModal(false) }}>
+ <DialogContent size="sm" showCloseButton={false} className="gap-5">
  <div className="flex items-center justify-between">
- <h2 className="text-lg font-bold text-foreground">Código de Aprobación</h2>
+ <DialogTitle className="text-lg font-bold">Código de Aprobación</DialogTitle>
  <button
  onClick={() => { if (!loading) setShowApprovalModal(false) }}
  disabled={loading}
@@ -254,9 +254,8 @@ export function CreateBillingNoteModal({ isOpen, onClose, onSuccess }: Props) {
  {error && (
  <p role="alert" className="text-center text-sm text-primary">{error}</p>
  )}
- </div>
- </div>
- )}
+ </DialogContent>
+ </Dialog>
 
  {/* Actions */}
  <div className="flex gap-3 mt-2">
@@ -277,7 +276,7 @@ export function CreateBillingNoteModal({ isOpen, onClose, onSuccess }: Props) {
  {loading ? 'Emitiendo...' : <><Save className="w-5 h-5" /> Emitir Nota</>}
  </button>
  </div>
- </div>
- </div>
+ </DialogContent>
+ </Dialog>
  )
 }

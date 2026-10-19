@@ -18,7 +18,7 @@ export function useDebounced<T>(value: T, ms = 350): T {
 }
 
 export const selectClass =
- 'h-10 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50'
+ 'h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50'
 
 export const MOVEMENT_LABEL: Record<string, string> = {
  INICIAL: 'Inicial', ENTRADA: 'Entrada', SALIDA: 'Salida', CORRECCION: 'Corrección',

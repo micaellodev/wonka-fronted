@@ -44,6 +44,9 @@
  --info-soft: #e0e7ff;
  --info: #4338ca;
 
+ /* Overlay scrim (modals) */
+ --scrim: rgb(17 17 17 / 0.6);
+
  /* Borders & Inputs */
  --border: #e5e7eb;
  --input: #f5f5f7;
@@ -51,6 +54,32 @@
 
  /* Radius */
  --radius: 0.75rem;
+}
+
+/* ── Modo oscuro: se activa con la clase .dark en <html> (ver lib/theme.ts) ── */
+.dark {
+ --background: #121214;
+ --foreground: #f4f4f5;
+ --card: #1a1a1d;
+ --card-foreground: #f4f4f5;
+ --popover: #1a1a1d;
+ --popover-foreground: #f4f4f5;
+ --muted: #242428;
+ --muted-foreground: #a1a1aa;
+ --destructive: #ef4444;
+ --success: #4ade80;
+ --success-foreground: #052e16;
+ --success-soft: #0f2e1b;
+ --warning: #fbbf24;
+ --warning-foreground: #1c1303;
+ --warning-soft: #33260a;
+ --danger-soft: #3a1416;
+ --info: #a5b4fc;
+ --info-soft: #1e2142;
+ --scrim: rgb(0 0 0 / 0.7);
+ --border: #2e2e33;
+ --input: #242428;
+ color-scheme: dark;
 }
 
 /* ── Brand color aliases ──────────────────────────────────────── */
@@ -83,6 +112,7 @@
  --color-danger-soft: var(--danger-soft);
  --color-info: var(--info);
  --color-info-soft: var(--info-soft);
+ --color-scrim: var(--scrim);
  --color-border: var(--border);
  --color-input: var(--input);
  --color-ring: var(--ring);

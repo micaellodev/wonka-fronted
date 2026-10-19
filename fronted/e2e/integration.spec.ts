@@ -226,12 +226,16 @@ test('cierre de caja y aprobación: Cerrada en panel e historial de cierres', as
   await relogin(); await go(page, '/admin')
   await expect(kpi(page, 'Caja')).toContainText('Cerrada')
   await expect(kpi(page, 'Ventas hoy')).toContainText(money(26.5)) // cifras idénticas tras el cierre
+  await relogin(); await go(page, '/cash-close')
+  await expect(page.getByText('Caja Abierta')).toHaveCount(0) // la pantalla de cierre debe coincidir con el panel
+  await expect(page.getByText('Cierre del turno aprobado')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Cerrar Caja' })).toBeDisabled()
   await relogin(); await go(page, '/reporte-cierre-turno')
   await expect(page.getByText('Sin cierres de turno')).toHaveCount(0)
   await expect(page.getByText(money(141.5)).first()).toBeVisible() // efectivo 115 + yape 17.50 + tarjeta 9 contados
   await relogin(); await go(page, '/admin')
   await kpi(page, 'Caja').click()
-  await expect(page).toHaveURL(/cash-history/)
+  await expect(page).toHaveURL(/admin\/cashier/)
   await expect(page.getByText(money(100)).first()).toBeVisible() // apertura congelada
   await expect(page.getByRole('row').filter({ hasText: '141.50' }).last()).toBeVisible() // fila del cierre
   await expect(page.getByRole('button', { name: /Pendiente/ })).toHaveCount(0) // aprobado: sin botón de aprobar

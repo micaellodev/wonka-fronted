@@ -3,6 +3,7 @@
 // ============================================================
 
 import { useState } from 'react'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { PinPad } from './PinPad'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
@@ -44,20 +45,20 @@ export function AdminGatekeeper({ isOpen, onClose, onSuccess }: AdminGatekeeperP
  }
 
  return (
- <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/70 p-4 animate-fade-in">
- <div className="bg-white border border-gray-200 shadow-2xl rounded-2xl w-full max-w-sm overflow-hidden">
+ <Dialog open onOpenChange={(o) => { if (!o && !loading) onClose() }}>
+ <DialogContent size="sm" showCloseButton={false} className="gap-0 overflow-hidden p-0">
  {/* Header */}
- <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+ <div className="flex items-center justify-between px-6 py-4 border-b border-border">
  <div className="flex items-center gap-2.5">
- <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/15">
+ <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-warning/15">
  <ShieldCheck className="w-4 h-4 text-accent-500" />
  </div>
- <h2 className="text-sm font-bold text-gray-900 tracking-wide">Acceso de Administrador</h2>
+ <DialogTitle className="text-sm font-bold text-foreground tracking-wide">Acceso de Administrador</DialogTitle>
  </div>
  <button
  onClick={onClose}
  disabled={loading}
- className="p-1.5 text-gray-400 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
+ className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors disabled:opacity-50"
  aria-label="Cerrar modal"
  >
  <X className="w-4 h-4" />
@@ -66,7 +67,7 @@ export function AdminGatekeeper({ isOpen, onClose, onSuccess }: AdminGatekeeperP
 
  {/* Body */}
  <div className="p-6">
- <p className="text-center text-sm text-gray-500 mb-6">
+ <p className="text-center text-sm text-muted-foreground mb-6">
  Ingresa un PIN con privilegios de administrador para continuar.
  </p>
  <PinPad onComplete={handlePinComplete} disabled={loading} hasError={!!error} />
@@ -78,8 +79,7 @@ export function AdminGatekeeper({ isOpen, onClose, onSuccess }: AdminGatekeeperP
  ) : null}
  </div>
  </div>
- </div>
- </div>
+ </DialogContent>
+ </Dialog>
  )
 }
-

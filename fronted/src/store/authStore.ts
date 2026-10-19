@@ -17,9 +17,11 @@ interface AuthState {
  activeWorker: Worker | null
  /** Signed session token from /hr/verify-pin (memory only; never the PIN) */
  token: string | null
+ /** Permisos de back-office del rol (los entrega el backend en el login) */
+ permissions: string[]
 
  // Actions
- setSession: (worker: Worker, token: string) => void
+ setSession: (worker: Worker, token: string, permissions?: string[]) => void
  setTenantId: (id: string) => void
  logout: () => void
 }
@@ -30,13 +32,14 @@ export const useAuthStore = create<AuthState>()(
  tenantId: DEFAULT_TENANT_ID,
  activeWorker: null,
  token: null,
+ permissions: [],
 
- setSession: (worker, token) => set({ activeWorker: worker, token }),
+ setSession: (worker, token, permissions = []) => set({ activeWorker: worker, token, permissions }),
  setTenantId: (id) => set({ tenantId: id }),
  logout: () => {
   // Any logout also drops an elevated admin session.
   useAdminStore.getState().logoutAdmin()
-  set({ activeWorker: null, token: null })
+  set({ activeWorker: null, token: null, permissions: [] })
  },
  }),
  {

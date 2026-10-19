@@ -1,11 +1,15 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Users, Plus, UserCheck, UserX, Clock, BarChart2, X } from 'lucide-react'
+import { Users, Plus, Clock, BarChart2 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
-import { PinPad } from '@/components/PinPad'
+import { toast } from '@/components/ui/toast'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { formatDateTime } from '@/lib/format'
+import { WorkerFormDialog, AdminPinDialog, NewRoleDialog } from './employees/EmployeeDialogs'
+import { WorkersTable, AttendanceTable, HistoryTable, type HistoryRow } from './employees/EmployeeTables'
 import type { AttendanceRecord } from '@/types'
-
-const AVATAR_FALLBACK = import.meta.env.VITE_AVATAR_FALLBACK_SERVICE || '${AVATAR_FALLBACK}'
+import { useCan } from '@/lib/permissions'
 
 // Extending Worker type explicitly locally or importing it if updated.
 export interface Worker {
@@ -19,12 +23,13 @@ export interface Worker {
 }
 
 interface Role { id: string; name: string }
-interface HistoryRow { worker: Worker; totalHours: number; tardanzas: number; faltas: number; attendedDays: number }
 
 export function EmployeesScreen() {
+ const canManage = useCan().can('employees.manage')
  const { tenantId } = useAuthStore()
 
  type TabType = 'empleados' | 'asistencia' | 'historial'
+const [creds, setCreds] = useState<{ pin: string; code?: string } | null>(null)
  const [activeTab, setActiveTab] = useState<TabType>('empleados')
  const [historyPeriod, setHistoryPeriod] = useState<'semana' | 'mes'>('semana')
 
@@ -181,9 +186,7 @@ export function EmployeesScreen() {
 
  function formatDate(iso: string | null) {
  if (!iso) return '-'
- return new Date(iso).toLocaleString('es-CO', {
- month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit'
- })
+ return formatDateTime(iso)
  }
 
  function getDuration(checkIn: string, checkOut: string | null) {
@@ -251,11 +254,11 @@ export function EmployeesScreen() {
  const response = res.data as unknown as { data: { url: string } }
  setFormData(prev => ({ ...prev, avatarUrl: response.data.url }))
  } else {
- alert("Error subiendo la foto.")
+ toast.error("Error subiendo la foto.")
  }
  } catch (error) {
  console.error("Error al subir archivo", error)
- alert("Hubo un problema al subir la foto.")
+ toast.error("Hubo un problema al subir la foto.")
  } finally {
  setUploadingImage(false)
  }
@@ -362,7 +365,7 @@ export function EmployeesScreen() {
  // Credentials are returned only once on creation; show them to the admin now.
  const meta = (res.data as { meta?: { rawPin?: string; rawApprovalCode?: string } })?.meta
  if (!editingWorker && meta?.rawPin) {
- alert(`Empleado creado.\nPIN de acceso: ${meta.rawPin}${meta.rawApprovalCode ? `\nCódigo de aprobación: ${meta.rawApprovalCode}` : ''}\n\nAnótalos ahora: no se podrán volver a ver.`)
+ setCreds({ pin: meta.rawPin, code: meta.rawApprovalCode })
  }
  fetchWorkers()
  } catch (e) {
@@ -385,7 +388,7 @@ export function EmployeesScreen() {
  </div>
  </div>
  <div className="flex items-center gap-3">
- {activeTab === 'empleados' && (
+ {activeTab === 'empleados' && canManage && (
  <button onClick={openCreateModal} className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 rounded-xl font-medium text-primary-foreground transition-all active:scale-95">
  <Plus className="w-4 h-4" /> Nuevo Empleado
  </button>
@@ -452,367 +455,45 @@ export function EmployeesScreen() {
  <div className="flex-1 bg-muted border border-border rounded-2xl overflow-hidden flex flex-col">
  <div className="overflow-x-auto flex-1">
  {activeTab === 'empleados' && (
- <table className="w-full text-left border-collapse">
- <thead>
- <tr className="bg-muted text-muted-foreground text-sm border-b border-border uppercase tracking-wider">
- <th className="px-4 py-3 font-semibold">Nombre</th>
- <th className="px-4 py-3 font-semibold">Rol</th>
- <th className="px-4 py-3 font-semibold text-center">Estado</th>
- <th className="px-4 py-3 font-semibold text-right">Acciones</th>
- </tr>
- </thead>
- <tbody className="divide-y divide-border">
- {loading ? (
- <tr>
- <td colSpan={4} className="p-8 text-center text-muted-foreground">Cargando empleados...</td>
- </tr>
- ) : workers.length === 0 ? (
- <tr>
- <td colSpan={4} className="p-8 text-center text-muted-foreground">No hay empleados registrados.</td>
- </tr>
- ) : (
- workers.map((w) => (
- <tr key={w.id} className="hover:bg-muted transition-colors">
- <td className="px-4 py-3 text-sm font-medium text-foreground flex items-center gap-2">
- <div className="w-8 h-8 rounded-full bg-muted overflow-hidden border border-border">
- <img src={w.avatarUrl || `${AVATAR_FALLBACK}?seed=${w.name}`} className="w-full h-full object-cover" alt="avatar" />
- </div>
- <div>
- <div className="font-semibold">{w.name}</div>
- {w.dni && <div className="text-xs text-muted-foreground font-mono">DNI: {w.dni}</div>}
- </div>
- </td>
- <td className="px-4 py-3 text-sm text-muted-foreground">
- <span className="bg-muted px-2 py-0.5 rounded-full text-xs">{w.role.name}</span>
- </td>
- <td className="px-4 py-3 text-center">
- {w.isActive ? (
- <span className="inline-flex items-center gap-1 text-secondary-500 text-xs font-medium px-2 py-1 bg-secondary-500/10 rounded-full">
- <UserCheck className="w-3.5 h-3.5" /> Activo
- </span>
- ) : (
- <span className="inline-flex items-center gap-1 text-muted-foreground text-xs font-medium px-2 py-1 bg-muted rounded-full">
- <UserX className="w-3.5 h-3.5" /> Inactivo
- </span>
- )}
- </td>
- <td className="px-4 py-3 text-right">
- <button onClick={() => openEditModal(w)} className="text-sm font-medium text-primary hover:text-primary">Editar</button>
- </td>
- </tr>
- ))
- )}
- </tbody>
- </table>
+ <WorkersTable loading={loading} workers={workers} onEdit={canManage ? openEditModal : undefined} />
  )}
 
  {activeTab === 'asistencia' && (
- <table className="w-full text-left border-collapse">
- <thead>
- <tr className="bg-muted text-muted-foreground text-sm border-b border-border uppercase tracking-wider">
- <th className="px-4 py-3 font-semibold">Empleado</th>
- <th className="px-4 py-3 font-semibold text-center">Estado (Hoy)</th>
- <th className="px-4 py-3 font-semibold">Hora de Entrada</th>
- <th className="px-4 py-3 font-semibold">Hora de Salida</th>
- <th className="px-4 py-3 font-semibold text-right">Duración de Turno</th>
- </tr>
- </thead>
- <tbody className="divide-y divide-border">
- {loading ? (
- <tr>
- <td colSpan={5} className="p-8 text-center text-muted-foreground">Cargando registros...</td>
- </tr>
- ) : workers.length === 0 ? (
- <tr>
- <td colSpan={5} className="p-8 text-center text-muted-foreground">No hay empleados registrados.</td>
- </tr>
- ) : (
- workers.map((w) => {
- const record = todayRecords.find(r => r.worker.id === w.id)
- const status = getAttendanceStatus(w.id)
-
- return (
- <tr key={w.id} className="hover:bg-muted transition-colors">
- <td className="px-4 py-3 text-sm font-medium text-foreground flex items-center gap-2">
- <div className="w-8 h-8 rounded-full bg-muted overflow-hidden border border-border">
- <img src={w.avatarUrl || `${AVATAR_FALLBACK}?seed=${w.name}`} className="w-full h-full object-cover" alt="avatar" />
- </div>
- {w.name}
- </td>
- <td className="px-4 py-3 text-center">
- <span className={`inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-full ${status.color}`}>
- {status.label}
- </span>
- </td>
- <td className="px-4 py-3 text-sm text-muted-foreground font-mono">
- {record?.checkIn ? formatDate(record.checkIn) : '-'}
- </td>
- <td className="px-4 py-3 text-sm text-muted-foreground font-mono">
- {record?.checkOut ? formatDate(record.checkOut) : (
- record ? <span className="text-accent-500 text-xs font-semibold bg-accent-100 px-2 py-1 rounded">EN TURNO</span> : '-'
- )}
- </td>
- <td className="px-4 py-3 text-sm text-right font-medium text-muted-foreground">
- {record ? getDuration(record.checkIn, record.checkOut) : '-'}
- </td>
- </tr>
- )
- })
- )}
- </tbody>
- </table>
+ <AttendanceTable loading={loading} workers={workers} todayRecords={todayRecords} getAttendanceStatus={getAttendanceStatus} getDuration={getDuration} formatDate={formatDate} />
  )}
 
  {activeTab === 'historial' && (
- <table className="w-full text-left border-collapse">
- <thead>
- <tr className="bg-muted text-muted-foreground text-sm border-b border-border uppercase tracking-wider">
- <th className="px-4 py-3 font-semibold">Empleado</th>
- <th className="px-4 py-3 font-semibold text-center">Horas Trabajadas</th>
- <th className="px-4 py-3 font-semibold text-center">Tardanzas</th>
- <th className="px-4 py-3 font-semibold text-center">Faltas</th>
- </tr>
- </thead>
- <tbody className="divide-y divide-border">
- {loading ? (
- <tr>
- <td colSpan={4} className="p-8 text-center text-muted-foreground">Calculando métricas...</td>
- </tr>
- ) : historyData.length === 0 ? (
- <tr>
- <td colSpan={4} className="p-8 text-center text-muted-foreground">No hay datos suficientes en este periodo.</td>
- </tr>
- ) : (
- historyData.map((h) => (
- <tr key={h.worker.id} className="hover:bg-muted transition-colors">
- <td className="px-4 py-4 text-sm font-medium text-foreground flex items-center gap-2">
- <div className="w-8 h-8 rounded-full bg-muted overflow-hidden border border-border shrink-0">
- <img src={h.worker.avatarUrl || `${AVATAR_FALLBACK}?seed=${h.worker.name}`} className="w-full h-full object-cover" alt="avatar" />
- </div>
- {h.worker.name}
- </td>
- <td className="px-4 py-3 text-center">
- <span className="text-lg font-bold text-primary">{h.totalHours.toFixed(1)} <span className="text-xs text-muted-foreground font-normal">hrs</span></span>
- </td>
- <td className="px-4 py-3 text-center">
- <span className={`text-lg font-bold ${h.tardanzas > 0 ? 'text-accent-500' : 'text-muted-foreground'}`}>
- {h.tardanzas}
- </span>
- </td>
- <td className="px-4 py-3 text-center">
- <span className={`text-lg font-bold ${h.faltas > 0 ? 'text-primary' : 'text-muted-foreground'}`}>
- {h.faltas}
- </span>
- </td>
- </tr>
- ))
- )}
- </tbody>
- </table>
+ <HistoryTable loading={loading} historyData={historyData} />
  )}
  </div>
  </div>
  </main>
 
- {/* Modal */}
- {isModalOpen && (
- <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-50">
- <div className="bg-muted border border-border rounded-2xl w-full max-w-md p-6 shadow-2xl flex flex-col gap-6">
- <div className="flex items-center gap-4">
- <label className="w-16 h-16 rounded-2xl bg-muted overflow-hidden shadow-inner shrink-0 cursor-pointer relative group">
- <img src={formData.avatarUrl || `${AVATAR_FALLBACK}?seed=${formData.name || 'default'}`} className={`w-full h-full object-cover ${uploadingImage ? 'opacity-50' : ''}`} alt="avatar prep" />
- <div className="absolute inset-0 bg-gray-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
- <span className="text-[10px] font-bold text-foreground text-center px-1 uppercase tracking-wider">Subir Foto</span>
- </div>
- <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploadingImage} />
- </label>
- <div>
- <h2 className="text-xl font-bold text-foreground tracking-tight">{editingWorker ? 'Editar Empleado' : 'Nuevo Empleado'}</h2>
- <p className="text-sm text-muted-foreground">{editingWorker ? 'Modifica los datos y acceso.' : 'Crea un nuevo perfil para el local.'}</p>
- </div>
- </div>
-
- <div className="space-y-4">
- <div className="grid grid-cols-2 gap-4">
- <div>
- <label className="block text-sm font-semibold text-muted-foreground mb-1 ml-1">Nombre Completo</label>
- <input
- type="text"
- value={formData.name}
- onChange={e => setFormData({ ...formData, name: e.target.value })}
- className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
- placeholder="Ej. Carlos Mendoza"
+ <WorkerFormDialog
+ open={isModalOpen} onClose={() => setIsModalOpen(false)} editing={!!editingWorker}
+ form={formData} setForm={setFormData} roles={roles}
+ uploadingImage={uploadingImage} onImage={handleImageUpload}
+ onNewRole={openNewRoleModal} isAdminRole={isAdminRole} saving={saving} invalid={formInvalid} onSave={handleSaveWorker}
  />
- </div>
- <div>
- <label className="block text-sm font-semibold text-muted-foreground mb-1 ml-1">DNI / Documento</label>
- <input
- type="text"
- value={formData.dni}
- onChange={e => setFormData({ ...formData, dni: e.target.value.replace(/\D/g, '') })}
- className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
- placeholder="Opcional"
+ <Dialog open={!!creds} onOpenChange={o => { if (!o) setCreds(null) }}>
+        <DialogContent size="sm">
+          <DialogHeader>
+            <DialogTitle>Empleado creado</DialogTitle>
+            <DialogDescription>Anótalos ahora: no se podrán volver a ver.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 font-mono text-lg select-all">
+            <p>PIN de acceso: <strong>{creds?.pin}</strong></p>
+            {creds?.code && <p>Código de aprobación: <strong>{creds.code}</strong></p>}
+          </div>
+          <DialogFooter><Button onClick={() => setCreds(null)}>Cerrar</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <AdminPinDialog open={showAdminPinModal} saving={saving} onClose={() => setShowAdminPinModal(false)} onComplete={performSaveWorker} hasError={adminPinError} error={saveError} />
+ <NewRoleDialog
+ open={showNewRoleModal} onClose={() => setShowNewRoleModal(false)} saving={newRoleSaving} step={newRoleStep}
+ name={newRoleName} setName={setNewRoleName} onNameSubmit={handleNewRoleNameSubmit}
+ onPin={handleNewRolePinComplete} pinError={newRolePinError} error={newRoleError}
  />
- </div>
- </div>
-
- <div>
- <div className="flex items-center justify-between mb-1 ml-1">
- <label className="block text-sm font-semibold text-muted-foreground">Rol u Ocupacion</label>
- <button
- type="button"
- onClick={openNewRoleModal}
- className="text-xs font-semibold text-primary hover:text-primary"
- >
- + Nueva categoría de rol
- </button>
- </div>
- <select
- value={formData.roleId}
- onChange={e => setFormData({ ...formData, roleId: e.target.value })}
- className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-primary transition-colors"
- >
- {roles.map(r => (
- <option key={r.id} value={r.id}>{r.name}</option>
- ))}
- </select>
- </div>
-
- <div>
- <label className="block text-sm font-semibold text-muted-foreground mb-1 ml-1">PIN de Acceso (5 o 6 dígitos)</label>
- <input
- type="text"
- inputMode="numeric"
- maxLength={6}
- value={formData.pin}
- onChange={e => setFormData({ ...formData, pin: e.target.value.replace(/\D/g, '') })}
- className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
- placeholder={editingWorker ? "En blanco si no desea cambiarlo" : "En blanco = se genera uno"}
- />
- </div>
-
- {isAdminRole && (
- <div>
- <label className="block text-sm font-semibold text-muted-foreground mb-1 ml-1">Código de Aprobación del Dueño (6 digitos)</label>
- <input
- type="text"
- maxLength={6}
- value={formData.approvalCode}
- onChange={e => setFormData({ ...formData, approvalCode: e.target.value.replace(/\D/g, '') })}
- className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
- placeholder={editingWorker ? (formData.approvalCode ? "Nuevo código" : "En blanco si no desea cambiarlo") : "6 dígitos (en blanco = se genera)"}
- />
- <p className="text-xs text-muted-foreground mt-1 ml-1">Solo los dueños/administradores necesitan este código para aprobar anulaciones y cierre de caja.</p>
- </div>
- )}
-
- {editingWorker && (
- <div className="flex items-center gap-3 pt-2">
- <input
- type="checkbox"
- id="active-chk"
- checked={formData.isActive}
- onChange={e => setFormData({ ...formData, isActive: e.target.checked })}
- className="w-5 h-5 rounded border-border bg-muted text-primary focus:ring-primary focus:ring-offset-slate-800"
- />
- <label htmlFor="active-chk" className="text-sm font-medium text-muted-foreground">Empleado con cuenta activa (Puede entrar)</label>
- </div>
- )}
- </div>
-
- <div className="flex gap-3 mt-2">
- <button
- onClick={() => setIsModalOpen(false)}
- className="flex-1 py-3 font-semibold text-muted-foreground bg-muted hover:bg-muted rounded-xl transition-colors"
- >
- Cancelar
- </button>
- <button
- onClick={handleSaveWorker}
- disabled={saving || !formData.name || formInvalid}
- className="flex-1 py-3 font-semibold text-primary-foreground bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors"
- >
- {saving ? "Guardando..." : "Guardar Empleado"}
- </button>
- </div>
- </div>
- </div>
- )}
-
- {/* Admin PIN confirmation modal */}
- {showAdminPinModal && (
- <div className="fixed inset-0 bg-gray-900/80 flex items-center justify-center p-4 z-[60]">
- <div className="bg-card border border-border rounded-2xl w-full max-w-sm p-6 shadow-2xl flex flex-col gap-5">
- <div className="flex items-center justify-between">
- <h2 className="text-lg font-bold text-foreground">PIN de Administrador</h2>
- <button
- onClick={() => { if (!saving) setShowAdminPinModal(false) }}
- className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-colors"
- >
- <X className="w-5 h-5" />
- </button>
- </div>
- <p className="text-center text-sm text-muted-foreground">
- Ingresa el PIN de un administrador (5 o 6 dígitos) para confirmar este cambio de empleado.
- </p>
- <PinPad onComplete={performSaveWorker} disabled={saving} hasError={adminPinError} />
- {saveError && (
- <p className="text-center text-sm text-primary">{saveError}</p>
- )}
- </div>
- </div>
- )}
-
- {/* New role modal */}
- {showNewRoleModal && (
- <div className="fixed inset-0 bg-gray-900/80 flex items-center justify-center p-4 z-[60]">
- <div className="bg-card border border-border rounded-2xl w-full max-w-sm p-6 shadow-2xl flex flex-col gap-5">
- <div className="flex items-center justify-between">
- <h2 className="text-lg font-bold text-foreground">Nueva Categoría de Rol</h2>
- <button
- onClick={() => { if (!newRoleSaving) setShowNewRoleModal(false) }}
- className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-colors"
- >
- <X className="w-5 h-5" />
- </button>
- </div>
-
- {newRoleStep === 'name' ? (
- <>
- <div>
- <label className="block text-sm font-semibold text-muted-foreground mb-1.5">Nombre del rol</label>
- <input
- type="text"
- autoFocus
- value={newRoleName}
- onChange={e => setNewRoleName(e.target.value)}
- onKeyDown={e => e.key === 'Enter' && handleNewRoleNameSubmit()}
- className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
- placeholder="Ej. Supervisor"
- />
- </div>
- <button
- onClick={handleNewRoleNameSubmit}
- disabled={!newRoleName.trim()}
- className="w-full py-3 font-semibold text-primary-foreground bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors"
- >
- Continuar
- </button>
- </>
- ) : (
- <>
- <p className="text-center text-sm text-muted-foreground">
- Ingresa el PIN de un administrador (5 o 6 dígitos) para crear el rol "{newRoleName.trim()}".
- </p>
- <PinPad onComplete={handleNewRolePinComplete} disabled={newRoleSaving} hasError={newRolePinError} />
- {newRoleError && (
- <p className="text-center text-sm text-primary">{newRoleError}</p>
- )}
- </>
- )}
- </div>
- </div>
- )}
  </div>
  )
 }

@@ -145,7 +145,7 @@ export function ProductModal({ tenantId, categories, editing, onClose, onSaved, 
      <div>
       <span className="mb-1.5 block text-sm font-semibold text-foreground">Controla stock</span>
       <button type="button" role="switch" aria-checked={form.trackStock} onClick={() => set('trackStock', !form.trackStock)} data-testid="product-track"
-       className="flex h-10 w-full items-center gap-3 rounded-md border border-gray-200 bg-white px-3 text-sm">
+       className="flex h-10 w-full items-center gap-3 rounded-md border border-border bg-background px-3 text-sm">
        <span className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${form.trackStock ? 'bg-primary' : 'bg-border'}`}>
         <span className={`absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow transition-transform ${form.trackStock ? 'translate-x-5' : ''}`} />
        </span>

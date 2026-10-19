@@ -1,30 +1,31 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
+import { apiErrorMessage } from '@/lib/api-error'
 import { useAuthStore } from '@/store/authStore'
-import { useCashDrawerStore } from '@/store/cashDrawerStore'
+import { useCan } from '@/lib/permissions'
+import { CASH_LABEL, useCashStatusStore, type CashStatus } from '@/store/cashStatusStore'
 import { CashOpeningModal } from '@/components/CashOpeningModal'
 import { Button } from '@/components/ui/button'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const apiErrorMessage = (e: any) => e?.value?.message ?? e?.value?.error ?? 'No se pudo conectar con el servidor.'
 
 export function CashDrawerGuard() {
  const { tenantId, activeWorker } = useAuthStore()
- const { setOpening, carryOverBalance } = useCashDrawerStore()
+ const { canEnterAdmin } = useCan()
+ const refreshCash = useCashStatusStore((s) => s.refresh)
  const navigate = useNavigate()
 
  const [loading, setLoading] = useState(true)
  const [showModal, setShowModal] = useState(false)
+ const [blockedStatus, setBlockedStatus] = useState<CashStatus | null>(null)
  const [submitLoading, setSubmitLoading] = useState(false)
  const [error, setError] = useState<string | null>(null)
 
  const goHome = useCallback(() => {
- const role = activeWorker?.role?.name
- navigate(role === 'ADMIN' || role === 'ADMINISTRADOR' ? '/admin' : '/pos')
- }, [activeWorker, navigate])
+ navigate(canEnterAdmin ? '/admin' : '/pos')
+ }, [canEnterAdmin, navigate])
 
- // The opening lives in the backend (one per Lima day); the store is only a cache.
+ // The opening lives in the backend (one per shift); the store is only a cache.
  const checkCashDrawer = useCallback(async () => {
  if (!tenantId || !activeWorker) return
  setLoading(true)
@@ -33,9 +34,14 @@ export function CashDrawerGuard() {
  const { data, error: apiError } = await api.cash['opening-today'].get({ query: { tenantId } })
  if (apiError) throw apiError
  const d = data?.data
- if (d?.isOpened) {
- setOpening(tenantId, activeWorker.id, Number(d.openingBalance ?? 0), d.openedAt ?? undefined)
+ void refreshCash(tenantId)
+ if (d?.cashStatus === 'ABIERTA') {
  goHome()
+ return
+ }
+ // Turno cerrado: si está aprobado se puede abrir uno nuevo; si está pendiente, hay que esperar la aprobación
+ if (d?.cashStatus === 'PENDIENTE' || d?.cashStatus === 'CERRADA') {
+ setBlockedStatus(d.cashStatus)
  return
  }
  setShowModal(true)
@@ -44,7 +50,7 @@ export function CashDrawerGuard() {
  } finally {
  setLoading(false)
  }
- }, [tenantId, activeWorker, setOpening, goHome])
+ }, [tenantId, activeWorker, refreshCash, goHome])
 
  useEffect(() => {
  checkCashDrawer()
@@ -61,7 +67,8 @@ export function CashDrawerGuard() {
  if (apiError.status === 409) return void (await checkCashDrawer())
  throw apiError
  }
- setOpening(tenantId, activeWorker.id, Number(data.data.openingBalance), data.data.openedAt)
+ void data
+ void refreshCash(tenantId)
  goHome()
  } catch (err) {
  setError(apiErrorMessage(err))
@@ -71,21 +78,43 @@ export function CashDrawerGuard() {
  }
 
  const Loader = ({ label }: { label: string }) => (
- <div className="fixed inset-0 bg-gray-50 flex items-center justify-center">
+ <div className="fixed inset-0 bg-muted flex items-center justify-center">
  <div className="flex flex-col items-center gap-4">
- <div className="w-7 h-7 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
- <p className="text-gray-400 text-sm">{label}</p>
+ <div className="w-7 h-7 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+ <p className="text-muted-foreground text-sm">{label}</p>
  </div>
  </div>
  )
 
  if (loading) return <Loader label="Verificando apertura de caja..." />
- if (showModal) return <CashOpeningModal onConfirm={handleOpeningBalance} isLoading={submitLoading} defaultAmount={carryOverBalance} serverError={error} />
+ if (blockedStatus) {
+ const isAdmin = canEnterAdmin
+ return (
+ <div className="fixed inset-0 bg-muted flex items-center justify-center p-4">
+ <div className="flex flex-col items-center gap-4 text-center">
+ <p className="text-base font-semibold text-foreground">El turno de caja está {CASH_LABEL[blockedStatus].toLowerCase()}.</p>
+ <p className="text-sm text-muted-foreground">
+ {blockedStatus === 'CERRADA'
+ ? 'Para seguir vendiendo abre un turno nuevo.'
+ : 'Un administrador debe aprobar el cierre antes de abrir un turno nuevo.'}
+ </p>
+ <div className="flex gap-2">
+ {blockedStatus === 'CERRADA' && (
+ <Button onClick={() => { setBlockedStatus(null); setShowModal(true) }}>Abrir turno nuevo</Button>
+ )}
+ <Button variant="outline" onClick={() => navigate('/cash-close')}>Ver cierre de caja</Button>
+ {isAdmin && <Button onClick={() => navigate('/admin')}>Panel admin</Button>}
+ </div>
+ </div>
+ </div>
+ )
+ }
+ if (showModal) return <CashOpeningModal onConfirm={handleOpeningBalance} isLoading={submitLoading} defaultAmount={null} serverError={error} />
  if (error) {
  return (
- <div className="fixed inset-0 bg-gray-50 flex items-center justify-center p-4">
+ <div className="fixed inset-0 bg-muted flex items-center justify-center p-4">
  <div className="flex flex-col items-center gap-4 text-center">
- <p className="text-sm text-red-600">{error}</p>
+ <p className="text-sm text-destructive">{error}</p>
  <Button onClick={checkCashDrawer}>Reintentar</Button>
  </div>
  </div>

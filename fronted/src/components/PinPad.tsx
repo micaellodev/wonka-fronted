@@ -82,11 +82,11 @@ export function PinPad({ onComplete, disabled = false, hasError = false, length:
  w-3.5 h-3.5 rounded-full border-2 transition-all duration-200
  ${i < pin.length
  ? hasError
- ? 'bg-red-500 border-red-500 scale-110'
+ ? 'bg-primary border-primary scale-110'
  : 'bg-brand-500 border-brand-500 scale-110'
  : hasError
- ? 'bg-transparent border-red-500/60'
- : 'bg-transparent border-gray-300'
+ ? 'bg-transparent border-primary/60'
+ : 'bg-transparent border-border'
  }
  `}
  />
@@ -113,8 +113,8 @@ export function PinPad({ onComplete, disabled = false, hasError = false, length:
  focus:outline-none
  disabled:opacity-40 disabled:cursor-not-allowed
  ${isSpecial
- ? 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 text-sm'
- : 'bg-gray-100 text-gray-900 border border-gray-200 hover:bg-gray-200 hover:border-gray-300 active:bg-gray-300'
+ ? 'bg-muted text-muted-foreground hover:bg-muted hover:text-foreground text-sm'
+ : 'bg-muted text-foreground border border-border hover:bg-muted hover:border-border active:bg-border'
  }
  `}
  >
@@ -129,7 +129,7 @@ export function PinPad({ onComplete, disabled = false, hasError = false, length:
  type="button"
  onClick={submit}
  disabled={disabled || pin.length < minLength}
- className="h-12 w-full rounded-xl bg-brand-500 text-sm font-bold text-white transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
+ className="h-12 w-full rounded-xl bg-primary text-sm font-bold text-primary-foreground transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
  style={{ maxWidth: '260px' }}
  >
  Entrar

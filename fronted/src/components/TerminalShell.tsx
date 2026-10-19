@@ -1,13 +1,13 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import { api } from '@/lib/api'
+import { type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Gamepad2, LayoutDashboard, LogOut, Monitor } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/store/authStore'
+import { CASH_LABEL, useCashStatusStore } from '@/store/cashStatusStore'
 import { cn } from '@/lib/utils'
-
-const CASH_LABEL: Record<string, string> = { NO_ABIERTA: 'No abierta', ABIERTA: 'Abierta', PENDIENTE: 'Pendiente', CERRADA: 'Cerrada' }
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { useCan } from '@/lib/permissions'
 
 type ActiveSection = 'pos' | 'sales-history' | 'sales-stats' | 'cash-history' | 'movimientos-caja' | 'cash-close' | 'reports' | 'register-client' | 'playzone'
 
@@ -20,16 +20,9 @@ export function TerminalShell({ children, activeSection }: TerminalShellProps) {
  const location = useLocation()
  const navigate = useNavigate()
  const { activeWorker, logout } = useAuthStore()
- const { tenantId } = useAuthStore()
- // Opening amount and cash status always come from the backend (the store is just a cache)
- const [cash, setCash] = useState<{ status: string; opening: number | null } | null>(null)
- useEffect(() => {
- if (!tenantId) return
- api.cash.summary.get({ query: { tenantId } }).then(({ data }: { data?: { data?: unknown } | null }) => {
- const d = data?.data as unknown as { cashStatus: string; opening: { amount: number } | null } | undefined
- if (d) setCash({ status: d.cashStatus, opening: d.opening?.amount ?? null })
- }).catch(() => {})
- }, [tenantId, location.pathname])
+ const { canEnterAdmin } = useCan()
+ // Opening amount and status come from the shared cash store (backend summary, auto-refreshed)
+ const cash = useCashStatusStore((st) => st.summary)
  const routeSection = getSectionFromPath(location.pathname)
  const effectiveSection = activeSection ?? routeSection
 
@@ -42,28 +35,29 @@ export function TerminalShell({ children, activeSection }: TerminalShellProps) {
  if (location.pathname.startsWith('/admin')) return <>{children}</>
 
  return (
- <div className="flex min-h-screen flex-col bg-gray-50 text-gray-900">
- <header className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 py-3 sm:px-6">
+ <div className="flex min-h-screen flex-col bg-muted text-foreground">
+ <header className="flex shrink-0 items-center justify-between border-b border-border bg-background px-4 py-3 sm:px-6">
  <div className="flex items-center gap-3">
  <Logo variant="full" className="h-10 w-auto" />
  <div className="hidden sm:block">
- <p className="text-sm font-bold tracking-wide text-gray-900">Punto de venta</p>
- <p className="text-[10px] uppercase tracking-[0.3em] text-gray-400">Wonka</p>
+ <p className="text-sm font-bold tracking-wide text-foreground">Punto de venta</p>
+ <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">Wonka</p>
  </div>
  </div>
 
  <div className="flex items-center gap-2 sm:gap-3">
- <div className="hidden rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-right sm:block">
- <span className="block text-[10px] font-bold uppercase text-gray-400">Apertura</span>
- <span className="font-mono text-sm font-black text-gray-900">{cash?.opening ?? 0}</span>
- <span className="block text-[10px] font-semibold uppercase text-gray-500">{CASH_LABEL[cash?.status ?? 'NO_ABIERTA'] ?? ''}</span>
+ <div className="hidden rounded-lg border border-border bg-muted px-3 py-2 text-right sm:block">
+ <span className="block text-[11px] font-bold uppercase text-muted-foreground">Apertura</span>
+ <span className="font-mono text-sm font-black text-foreground">{cash ? (cash.opening?.amount ?? 0) : '—'}</span>
+ <span className="block text-[11px] font-semibold uppercase text-muted-foreground">{cash ? CASH_LABEL[cash.cashStatus] : 'Consultando...'}</span>
  </div>
- {activeWorker?.role?.name === 'ADMIN' || activeWorker?.role?.name === 'ADMINISTRADOR' ? (
+ {canEnterAdmin ? (
  <Button variant="outline" size="sm" onClick={() => navigate('/admin')}>
  <LayoutDashboard className="mr-2 h-4 w-4" />
  Admin
  </Button>
  ) : null}
+ <ThemeToggle />
  <Button variant="outline" size="icon" onClick={handleLogout} title="Cerrar sesión">
  <LogOut className="h-4 w-4" />
  </Button>
@@ -71,10 +65,10 @@ export function TerminalShell({ children, activeSection }: TerminalShellProps) {
  </header>
 
  <div className="flex flex-1 overflow-hidden">
- <aside className="hidden w-65 shrink-0 flex-col border-r border-gray-200 bg-white md:flex">
+ <aside className="hidden w-65 shrink-0 flex-col border-r border-border bg-background md:flex">
  <div className="flex-1 overflow-y-auto py-2">
  <SectionGroup
- icon={<Monitor className="h-5 w-5 text-red-600" />}
+ icon={<Monitor className="h-5 w-5 text-destructive" />}
  label="Punto de venta"
  items={[
  { label: 'Caja', to: '/pos', active: effectiveSection === 'pos' },
@@ -87,7 +81,7 @@ export function TerminalShell({ children, activeSection }: TerminalShellProps) {
  />
 
  <SectionGroup
- icon={<Gamepad2 className="h-5 w-5 text-red-600" />}
+ icon={<Gamepad2 className="h-5 w-5 text-destructive" />}
  label="Juegos"
  items={[
  { label: 'Registrar cliente', to: '/register-client', active: effectiveSection === 'register-client' },
@@ -96,10 +90,10 @@ export function TerminalShell({ children, activeSection }: TerminalShellProps) {
  />
  </div>
 
- <div className="border-t border-gray-100 p-4">
- <div className="rounded-lg bg-gray-50 p-3">
- <p className="text-[10px] uppercase text-gray-400">Cajero</p>
- <p className="text-sm font-bold text-gray-900">{activeWorker?.name ?? 'Sin sesión'}</p>
+ <div className="border-t border-border p-4">
+ <div className="rounded-lg bg-muted p-3">
+ <p className="text-[11px] uppercase text-muted-foreground">Cajero</p>
+ <p className="text-sm font-bold text-foreground">{activeWorker?.name ?? 'Sin sesión'}</p>
  </div>
  </div>
  </aside>
@@ -123,10 +117,10 @@ function SectionGroup({
 
  return (
  <div className="px-3 py-2">
- <button className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-gray-50">
+ <button className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted">
  <div className="flex items-center gap-3">
  {icon}
- <span className="text-sm font-bold text-gray-700">{label}</span>
+ <span className="text-sm font-bold text-foreground">{label}</span>
  </div>
  </button>
  <div className="mt-1 space-y-0.5">
@@ -136,7 +130,7 @@ function SectionGroup({
  onClick={() => navigate(item.to)}
  className={cn(
  'w-full rounded-md px-4 py-2 text-left text-sm transition-colors',
- item.active ? 'bg-red-50 font-medium text-red-700' : 'text-gray-600 hover:bg-gray-50',
+ item.active ? 'bg-danger-soft font-medium text-destructive' : 'text-muted-foreground hover:bg-muted',
  )}
  >
  {item.label}

@@ -233,15 +233,15 @@ export function RegisterClientScreen() {
     <TerminalShell activeSection="register-client">
       <div className="space-y-4 max-w-6xl mx-auto">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-black tracking-tight text-gray-900">Registrar cliente</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-2xl font-black tracking-tight text-foreground">Registrar cliente</h1>
+          <p className="text-sm text-muted-foreground">
             Busca un apoderado registrado o crea uno nuevo con consulta automática a RENIEC / APISPeru.
           </p>
         </div>
 
         {errorMessage && (
-          <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-            <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+          <div className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-danger-soft p-3 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
             <p className="flex-1">{errorMessage}</p>
             <Button variant="ghost" size="sm" onClick={() => setErrorMessage(null)} className="text-xs h-7">
               Cerrar
@@ -250,7 +250,7 @@ export function RegisterClientScreen() {
         )}
 
         {successMessage && (
-          <div className="flex items-center gap-2 rounded-xl border border-secondary-200 bg-secondary-50 p-3 text-sm text-gray-900">
+          <div className="flex items-center gap-2 rounded-xl border border-secondary-200 bg-secondary-50 p-3 text-sm text-foreground">
             <CheckCircle2 className="h-4 w-4 shrink-0 text-secondary-600" />
             <p className="flex-1 font-medium">{successMessage}</p>
             <Button variant="ghost" size="sm" onClick={() => setSuccessMessage(null)} className="text-xs h-7">
@@ -260,7 +260,7 @@ export function RegisterClientScreen() {
         )}
 
         <div className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
-          <Card className="border-gray-200 bg-white shadow-sm">
+          <Card className="border-border bg-background shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Search className="h-4 w-4 text-brand-500" />
@@ -284,13 +284,13 @@ export function RegisterClientScreen() {
               </div>
 
               {lookupState === 'found' && lookupResult && (
-                <div className="rounded-xl border border-secondary-200 bg-secondary-50 p-3 text-sm text-gray-800 space-y-1">
-                  <div className="flex items-center gap-2 font-bold text-gray-900">
+                <div className="rounded-xl border border-secondary-200 bg-secondary-50 p-3 text-sm text-foreground space-y-1">
+                  <div className="flex items-center gap-2 font-bold text-foreground">
                     <CheckCircle2 className="h-4 w-4 text-secondary-600 shrink-0" />
                     Cliente registrado en Wonka
                   </div>
                   <p className="font-semibold">{lookupResult.fullName}</p>
-                  <p className="text-xs text-gray-500">DNI: {lookupResult.dni} {lookupResult.phone ? `· Tel: ${lookupResult.phone}` : ''}</p>
+                  <p className="text-xs text-muted-foreground">DNI: {lookupResult.dni} {lookupResult.phone ? `· Tel: ${lookupResult.phone}` : ''}</p>
                   <Badge variant="secondary" className="mt-1">
                     {lookupResult.children.length} {lookupResult.children.length === 1 ? 'niño asociado' : 'niños asociados'}
                   </Badge>
@@ -298,9 +298,9 @@ export function RegisterClientScreen() {
               )}
 
               {lookupState === 'found-reniec' && (
-                <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 space-y-1">
-                  <div className="flex items-center gap-2 font-bold text-blue-900">
-                    <Sparkles className="h-4 w-4 text-blue-600 shrink-0" />
+                <div className="rounded-xl border border-info/30 bg-info-soft p-3 text-sm text-info space-y-1">
+                  <div className="flex items-center gap-2 font-bold text-info">
+                    <Sparkles className="h-4 w-4 text-info shrink-0" />
                     Autorellenado con RENIEC
                   </div>
                   <p className="text-xs">{lookupMessage}</p>
@@ -308,21 +308,21 @@ export function RegisterClientScreen() {
               )}
 
               {lookupState === 'not-found' && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                <div className="rounded-xl border border-warning/40 bg-warning-soft p-3 text-sm text-warning">
                   No existe un cliente con ese DNI en el sistema. Puedes consultar RENIEC o completar el formulario manualmente.
                 </div>
               )}
             </CardContent>
           </Card>
 
-          <Card className="border-gray-200 bg-white shadow-sm">
+          <Card className="border-border bg-background shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center justify-between text-lg">
                 <span className="flex items-center gap-2">
                   <UserPlus className="h-4 w-4 text-brand-500" />
                   Nuevo cliente
                 </span>
-                <span className="text-xs font-normal text-gray-500 flex items-center gap-1">
+                <span className="text-xs font-normal text-muted-foreground flex items-center gap-1">
                   <Sparkles className="h-3.5 w-3.5 text-secondary-500" /> Integración DNI ApiPeru
                 </span>
               </CardTitle>
@@ -452,7 +452,7 @@ export function RegisterClientScreen() {
 
               {/* Género */}
               <div className="md:col-span-2">
-                <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-gray-400">Género</div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Género</div>
                 <div className="flex gap-2">
                   {(['M', 'F'] as const).map((value) => (
                     <Button
@@ -468,10 +468,10 @@ export function RegisterClientScreen() {
               </div>
 
               {/* Barra de acción */}
-              <div className="md:col-span-2 flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 mt-2">
+              <div className="md:col-span-2 flex items-center justify-between rounded-xl border border-border bg-muted px-4 py-3 mt-2">
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">Listo para registrar</p>
-                  <p className="text-xs text-gray-500">Se guardará el apoderado y quedará asociado al menor.</p>
+                  <p className="text-sm font-semibold text-foreground">Listo para registrar</p>
+                  <p className="text-xs text-muted-foreground">Se guardará el apoderado y quedará asociado al menor.</p>
                 </div>
                 <Button onClick={handleSave} disabled={saving} className="font-bold">
                   {saving ? (
@@ -488,7 +488,7 @@ export function RegisterClientScreen() {
         </div>
 
         {lookupResult && lookupResult.children.length > 0 && (
-          <Card className="border-gray-200 bg-white shadow-sm">
+          <Card className="border-border bg-background shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Users className="h-4 w-4 text-brand-500" />
@@ -497,9 +497,9 @@ export function RegisterClientScreen() {
             </CardHeader>
             <CardContent className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
               {lookupResult.children.map((child) => (
-                <div key={child.id} className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                  <p className="font-semibold text-gray-900">{child.fullName}</p>
-                  <p className="text-xs text-gray-500">
+                <div key={child.id} className="rounded-xl border border-border bg-muted p-3">
+                  <p className="font-semibold text-foreground">{child.fullName}</p>
+                  <p className="text-xs text-muted-foreground">
                     {child.dni ? `DNI: ${child.dni}` : 'Sin DNI'} · {child.age !== null ? `${child.age} años` : 'Sin edad'} {child.gender ? `· ${child.gender === 'M' ? 'Niño' : 'Niña'}` : ''}
                   </p>
                 </div>
@@ -523,7 +523,7 @@ function Field({
 }) {
   return (
     <label className="space-y-2 block">
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-gray-400">
+      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
         {icon}
         {label}
       </div>

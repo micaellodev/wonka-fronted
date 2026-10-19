@@ -1,17 +1,24 @@
+import { useCashStatusStore } from '@/store/cashStatusStore'
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { Eye, EyeOff, X, PlusCircle, MinusCircle, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, PlusCircle, MinusCircle, Loader2, ChevronLeft, ChevronRight, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react'
 import { api } from '@/lib/api'
+import { apiErrorMessage } from '@/lib/api-error'
+import { formatPEN } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/authStore'
 import { TerminalShell } from '@/components/TerminalShell'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ExportButtons } from '@/components/ExportButtons'
 
 // ============================================================
 // CashMovementsScreen — Cash Movements Ledger & Registration
 // ============================================================
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const apiErrorMessage = (e: any): string => e?.value?.message ?? e?.value?.error ?? 'Error de conexión'
 
 /** Today's date (YYYY-MM-DD) in Lima, the business timezone used by the backend. */
 const limaToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' })
@@ -38,120 +45,95 @@ interface UnifiedMovement {
   source: 'OPENING' | 'MANUAL'
 }
 
+const MONTHS = ['ene.', 'feb.', 'mar.', 'abr.', 'may.', 'jun.', 'jul.', 'ago.', 'set.', 'oct.', 'nov.', 'dic.']
+
 function formatMovementDateTime(isoStr: string): string {
   const d = new Date(isoStr)
-  const day = d.getDate()
-  const months = [
-    'ene.',
-    'feb.',
-    'mar.',
-    'abr.',
-    'may.',
-    'jun.',
-    'jul.',
-    'ago.',
-    'set.',
-    'oct.',
-    'nov.',
-    'dic.',
-  ]
-  const month = months[d.getMonth()]
-  const year = d.getFullYear()
-  const hours = String(d.getHours()).padStart(2, '0')
-  const mins = String(d.getMinutes()).padStart(2, '0')
-  return `${day} ${month} ${year}, ${hours}:${mins}`
-}
-
-function formatPEN(val: number): string {
-  return `S/ ${Number(val || 0).toLocaleString('es-PE', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}, ${hh}:${mm}`
 }
 
 function formatUSD(val: number): string {
-  return `$${Number(val || 0).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`
+  return `$${Number(val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+function BalanceCard({ label, value, hidden, onToggle, mask }: { label: string; value: string; hidden: boolean; onToggle: () => void; mask: string }) {
+  return (
+    <Card className="relative rounded-xl border border-border bg-card p-6 shadow-2xs">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+        <button
+          onClick={onToggle}
+          className="p-1 text-muted-foreground transition-colors hover:text-foreground"
+          aria-label={hidden ? 'Mostrar saldo' : 'Ocultar saldo'}
+          aria-pressed={hidden}
+        >
+          {hidden ? <EyeOff className="h-4 w-4" aria-hidden /> : <Eye className="h-4 w-4" aria-hidden />}
+        </button>
+      </div>
+      <p className="text-2xl font-black tracking-tight text-foreground md:text-3xl">{hidden ? mask : value}</p>
+    </Card>
+  )
 }
 
 export function CashMovementsScreen() {
   const { tenantId, activeWorker } = useAuthStore()
+  const summary = useCashStatusStore((s) => s.summary)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [summary, setSummary] = useState<{ expectedCash: number; movements: { inUSD: number; outUSD: number } } | null>(null)
   const montoCajaSoles = summary?.expectedCash ?? 0
   const montoCajaDolares = summary ? summary.movements.inUSD - summary.movements.outUSD : 0
   const [apiMovements, setApiMovements] = useState<ApiCashMovement[]>([])
 
-  // Visibility toggle for KPI balances
-  const [showBalanceSoles, setShowBalanceSoles] = useState(true)
-  const [showBalanceDolares, setShowBalanceDolares] = useState(true)
+  const [hideSoles, setHideSoles] = useState(false)
+  const [hideDolares, setHideDolares] = useState(false)
 
-  // Modals for adding movement
   const [modalType, setModalType] = useState<'IN' | 'OUT' | null>(null)
   const [amountInput, setAmountInput] = useState('')
   const [reasonInput, setReasonInput] = useState('')
   const [currencyInput, setCurrencyInput] = useState<'PEN' | 'USD'>('PEN')
   const [savingMovement, setSavingMovement] = useState(false)
 
-  // Pagination
   const [pageSize, setPageSize] = useState(10)
   const [page, setPage] = useState(1)
-
-  const todayStr = useMemo(limaToday, [])
 
   const fetchAll = useCallback(async () => {
     if (!tenantId) return
     setLoading(true)
     setLoadError(null)
+    const todayStr = limaToday() // recomputed per fetch so a screen left open past midnight follows the new day
     try {
-      // Cash sales come from the backend shift summary (today in Lima, all of them, no page limit)
-      const [summaryRes, movementsRes] = await Promise.all([
-        api.cash.summary.get({ query: { tenantId } }),
-        api.cash.movements.get({ query: { tenantId, date: todayStr } }),
-      ])
-      if (summaryRes.error) throw summaryRes.error
+      // Cash figures come from the shared store (refreshed below); only the ledger is fetched here
+      const movementsRes = await api.cash.movements.get({ query: { tenantId, date: todayStr } })
       if (movementsRes.error) throw movementsRes.error
-      setSummary(summaryRes.data.data as unknown as { expectedCash: number; movements: { inUSD: number; outUSD: number } })
       setApiMovements(movementsRes.data.data as ApiCashMovement[])
+      void useCashStatusStore.getState().refresh(tenantId)
     } catch (err) {
-      setLoadError(apiErrorMessage(err))
+      setLoadError(apiErrorMessage(err, 'Error de conexión'))
     } finally {
       setLoading(false)
     }
-  }, [tenantId, todayStr])
+  }, [tenantId])
 
   useEffect(() => {
     fetchAll()
   }, [fetchAll])
 
-  // Compile all unified movements
   const allMovements = useMemo(() => {
-    const list: UnifiedMovement[] = []
-
-    // 2. Opening + manual movements (persisted in the backend)
-    for (const m of apiMovements) {
-      list.push({
-        id: m.id,
-        type: m.type === 'OUT' ? 'OUT' : 'IN',
-        time: m.createdAt,
-        reason: m.type === 'OPENING' ? 'Apertura de caja' : m.reason,
-        amount: Number(m.amount || 0),
-        currency: m.currency as 'PEN' | 'USD',
-        source: m.type === 'OPENING' ? 'OPENING' : 'MANUAL',
-      })
-    }
-
-    // Sort newest first
-    return list.sort(
-      (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
-    )
+    const list: UnifiedMovement[] = apiMovements.map((m) => ({
+      id: m.id,
+      type: m.type === 'OUT' ? 'OUT' : 'IN',
+      time: m.createdAt,
+      reason: m.type === 'OPENING' ? 'Apertura de caja' : m.reason,
+      amount: Number(m.amount || 0),
+      currency: m.currency as 'PEN' | 'USD',
+      source: m.type === 'OPENING' ? 'OPENING' : 'MANUAL',
+    }))
+    return list.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
   }, [apiMovements])
 
-  // Pagination logic
   const totalItems = allMovements.length
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
   const paginatedMovements = useMemo(() => {
@@ -162,11 +144,17 @@ export function CashMovementsScreen() {
   const startIndex = totalItems === 0 ? 0 : (page - 1) * pageSize + 1
   const endIndex = Math.min(page * pageSize, totalItems)
 
+  const openModal = (type: 'IN' | 'OUT') => {
+    setModalType(type)
+    setSaveError(null)
+    setCurrencyInput('PEN')
+    setAmountInput('')
+    setReasonInput('')
+  }
+
   const handleSaveMovement = async () => {
     const val = Math.round(parseFloat(amountInput) * 100) / 100
-    if (!val || val <= 0 || !reasonInput.trim() || !modalType || !activeWorker) {
-      return
-    }
+    if (!val || val <= 0 || !reasonInput.trim() || !modalType || !activeWorker) return
     setSavingMovement(true)
     setSaveError(null)
     try {
@@ -184,107 +172,58 @@ export function CashMovementsScreen() {
       setReasonInput('')
       fetchAll()
     } catch (err) {
-      setSaveError(apiErrorMessage(err))
+      setSaveError(apiErrorMessage(err, 'Error de conexión'))
     } finally {
       setSavingMovement(false)
     }
   }
 
+  const currencyBtn = (cur: 'PEN' | 'USD', text: string) => (
+    <button
+      type="button"
+      aria-pressed={currencyInput === cur}
+      onClick={() => setCurrencyInput(cur)}
+      className={cn(
+        'rounded-lg border py-2 text-xs font-bold transition-colors',
+        currencyInput === cur ? 'border-success bg-success-soft text-success' : 'border-border bg-card text-foreground hover:bg-muted'
+      )}
+    >
+      {text}
+    </button>
+  )
+
+  const pagerBtn = 'rounded p-1 text-muted-foreground transition-colors hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent'
+
   return (
     <TerminalShell activeSection="movimientos-caja">
-      <div className="flex min-h-full flex-col bg-gray-50/50 p-4 md:p-8 text-gray-900">
-        {/* ── Top Header ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex min-h-full flex-col bg-muted/50 p-4 text-foreground md:p-8">
+        <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900">
-              Movimientos de caja
-            </h1>
-            <p className="text-xs md:text-sm text-gray-500 mt-1">
-              Registra tus movimientos de efectivo del día
-            </p>
+            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Movimientos de caja</h1>
+            <p className="mt-1 text-xs text-muted-foreground md:text-sm">Registra tus movimientos de efectivo del día</p>
           </div>
-
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={() => {
-                setModalType('OUT')
-                setSaveError(null)
-                setCurrencyInput('PEN')
-                setAmountInput('')
-                setReasonInput('')
-              }}
-              className="bg-red-600 hover:bg-red-700 text-white h-10 px-5 text-xs font-bold tracking-wide shadow-2xs transition-colors"
-            >
+          <div className="flex flex-wrap items-center gap-3">
+            <ExportButtons name="movimientos-caja" disabled={allMovements.length === 0} getRows={() => [
+              ['Fecha', 'Tipo', 'Concepto', 'Moneda', 'Monto'],
+              ...allMovements.map((m) => [formatMovementDateTime(m.time), m.type === 'IN' ? 'Ingreso' : 'Salida', m.reason, m.currency, m.amount]),
+            ]} />
+            <Button onClick={() => openModal('OUT')} className="h-10 bg-primary px-5 text-xs font-bold tracking-wide text-primary-foreground shadow-2xs hover:bg-primary/90">
               Salida de dinero
             </Button>
-            <Button
-              onClick={() => {
-                setModalType('IN')
-                setSaveError(null)
-                setCurrencyInput('PEN')
-                setAmountInput('')
-                setReasonInput('')
-              }}
-              className="bg-[#00c569] hover:bg-[#00b05e] text-white h-10 px-5 text-xs font-bold tracking-wide shadow-2xs transition-colors"
-            >
+            <Button onClick={() => openModal('IN')} className="h-10 bg-success px-5 text-xs font-bold tracking-wide text-success-foreground shadow-2xs hover:bg-success/90">
               Ingreso de dinero
             </Button>
           </div>
         </div>
 
-        {/* ── 2 Balance KPI Cards ── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          {/* Card 1: Monto en caja en soles */}
-          <Card className="rounded-xl border border-gray-200 bg-white p-6 shadow-2xs relative">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-gray-400">
-                Monto en caja en soles
-              </span>
-              <button
-                onClick={() => setShowBalanceSoles((v) => !v)}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-1"
-                title={showBalanceSoles ? 'Ocultar saldo' : 'Mostrar saldo'}
-              >
-                {showBalanceSoles ? (
-                  <Eye className="w-4 h-4" />
-                ) : (
-                  <EyeOff className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-            <p className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">
-              {showBalanceSoles ? formatPEN(montoCajaSoles) : 'S/ ••••••'}
-            </p>
-          </Card>
-
-          {/* Card 2: Monto en caja en dólares */}
-          <Card className="rounded-xl border border-gray-200 bg-white p-6 shadow-2xs relative">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-gray-400">
-                Monto en caja en dólares
-              </span>
-              <button
-                onClick={() => setShowBalanceDolares((v) => !v)}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-1"
-                title={showBalanceDolares ? 'Ocultar saldo' : 'Mostrar saldo'}
-              >
-                {showBalanceDolares ? (
-                  <Eye className="w-4 h-4" />
-                ) : (
-                  <EyeOff className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-            <p className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">
-              {showBalanceDolares ? formatUSD(montoCajaDolares) : '$••••••'}
-            </p>
-          </Card>
+        <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-2">
+          <BalanceCard label="Monto en caja en soles" value={formatPEN(montoCajaSoles)} hidden={hideSoles} onToggle={() => setHideSoles((v) => !v)} mask="S/ ••••••" />
+          <BalanceCard label="Monto en caja en dólares" value={formatUSD(montoCajaDolares)} hidden={hideDolares} onToggle={() => setHideDolares((v) => !v)} mask="$••••••" />
         </div>
 
-        {/* ── Table Container ── */}
-        <Card className="rounded-xl border border-gray-200 bg-white shadow-2xs overflow-hidden">
-          <div className="overflow-x-auto min-h-[300px] flex flex-col justify-between">
-            <table className="w-full text-left text-xs table-fixed">
+        <Card className="overflow-hidden rounded-xl border border-border bg-card shadow-2xs">
+          <div className="flex min-h-[300px] flex-col justify-between overflow-x-auto">
+            <table className="w-full min-w-[560px] table-fixed text-left text-xs">
               <colgroup>
                 <col className="w-[15%]" />
                 <col className="w-[25%]" />
@@ -292,95 +231,51 @@ export function CashMovementsScreen() {
                 <col className="w-[15%]" />
               </colgroup>
               <thead>
-                <tr className="border-b border-gray-200 bg-white text-gray-700 font-semibold">
-                  <th className="py-4 px-6">Tipo</th>
-                  <th className="py-4 px-6">Hora</th>
-                  <th className="py-4 px-6">Motivo</th>
-                  <th className="py-4 px-6 text-right">Monto</th>
+                <tr className="border-b border-border bg-card font-semibold text-foreground">
+                  <th className="px-6 py-4">Tipo</th>
+                  <th className="px-6 py-4">Hora</th>
+                  <th className="px-6 py-4">Motivo</th>
+                  <th className="px-6 py-4 text-right">Monto</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 text-gray-700">
+              <tbody className="divide-y divide-border text-foreground">
                 {loading ? (
                   <tr>
-                    <td colSpan={4} className="py-20 text-center text-gray-400">
-                      <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-gray-400" />
+                    <td colSpan={4} className="py-20 text-center text-muted-foreground">
+                      <Loader2 className="mx-auto mb-2 h-6 w-6 animate-spin" aria-hidden />
                       Cargando movimientos...
                     </td>
                   </tr>
                 ) : loadError ? (
                   <tr>
-                    <td colSpan={4} className="py-20 text-center text-red-600">
+                    <td colSpan={4} role="alert" className="py-20 text-center text-destructive">
                       No se pudieron cargar los movimientos: {loadError}{' '}
                       <button className="underline" onClick={fetchAll}>Reintentar</button>
                     </td>
                   </tr>
                 ) : paginatedMovements.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="py-20 text-center text-gray-400">
-                      Sin movimientos de caja registrados hoy
-                    </td>
+                    <td colSpan={4} className="py-20 text-center text-muted-foreground">Sin movimientos de caja registrados hoy</td>
                   </tr>
                 ) : (
                   paginatedMovements.map((item) => (
-                    <tr
-                      key={item.id}
-                      className="hover:bg-gray-50/70 transition-colors h-14"
-                    >
-                      {/* Tipo Badge */}
-                      <td className="py-3 px-6">
+                    <tr key={item.id} className="h-14 transition-colors hover:bg-muted/70">
+                      <td className="px-6 py-3">
                         {item.type === 'IN' ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-400/60 bg-emerald-50/70 px-2 py-0.5 text-xs font-semibold text-emerald-700 select-none">
-                            <svg
-                              className="w-3.5 h-3.5 shrink-0"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <rect width="18" height="18" x="3" y="3" rx="2" />
-                              <path d="m8 12 4 4 4-4" />
-                              <path d="M12 8v8" />
-                            </svg>
-                            Entrada
+                          <span className="inline-flex select-none items-center gap-1.5 rounded-md border border-success/40 bg-success-soft px-2 py-0.5 text-xs font-semibold text-success">
+                            <ArrowDownToLine className="h-3.5 w-3.5 shrink-0" aria-hidden /> Entrada
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 rounded-md border border-red-400/60 bg-red-50/70 px-2 py-0.5 text-xs font-semibold text-red-700 select-none">
-                            <svg
-                              className="w-3.5 h-3.5 shrink-0"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <rect width="18" height="18" x="3" y="3" rx="2" />
-                              <path d="m16 12-4-4-4 4" />
-                              <path d="M12 16V8" />
-                            </svg>
-                            Salida
+                          <span className="inline-flex select-none items-center gap-1.5 rounded-md border border-destructive/40 bg-danger-soft px-2 py-0.5 text-xs font-semibold text-destructive">
+                            <ArrowUpFromLine className="h-3.5 w-3.5 shrink-0" aria-hidden /> Salida
                           </span>
                         )}
                       </td>
-
-                      {/* Hora */}
-                      <td className="py-3 px-6 text-gray-700 font-normal truncate">
-                        {formatMovementDateTime(item.time)}
-                      </td>
-
-                      {/* Motivo */}
-                      <td className="py-3 px-6 text-gray-700 font-normal truncate">
-                        {item.reason}
-                      </td>
-
-                      {/* Monto */}
-                      <td className="py-3 px-6 text-right font-medium text-gray-900">
+                      <td className="truncate px-6 py-3">{formatMovementDateTime(item.time)}</td>
+                      <td className="truncate px-6 py-3" title={item.reason}>{item.reason}</td>
+                      <td className="px-6 py-3 text-right font-medium">
                         {item.type === 'OUT' ? '- ' : ''}
-                        {item.currency === 'PEN'
-                          ? formatPEN(item.amount)
-                          : formatUSD(item.amount)}
+                        {item.currency === 'PEN' ? formatPEN(item.amount) : formatUSD(item.amount)}
                       </td>
                     </tr>
                   ))
@@ -389,191 +284,104 @@ export function CashMovementsScreen() {
             </table>
           </div>
 
-          {/* ── Table Footer & Pagination ── */}
-          <div className="flex items-center justify-end gap-6 border-t border-gray-200 px-6 py-3.5 text-xs text-gray-500">
+          <div className="flex flex-wrap items-center justify-end gap-x-6 gap-y-2 border-t border-border px-6 py-3.5 text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
-              <span>Movimientos por página</span>
-              <select
+              <Label htmlFor="mov-page-size" className="text-xs font-normal text-muted-foreground">Movimientos por página</Label>
+              <Select
+                id="mov-page-size"
                 value={pageSize}
                 onChange={(e) => {
                   setPageSize(Number(e.target.value))
                   setPage(1)
                 }}
-                className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none"
+                className="h-8 w-auto px-2 py-1 text-xs"
               >
                 <option value={10}>10</option>
                 <option value={20}>20</option>
                 <option value={50}>50</option>
-              </select>
+              </Select>
             </div>
-
-            <span>
-              {totalItems === 0
-                ? '0 - 0 de 0'
-                : `${startIndex}-${endIndex} de ${totalItems}`}
-            </span>
-
+            <span>{totalItems === 0 ? '0 - 0 de 0' : `${startIndex}-${endIndex} de ${totalItems}`}</span>
             <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent text-gray-600 transition-colors"
-              >
-                <svg
-                  className="w-4 h-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="m15 18-6-6 6-6" />
-                </svg>
+              <button aria-label="Página anterior" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} className={pagerBtn}>
+                <ChevronLeft className="h-4 w-4" aria-hidden />
               </button>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-                className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent text-gray-600 transition-colors"
-              >
-                <svg
-                  className="w-4 h-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="m9 18 6-6-6-6" />
-                </svg>
+              <button aria-label="Página siguiente" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className={pagerBtn}>
+                <ChevronRight className="h-4 w-4" aria-hidden />
               </button>
             </div>
           </div>
         </Card>
 
-        {/* ── Modal for New Cash Movement (Ingreso / Salida) ── */}
-        {modalType && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-gray-200">
-              <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
-                <div className="flex items-center gap-2">
-                  {modalType === 'IN' ? (
-                    <PlusCircle className="w-5 h-5 text-emerald-600" />
-                  ) : (
-                    <MinusCircle className="w-5 h-5 text-red-600" />
-                  )}
-                  <h2 className="text-base font-bold text-gray-900">
-                    {modalType === 'IN'
-                      ? 'Registrar Ingreso de Dinero'
-                      : 'Registrar Salida de Dinero'}
-                  </h2>
+        <Dialog open={!!modalType} onOpenChange={(o) => !o && !savingMovement && setModalType(null)}>
+          <DialogContent size="md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                {modalType === 'IN' ? (
+                  <PlusCircle className="h-5 w-5 text-success" aria-hidden />
+                ) : (
+                  <MinusCircle className="h-5 w-5 text-destructive" aria-hidden />
+                )}
+                {modalType === 'IN' ? 'Registrar Ingreso de Dinero' : 'Registrar Salida de Dinero'}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div>
+                <span id="mov-currency-label" className="mb-1.5 block text-xs font-semibold text-muted-foreground">Moneda</span>
+                <div role="group" aria-labelledby="mov-currency-label" className="grid grid-cols-2 gap-2">
+                  {currencyBtn('PEN', 'Soles (S/)')}
+                  {currencyBtn('USD', 'Dólares ($)')}
                 </div>
-                <button
-                  onClick={() => setModalType(null)}
-                  className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-                >
-                  <X className="w-5 h-5" />
-                </button>
               </div>
-
-              <div className="space-y-4">
-                {/* Currency selector */}
-                <div>
-                  <label className="text-xs font-semibold text-gray-600 block mb-1.5">
-                    Moneda
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setCurrencyInput('PEN')}
-                      className={`py-2 text-xs font-bold rounded-lg border transition-colors ${
-                        currencyInput === 'PEN'
-                          ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      Soles (S/)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCurrencyInput('USD')}
-                      className={`py-2 text-xs font-bold rounded-lg border transition-colors ${
-                        currencyInput === 'USD'
-                          ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      Dólares ($)
-                    </button>
-                  </div>
-                </div>
-
-                {/* Amount input */}
-                <div>
-                  <label className="text-xs font-semibold text-gray-600 block mb-1.5">
-                    Monto ({currencyInput === 'PEN' ? 'S/' : '$'})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    value={amountInput}
-                    onChange={(e) => setAmountInput(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                {/* Reason input */}
-                <div>
-                  <label className="text-xs font-semibold text-gray-600 block mb-1.5">
-                    Motivo
-                  </label>
-                  <textarea
-                    value={reasonInput}
-                    onChange={(e) => setReasonInput(e.target.value)}
-                    placeholder={
-                      modalType === 'IN'
-                        ? 'Ej: Ingreso por sencillo adicional'
-                        : 'Ej: Pago a proveedor de insumos'
-                    }
-                    rows={3}
-                    maxLength={200}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
-                  />
-                </div>
-                {saveError && <p className="text-xs text-red-600">{saveError}</p>}
+              <div>
+                <Label htmlFor="mov-amount" className="mb-1.5 block text-xs font-semibold text-muted-foreground">
+                  Monto ({currencyInput === 'PEN' ? 'S/' : '$'})
+                </Label>
+                <Input
+                  id="mov-amount"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={amountInput}
+                  onChange={(e) => setAmountInput(e.target.value)}
+                  placeholder="0.00"
+                  className="font-semibold"
+                />
               </div>
-
-              <div className="mt-6 flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setModalType(null)}
-                  disabled={savingMovement}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  onClick={handleSaveMovement}
-                  disabled={
-                    savingMovement ||
-                    !amountInput ||
-                    parseFloat(amountInput) <= 0 ||
-                    !reasonInput.trim()
-                  }
-                  className={`flex-1 text-white text-xs font-bold ${
-                    modalType === 'IN'
-                      ? 'bg-[#00c569] hover:bg-[#00b05e]'
-                      : 'bg-red-600 hover:bg-red-700'
-                  }`}
-                >
-                  {savingMovement ? (
-                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                  ) : null}
-                  {modalType === 'IN' ? 'Guardar Ingreso' : 'Guardar Salida'}
-                </Button>
+              <div>
+                <Label htmlFor="mov-reason" className="mb-1.5 block text-xs font-semibold text-muted-foreground">Motivo</Label>
+                <Textarea
+                  id="mov-reason"
+                  value={reasonInput}
+                  onChange={(e) => setReasonInput(e.target.value)}
+                  placeholder={modalType === 'IN' ? 'Ej: Ingreso por sencillo adicional' : 'Ej: Pago a proveedor de insumos'}
+                  rows={3}
+                  maxLength={200}
+                  className="resize-none text-xs"
+                />
               </div>
+              {saveError && <p role="alert" className="text-xs text-destructive">{saveError}</p>}
             </div>
-          </div>
-        )}
+
+            <DialogFooter>
+              <Button variant="outline" className="flex-1" onClick={() => setModalType(null)} disabled={savingMovement}>Cancelar</Button>
+              <Button
+                onClick={handleSaveMovement}
+                disabled={savingMovement || !amountInput || parseFloat(amountInput) <= 0 || !reasonInput.trim()}
+                className={cn(
+                  'flex-1 text-xs font-bold',
+                  modalType === 'IN'
+                    ? 'bg-success text-success-foreground hover:bg-success/90'
+                    : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                )}
+              >
+                {savingMovement ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden /> : null}
+                {modalType === 'IN' ? 'Guardar Ingreso' : 'Guardar Salida'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </TerminalShell>
   )

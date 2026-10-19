@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { DollarSign, AlertCircle } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -33,24 +34,26 @@ export function CashOpeningModal({ onConfirm, isLoading = false, defaultAmount =
  }
 
  return (
- <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4 ">
- <Card className="w-full max-w-md">
- <CardHeader>
+ // Not dismissable: sales stay blocked until the day is opened.
+ <Dialog open onOpenChange={() => {}}>
+ <DialogContent size="md" showCloseButton={false}>
+ <DialogHeader>
  <div className="flex items-center gap-3">
- <DollarSign className="h-5 w-5 text-primary" />
+ <DollarSign className="h-5 w-5 text-primary" aria-hidden />
  <div>
- <CardTitle className="text-xl">Apertura de Caja</CardTitle>
- <CardDescription>Ingresa el monto inicial de efectivo en caja</CardDescription>
+ <DialogTitle className="text-xl">Apertura de Caja</DialogTitle>
+ <DialogDescription>Ingresa el monto inicial de efectivo en caja</DialogDescription>
  </div>
  </div>
- </CardHeader>
+ </DialogHeader>
 
- <CardContent className="space-y-4">
- <div className="rounded-lg border bg-muted/40 p-4">
- <p className="mb-1 text-sm text-muted-foreground">Este sera el saldo inicial del dia</p>
+ <div className="space-y-4">
+ <div className="rounded-lg border border-border bg-muted/40 p-4">
+ <Label htmlFor="opening-amount" className="mb-1 block font-normal text-muted-foreground">Este será el saldo inicial del día</Label>
  <div className="flex items-center gap-2">
  <span className="text-2xl font-semibold">S/</span>
  <Input
+ id="opening-amount"
  type="number"
  value={amount}
  onChange={(e) => {
@@ -62,29 +65,24 @@ export function CashOpeningModal({ onConfirm, isLoading = false, defaultAmount =
  step="0.01"
  min="0"
  disabled={isLoading}
- className="h-12 border-input/70 text-3xl font-bold"
+ className="h-12 text-3xl font-bold"
  autoFocus
  />
  </div>
  </div>
 
  {(error || serverError) && (
- <div className="flex items-start gap-2 rounded-lg border border-brand-200 bg-brand-100 p-3">
- <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-brand-500" />
- <p className="text-sm text-brand-400">{error || serverError}</p>
+ <div role="alert" className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-danger-soft p-3">
+ <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" aria-hidden />
+ <p className="text-sm text-destructive">{error || serverError}</p>
  </div>
  )}
 
- <Button
- onClick={handleSubmit}
- disabled={!amount || isLoading}
- className="h-11 w-full"
- >
+ <Button onClick={handleSubmit} disabled={!amount || isLoading} className="h-11 w-full">
  {isLoading ? 'Abriendo caja...' : 'Confirmar apertura'}
  </Button>
- </CardContent>
- </Card>
  </div>
+ </DialogContent>
+ </Dialog>
  )
 }
-

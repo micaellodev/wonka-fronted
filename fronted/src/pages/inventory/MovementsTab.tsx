@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import type { Product, StockMovement, StockMovementType } from '@/types'
 import { ErrorRetry, Pager, TableSkeleton } from './shared'
 import { apiMsg, MOVEMENT_LABEL, selectClass } from './utils'
+import { ExportButtons } from '@/components/ExportButtons'
 
 const LIMIT = 20
 const TYPES = Object.keys(MOVEMENT_LABEL) as StockMovementType[]
@@ -57,6 +58,25 @@ export function MovementsTab({ tenantId }: { tenantId: string }) {
 
  useEffect(() => { void load() }, [load])
 
+ // Exporta todos los movimientos con los filtros actuales (de a 200, el máximo del backend; tope 5000 filas)
+ const exportRows = async () => {
+  const all: StockMovement[] = []
+  for (let pg = 1; pg <= 25; pg++) {
+   const res = await api.inventory.movements.get({
+    query: { tenantId, page: pg, limit: 200, ...(productId ? { productId } : {}), ...(type ? { type } : {}),
+     ...(from ? { from: dayStart(from) } : {}), ...(to ? { to: dayEnd(to) } : {}) },
+   })
+   if (res.error) throw new Error('export')
+   const body = res.data as unknown as { data: StockMovement[]; meta?: { total: number } }
+   all.push(...(body.data ?? []))
+   if (all.length >= (body.meta?.total ?? 0) || (body.data ?? []).length === 0) break
+  }
+  return [
+   ['Fecha', 'Producto', 'SKU', 'Tipo', 'Cambio', 'Stock antes', 'Stock después', 'Motivo', 'Usuario'],
+   ...all.map((m) => [dt(m.createdAt), m.product.name, m.product.sku, MOVEMENT_LABEL[m.type] ?? m.type, m.delta, m.stockBefore, m.stockAfter, m.reason ?? '', m.worker?.name ?? '']),
+  ]
+ }
+
  const f = <T,>(set: (v: T) => void) => (v: T) => { set(v); setPage(1) }
 
  return (
@@ -76,6 +96,10 @@ export function MovementsTab({ tenantId }: { tenantId: string }) {
     <label className="text-xs text-muted-foreground">Hasta
      <Input type="date" value={to} min={from || undefined} onChange={(e) => f(setTo)(e.target.value)} data-testid="mov-filter-to" />
     </label>
+   </div>
+
+   <div className="flex justify-end">
+    <ExportButtons name="movimientos-inventario" disabled={total === 0} getRows={exportRows} />
    </div>
 
    {error && <ErrorRetry message={error} onRetry={() => void load()} />}

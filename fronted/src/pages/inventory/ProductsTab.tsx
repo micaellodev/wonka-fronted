@@ -11,6 +11,8 @@ import { ProductModal } from './ProductModal'
 import { StockModal } from './StockModal'
 import { ConfirmModal, ErrorRetry, Pager, TableSkeleton } from './shared'
 import { apiMsg, money, selectClass, useDebounced } from './utils'
+import { useCan } from '@/lib/permissions'
+import { ExportButtons } from '@/components/ExportButtons'
 
 export type StockFilter = 'all' | 'low' | 'out' | 'ok'
 const LIMIT = 20
@@ -30,6 +32,7 @@ export function ProductsTab({ tenantId, categories, initialStock, onChanged, onC
  tenantId: string; categories: Category[]; initialStock: StockFilter
  onChanged: () => void; onCategoriesChanged: () => void
 }) {
+ const canEdit = useCan().can('inventory.edit')
  const [search, setSearch] = useState('')
  const q = useDebounced(search)
  const [categoryId, setCategoryId] = useState('')
@@ -67,6 +70,24 @@ export function ProductsTab({ tenantId, categories, initialStock, onChanged, onC
  }, [tenantId, page, stock, status, q, categoryId])
 
  useEffect(() => { void load() }, [load])
+
+ // Exporta todos los productos que cumplen los filtros actuales (pide de a 500, el máximo del backend)
+ const exportRows = async () => {
+  const all: Product[] = []
+  for (let pg = 1; pg <= 20; pg++) {
+   const res = await api.inventory.products.get({
+    query: { tenantId, page: pg, limit: 500, stock, status, ...(q.trim() ? { search: q.trim() } : {}), ...(categoryId ? { categoryId } : {}) },
+   })
+   if (res.error) throw new Error('export')
+   const body = res.data as unknown as { data: Product[]; meta?: { total: number } }
+   all.push(...(body.data ?? []))
+   if (all.length >= (body.meta?.total ?? 0) || (body.data ?? []).length === 0) break
+  }
+  return [
+   ['SKU', 'Producto', 'Categoría', 'Precio', 'Costo', 'Stock', 'Stock mínimo', 'Controla stock', 'Estado'],
+   ...all.map((p) => [p.sku, p.name, p.category.name, Number(p.price), p.cost != null ? Number(p.cost) : '', p.stock, p.minStock ?? '', p.trackStock ? 'Sí' : 'No', p.isActive ? 'Activo' : 'Inactivo']),
+  ]
+ }
 
  const refresh = () => { void load(); onChanged() }
  const filter = <T,>(set: (v: T) => void) => (v: T) => { set(v); setPage(1) }
@@ -110,11 +131,12 @@ export function ProductsTab({ tenantId, categories, initialStock, onChanged, onC
      <option value="inactive">Inactivos</option>
      <option value="all">Todos</option>
     </select>
-    <div className="ml-auto flex gap-2">
+    <ExportButtons name="inventario" className="ml-auto" disabled={total === 0} getRows={exportRows} />
+    {canEdit && <div className="flex gap-2">
      <Button variant="secondary" onClick={() => setImportOpen(true)} data-testid="import-open"><Upload /> Importar Excel</Button>
      <Button onClick={() => setProdModal({ editing: null })} disabled={categories.length === 0}
       title={categories.length === 0 ? 'Crea al menos una categoría primero' : ''} data-testid="product-new"><Plus /> Nuevo producto</Button>
-    </div>
+    </div>}
    </div>
 
    {error && <ErrorRetry message={error} onRetry={() => void load()} />}
@@ -153,13 +175,13 @@ export function ProductsTab({ tenantId, categories, initialStock, onChanged, onC
           <TableCell data-testid="product-stock-cell"><StockBadge p={p} /></TableCell>
           <TableCell><Badge variant={p.isActive ? 'success' : 'outline'} data-testid="product-status">{p.isActive ? 'Activo' : 'Inactivo'}</Badge></TableCell>
           <TableCell>
-           <div className="flex justify-end gap-1">
+           {canEdit && <div className="flex justify-end gap-1">
             <Button size="icon" variant="ghost" className="size-8" aria-label={`Editar ${p.name}`} title="Editar" onClick={() => setProdModal({ editing: p })} data-testid="product-edit"><Edit2 /></Button>
             <Button size="icon" variant="ghost" className="size-8" aria-label={`Ajustar stock de ${p.name}`}
              title={p.trackStock ? 'Ajustar stock' : 'Este producto no controla stock'} disabled={!p.trackStock} onClick={() => setStockFor(p)} data-testid="product-adjust"><SlidersHorizontal /></Button>
             <Button size="icon" variant="ghost" className="size-8" aria-label={`${p.isActive ? 'Desactivar' : 'Activar'} ${p.name}`}
              title={p.isActive ? 'Desactivar' : 'Activar'} onClick={() => { setToggleError(''); setToggleFor(p) }} data-testid="product-toggle"><Power /></Button>
-           </div>
+           </div>}
           </TableCell>
          </TableRow>
         ))}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
  Package,
@@ -17,9 +17,11 @@ import {
  PackageX,
  LineChart,
  UserPlus,
+ Clock,
 } from 'lucide-react'
-import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
+import { useCan } from '@/lib/permissions'
+import { useCashStatusStore, type CashStatus } from '@/store/cashStatusStore'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -28,18 +30,6 @@ import { formatCurrency } from '@/lib/format'
 // ============================================================
 // AdminDashboardScreen — Main admin landing with KPIs + navigation
 // ============================================================
-
-type CashStatus = 'NO_ABIERTA' | 'ABIERTA' | 'PENDIENTE' | 'CERRADA'
-
-// Subset of the backend DaySummary (GET /dashboard/metrics) used here
-interface DashboardStats {
- cashStatus: CashStatus
- sales: { count: number; total: number }
- voided: { count: number; total: number }
- expectedCash: number
- pending: { voids: number; closes: number }
- stock: { lowStock: number; outOfStock: number }
-}
 
 const CASH_LABEL: Record<CashStatus, string> = {
  NO_ABIERTA: 'No abierta',
@@ -58,30 +48,14 @@ const CASH_TONE: Record<CashStatus, string> = {
 export function AdminDashboardScreen() {
  const navigate = useNavigate()
  const { activeWorker, tenantId } = useAuthStore()
- const [stats, setStats] = useState<DashboardStats | null>(null)
- const [loading, setLoading] = useState(true)
- const [loadError, setLoadError] = useState(false)
-
- useEffect(() => {
- const fetchStats = async () => {
- try {
- const { data, error } = await api.dashboard.metrics.get({
- query: { tenantId },
- })
- if (error) throw error
- if (data?.data) {
- setStats(data.data as unknown as DashboardStats)
- }
- } catch (err) {
- console.error('Failed to load dashboard stats:', err)
- setLoadError(true)
- } finally {
- setLoading(false)
- }
- }
-
- fetchStats()
- }, [tenantId])
+ const { canRoute } = useCan()
+ const refreshCash = useCashStatusStore((st) => st.refresh)
+ // Acciones en otras pantallas (aprobar anulación, ventas) no refrescan el store: al entrar al panel, cifras frescas.
+ useEffect(() => { void refreshCash(tenantId) }, [refreshCash, tenantId])
+ // Same summary the cashier sees (shared store, auto-refreshed): one source for cash state and totals
+ const stats = useCashStatusStore((st) => st.summary)
+ const loadError = useCashStatusStore((st) => !st.summary && !!st.error)
+ const loading = useCashStatusStore((st) => st.loading)
 
  const warn = (n: number) => (n > 0 ? 'text-warning bg-warning-soft' : 'text-foreground bg-muted')
  const kpiCards = stats
@@ -89,8 +63,9 @@ export function AdminDashboardScreen() {
  { label: 'Ventas hoy', value: formatCurrency(stats.sales.total), sub: `${stats.sales.count} ventas`, icon: TrendingUp, tone: 'text-foreground bg-muted', route: '/sales-history?date=hoy' },
  { label: 'Anuladas', value: String(stats.voided.count), sub: formatCurrency(stats.voided.total), icon: Ban, tone: warn(stats.voided.count), route: '/sales-history?status=CANCELLED' },
  { label: 'Solicitudes', value: String(stats.pending.voids), sub: 'pendientes', icon: ClipboardList, tone: warn(stats.pending.voids), route: '/admin/approvals' },
- { label: 'Caja', value: CASH_LABEL[stats.cashStatus], sub: 'estado actual', icon: Wallet, tone: CASH_TONE[stats.cashStatus], route: '/admin/cash-history' },
- { label: 'Saldo esperado', value: formatCurrency(stats.expectedCash), sub: 'efectivo en caja', icon: Calculator, tone: 'text-foreground bg-muted', route: '/admin/cash-history' },
+ { label: 'Caja', value: CASH_LABEL[stats.cashStatus], sub: 'estado actual', icon: Wallet, tone: CASH_TONE[stats.cashStatus], route: '/admin/cashier' },
+ { label: 'Apertura', value: stats.opening ? formatCurrency(stats.opening.amount) : '—', sub: stats.opening ? `${new Date(stats.opening.at).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' })} · ${stats.opening.workerName}` : 'sin apertura hoy', icon: Clock, tone: 'text-foreground bg-muted', route: '/admin/cashier' },
+ { label: 'Saldo esperado', value: formatCurrency(stats.expectedCash), sub: 'efectivo en caja', icon: Calculator, tone: 'text-foreground bg-muted', route: '/admin/cashier' },
  { label: 'Stock bajo', value: String(stats.stock.lowStock), sub: 'productos', icon: AlertTriangle, tone: warn(stats.stock.lowStock), route: '/admin/inventory?stock=low' },
  { label: 'Agotados', value: String(stats.stock.outOfStock), sub: 'productos', icon: PackageX, tone: stats.stock.outOfStock > 0 ? 'text-destructive bg-danger-soft' : 'text-foreground bg-muted', route: '/admin/inventory?stock=out' },
  ]
@@ -132,7 +107,7 @@ export function AdminDashboardScreen() {
  label: 'Historial de Cierres',
  desc: 'Cierres aprobados',
  icon: History,
- route: '/admin/cash-history',
+ route: '/admin/cashier',
  },
  {
  label: 'Aprobaciones',
@@ -186,8 +161,8 @@ export function AdminDashboardScreen() {
 
  <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
  {loading
- ? Array.from({ length: 7 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)
- : kpiCards.map((kpi) => (
+ ? Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)
+ : kpiCards.filter((k) => canRoute(k.route)).map((kpi) => (
  <Card key={kpi.label} role="link" tabIndex={0} onClick={() => navigate(kpi.route)} onKeyDown={(e) => e.key === "Enter" && navigate(kpi.route)} className="cursor-pointer transition-colors hover:border-primary/50">
  <CardContent className="flex items-start justify-between p-5">
  <div>
@@ -204,7 +179,7 @@ export function AdminDashboardScreen() {
  <section>
  <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">Módulos</h2>
  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
- {navCards.map((card) => (
+ {navCards.filter((c) => canRoute(c.route)).map((card) => (
  <button
  key={card.label}
  onClick={() => navigate(card.route)}

@@ -8,6 +8,8 @@ import { Logo } from '@/components/Logo'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/store/authStore'
 import { cn } from '@/lib/utils'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { useCan } from '@/lib/permissions'
 
 const groups = [
  { label: 'General', items: [
@@ -23,7 +25,7 @@ const groups = [
  ] },
  { label: 'Caja y reportes', items: [
  { label: 'Cuadre de caja', to: '/admin/cashier', icon: Calculator },
- { label: 'Historial de cierres', to: '/admin/cash-history', icon: History },
+ { label: 'Apertura y cierre', to: '/cash-close', icon: History },
  { label: 'Reportes', to: '/admin/reports', icon: BarChart3 },
  { label: 'Movimientos de caja', to: '/movimientos-caja', icon: Wallet },
  { label: 'Historial de ventas', to: '/sales-history', icon: Receipt },
@@ -42,15 +44,16 @@ export function AdminLayout({ children }: { children: ReactNode }) {
  const { pathname } = useLocation()
  const navigate = useNavigate()
  const { activeWorker, logout } = useAuthStore()
+ const { canRoute } = useCan()
  const title = flat.find((i) => i.to === pathname)?.label ?? 'Administración'
 
  const nav = (
  <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
  {groups.map((g) => (
  <div key={g.label}>
- <p className="mb-1.5 px-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{g.label}</p>
+ <p className="mb-1.5 px-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{g.label}</p>
  <div className="space-y-0.5">
- {g.items.map((i) => (
+ {g.items.filter((i) => canRoute(i.to)).map((i) => (
  <NavLink
  key={i.to}
  to={i.to}
@@ -85,7 +88,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
  {open && (
  <div className="fixed inset-0 z-40 lg:hidden">
- <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
+ <div className="absolute inset-0 bg-scrim" onClick={() => setOpen(false)} />
  <aside className="relative flex h-full w-64 flex-col bg-card shadow-xl">
  <div className="flex h-16 items-center justify-between border-b border-border px-5">
  <span className="text-sm font-bold">Wonka Admin</span>
@@ -104,6 +107,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
  </div>
  <div className="flex items-center gap-3">
  <span className="hidden text-sm text-muted-foreground sm:block">{activeWorker?.name}</span>
+ <ThemeToggle />
  <Button variant="outline" size="sm" onClick={() => { logout(); navigate('/') }}>
  <LogOut /> Salir
  </Button>

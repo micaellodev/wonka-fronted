@@ -6,6 +6,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { Plus, FileText, Search, Receipt, RefreshCw } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { api } from '@/lib/api'
+import { toast } from '@/components/ui/toast'
+import { formatPEN } from '@/lib/format'
 import { CreateBillingNoteModal, type BillingNoteResult } from '@/components/CreateBillingNoteModal'
 
 type BillingNote = {
@@ -25,6 +27,7 @@ type BillingNote = {
 
 type Pending = { sales: number; notes: number }
 type Flash = { type: 'success' | 'error' | 'warning'; text: string }
+const showFlash = (f: Flash) => (f.type === 'success' ? toast.success : f.type === 'error' ? toast.error : toast.info)(f.text)
 
 const STATUS: Record<string, { label: string; cls: string }> = {
  ACEPTADA: { label: 'Aceptada', cls: 'bg-success-soft text-success border-success/20' },
@@ -48,7 +51,6 @@ export function BillingNotesScreen() {
  const [pending, setPending] = useState<Pending>({ sales: 0, notes: 0 })
  const [loading, setLoading] = useState(true)
  const [retrying, setRetrying] = useState(false)
- const [flash, setFlash] = useState<Flash | null>(null)
  const [search, setSearch] = useState('')
  const [isModalOpen, setIsModalOpen] = useState(false)
 
@@ -61,7 +63,7 @@ export function BillingNotesScreen() {
  setNotes(data?.data ?? [])
  setPending(data?.meta?.pending ?? { sales: 0, notes: 0 })
  } catch (err) {
- setFlash({ type: 'error', text: err instanceof Error ? err.message : 'No se pudieron cargar las notas.' })
+ showFlash({ type: 'error', text: err instanceof Error ? err.message : 'No se pudieron cargar las notas.' })
  } finally {
  setLoading(false)
  }
@@ -74,7 +76,6 @@ export function BillingNotesScreen() {
  const retryPending = async () => {
  if (!tenantId || retrying) return
  setRetrying(true)
- setFlash(null)
  try {
  const { data, error } = await api.billing['retry-pending'].post({ tenantId })
  if (error) throw new Error(error.value?.error ?? error.value?.message ?? 'No se pudo reintentar.')
@@ -82,14 +83,14 @@ export function BillingNotesScreen() {
  const still = (sales.PENDING_SUNAT ?? 0) + (n.PENDING_SUNAT ?? 0)
  const rejected = (sales.RECHAZADA ?? 0) + (n.RECHAZADA ?? 0)
  const accepted = (sales.ACEPTADA ?? 0) + (n.ACEPTADA ?? 0)
- setFlash({
+ showFlash({
  type: still || rejected ? 'warning' : 'success',
  text: sales.processed + n.processed === 0
  ? 'No hay comprobantes pendientes.'
  : `Reintento: ${accepted} aceptados, ${rejected} rechazados, ${still} siguen pendientes (ventas ${sales.processed}, notas ${n.processed}).`,
  })
  } catch (err) {
- setFlash({ type: 'error', text: err instanceof Error ? err.message : 'No se pudo reintentar.' })
+ showFlash({ type: 'error', text: err instanceof Error ? err.message : 'No se pudo reintentar.' })
  } finally {
  setRetrying(false)
  fetchNotes()
@@ -99,9 +100,9 @@ export function BillingNotesScreen() {
  const handleCreated = (note: BillingNoteResult) => {
  const doc = `${note.serie}-${note.correlative}`
  const detail = sunatDetail(note)
- if (note.sunatStatus === 'ACEPTADA') setFlash({ type: 'success', text: `Nota ${doc} aceptada por SUNAT.` })
- else if (note.sunatStatus === 'RECHAZADA') setFlash({ type: 'error', text: `Nota ${doc} RECHAZADA por SUNAT: ${detail}` })
- else setFlash({ type: 'warning', text: `Nota ${doc} guardada; envío a SUNAT pendiente (${detail || 'sin respuesta'}). Usa "Reintentar pendientes".` })
+ if (note.sunatStatus === 'ACEPTADA') showFlash({ type: 'success', text: `Nota ${doc} aceptada por SUNAT.` })
+ else if (note.sunatStatus === 'RECHAZADA') showFlash({ type: 'error', text: `Nota ${doc} RECHAZADA por SUNAT: ${detail}` })
+ else showFlash({ type: 'warning', text: `Nota ${doc} guardada; envío a SUNAT pendiente (${detail || 'sin respuesta'}). Usa "Reintentar pendientes".` })
  fetchNotes()
  }
 
@@ -146,18 +147,6 @@ export function BillingNotesScreen() {
  </header>
 
  <main className="flex-1 w-full p-6 flex flex-col gap-4">
- {flash && (
- <div
- role="alert"
- className={`flex items-start justify-between gap-3 rounded-xl px-4 py-3 text-sm border ${
- flash.type === 'success' ? 'bg-success-soft text-success border-success/20'
- : flash.type === 'warning' ? 'bg-warning-soft text-warning border-warning/30'
- : 'bg-danger-soft text-destructive border-destructive/20'}`}
- >
- <span>{flash.text}</span>
- <button onClick={() => setFlash(null)} className="font-bold" aria-label="Cerrar mensaje">×</button>
- </div>
- )}
  {pendingTotal > 0 && (
  <p className="text-sm text-warning">
  Pendientes de envío a SUNAT: {pending.sales} venta(s) y {pending.notes} nota(s).
@@ -217,7 +206,7 @@ export function BillingNotesScreen() {
  <div className="col-span-1 text-muted-foreground">
  {new Date(note.createdAt).toLocaleDateString('es-PE')}
  </div>
- <div className="col-span-1 border border-border bg-muted text-muted-foreground text-[10px] py-1 px-2 rounded w-fit uppercase font-bold tracking-widest">
+ <div className="col-span-1 border border-border bg-muted text-muted-foreground text-[11px] py-1 px-2 rounded w-fit uppercase font-bold tracking-widest">
  {note.type === 'CREDIT_NOTE' ? 'N. Crédito' : 'N. Débito'}
  </div>
  <div className="col-span-1 font-mono text-primary font-bold">
@@ -228,13 +217,13 @@ export function BillingNotesScreen() {
  </div>
  <div className="col-span-2">
  <p className="font-bold text-foreground truncate text-xs">{note.clientName}</p>
- <p className="text-[10px] text-muted-foreground font-mono tracking-widest uppercase mt-0.5">DOC: {note.clientDocNumber}</p>
+ <p className="text-[11px] text-muted-foreground font-mono tracking-widest uppercase mt-0.5">DOC: {note.clientDocNumber}</p>
  </div>
  <div className="col-span-1 text-right font-black font-mono text-foreground">
- S/ {Number(note.totalAmount).toFixed(2)}
+ {formatPEN(Number(note.totalAmount))}
  </div>
  <div className="col-span-1 flex justify-center">
- <div title={sunatDetail(note)} className={`px-2 py-0.5 rounded-full border text-[10px] uppercase font-bold tracking-widest ${st.cls}`}>
+ <div title={sunatDetail(note)} className={`px-2 py-0.5 rounded-full border text-[11px] uppercase font-bold tracking-widest ${st.cls}`}>
  {st.label}
  </div>
  </div>
