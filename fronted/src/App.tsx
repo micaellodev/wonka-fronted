@@ -3,7 +3,7 @@
 // ============================================================
 
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { TitleBar } from '@/components/TitleBar'
 import { Toaster } from '@/components/ui/toast'
 import { UpdateBanner } from '@/components/UpdateBanner'
@@ -89,13 +89,16 @@ function CashStatusSync() {
  return null
 }
 
+// Electron carga la app por file://: BrowserRouter no encuentra ninguna ruta y deja la pantalla en blanco
+const Router = window.location.protocol === 'file:' ? HashRouter : BrowserRouter
+
 export default function App() {
  return (
  <div className="h-screen flex flex-col">
  <TitleBar />
  <Toaster />
  <UpdateBanner />
- <BrowserRouter>
+ <Router>
  <CashStatusSync />
  <div className="flex-1 overflow-hidden">
  <Routes>
@@ -129,7 +132,7 @@ export default function App() {
  <Route path="*" element={<Navigate to="/" replace />} />
  </Routes>
  </div>
- </BrowserRouter>
+ </Router>
  </div>
  )
 }
