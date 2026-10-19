@@ -25,11 +25,11 @@ const groups = [
  ] },
  { label: 'Caja y reportes', items: [
  { label: 'Cuadre de caja', to: '/admin/cashier', icon: Calculator },
- { label: 'Apertura y cierre', to: '/cash-close', icon: History },
+ { label: 'Apertura y cierre', to: '/admin/cash-close', icon: History },
  { label: 'Reportes', to: '/admin/reports', icon: BarChart3 },
- { label: 'Movimientos de caja', to: '/movimientos-caja', icon: Wallet },
- { label: 'Historial de ventas', to: '/sales-history', icon: Receipt },
- { label: 'Estadísticas', to: '/estadisticas-venta', icon: LineChart },
+ { label: 'Movimientos de caja', to: '/admin/cash-movements', icon: Wallet },
+ { label: 'Historial de ventas', to: '/admin/sales-history', icon: Receipt },
+ { label: 'Estadísticas', to: '/admin/statistics', icon: LineChart },
  ] },
  { label: 'Operación', items: [
  { label: 'Registrar cliente', to: '/register-client', icon: UserPlus },
