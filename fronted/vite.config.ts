@@ -5,7 +5,8 @@ import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './',
+  // Electron carga dist/index.html por file:// (rutas relativas); la web necesita rutas absolutas o /admin/... da pantalla en blanco
+  base: process.env.ELECTRON_BUILD ? './' : '/',
   plugins: [
     tailwindcss(),
     react(),
