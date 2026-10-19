@@ -116,6 +116,10 @@ export default function App() {
  <Route path="/admin/approvals" element={<AdminGuard><ApprovalsScreen /></AdminGuard>} />
  <Route path="/admin/inventory" element={<AdminGuard><InventoryScreen /></AdminGuard>} />
  <Route path="/admin/employees" element={<AdminGuard><EmployeesScreen /></AdminGuard>} />
+ <Route path="/admin/cash-close" element={<AdminGuard><CashCloseScreen /></AdminGuard>} />
+ <Route path="/admin/cash-movements" element={<AdminGuard><CashMovementsScreen /></AdminGuard>} />
+ <Route path="/admin/sales-history" element={<AdminGuard><SalesHistoryScreen /></AdminGuard>} />
+ <Route path="/admin/statistics" element={<AdminGuard><SalesStatisticsScreen /></AdminGuard>} />
  <Route path="/admin/reports" element={<AdminGuard><ReportsScreen /></AdminGuard>} />
  <Route path="/admin/cashier" element={<AdminGuard><CashCloseHistoryScreen /></AdminGuard>} />
  <Route path="/admin/cash-history" element={<Navigate to="/admin/cashier" replace />} />

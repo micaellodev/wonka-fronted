@@ -119,7 +119,7 @@ export function AdminDashboardScreen() {
  label: 'Movimientos de Caja',
  desc: 'Ingresos y salidas',
  icon: Wallet,
- route: '/movimientos-caja',
+ route: '/admin/cash-movements',
  },
  {
  label: 'Registro de Clientes',
@@ -131,13 +131,13 @@ export function AdminDashboardScreen() {
  label: 'Historial de Ventas',
  desc: 'Ventas registradas',
  icon: Receipt,
- route: '/sales-history',
+ route: '/admin/sales-history',
  },
  {
  label: 'Estadísticas de Ventas',
  desc: 'Analítica de ventas',
  icon: LineChart,
- route: '/estadisticas-venta',
+ route: '/admin/statistics',
  },
  {
  label: 'Punto de Venta',
