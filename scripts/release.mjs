@@ -15,9 +15,9 @@ if (/localhost|127\.0\.0\.1/.test(process.env.VITE_API_URL ?? 'localhost')) {
   process.exit(1)
 }
 const run = (cmd, args) => {
-  const r = spawnSync(cmd, args, { stdio: 'inherit', shell: true, env: { ...process.env, CSC_IDENTITY_AUTO_DISCOVERY: 'false' } })
+  const r = spawnSync(cmd, args, { stdio: 'inherit', shell: true, env: { ...process.env, CSC_IDENTITY_AUTO_DISCOVERY: 'false', ELECTRON_BUILD: '1' } })
   if (r.status !== 0) process.exit(r.status ?? 1)
 }
 run('bunx', ['vite', 'build'])
 run('bunx', ['electron-builder', '--win', '--publish', 'never', '-c.publish.provider=generic', `-c.publish.url=${url}`])
-console.log('\nListo. Sube release/latest.yml, release/*.exe y release/*.blockmap a', url)
+console.log('\nListo. Sube a la URL: latest.yml, el .exe web (instalador), el .nsis.7z (paquete que descarga) y los .blockmap, de release/ →', url)
