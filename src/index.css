@@ -1,149 +1,225 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
-
 @import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
-/* ── Design Tokens (dark-first, always-on) ─────────────────────── */
+/* ── Renzo Wonka — Light-first design tokens ───────────────────── */
 :root {
-  /* Surfaces */
-  --background: oklch(0.07 0 0);           /* #111 — casi negro */
-  --foreground: oklch(0.96 0.004 0);       /* #f5f5f5 — blanco suave */
-  --card: oklch(0.10 0 0);                 /* #1a1a1a */
-  --card-foreground: oklch(0.96 0.004 0);
-  --popover: oklch(0.12 0 0);
-  --popover-foreground: oklch(0.96 0.004 0);
+ /* Surfaces */
+ --background: #ffffff;
+ --foreground: #111111;
+ --card: #ffffff;
+ --card-foreground: #111111;
+ --popover: #ffffff;
+ --popover-foreground: #111111;
 
-  /* Primary — violeta vibrante */
-  --primary: oklch(0.65 0.22 268);
-  --primary-foreground: oklch(0.99 0 0);
+ /* Primary — Rojo Renzo Wonka */
+ --primary: #f4323d;
+ --primary-foreground: #ffffff;
 
-  /* Secondary — zinc gris oscuro */
-  --secondary: oklch(0.18 0 0);
-  --secondary-foreground: oklch(0.82 0.004 0);
+ /* Secondary — Azul Renzo Wonka */
+ --secondary: #5567b3;
+ --secondary-foreground: #ffffff;
 
-  /* Muted */
-  --muted: oklch(0.15 0 0);
-  --muted-foreground: oklch(0.56 0.004 0);
+ /* Muted */
+ --muted: #f5f5f7;
+ --muted-foreground: #6b7280;
 
-  /* Accent */
-  --accent: oklch(0.17 0 0);
-  --accent-foreground: oklch(0.92 0.004 0);
+ /* Accent — Amarillo/Naranja Renzo Wonka */
+ --accent: #f8a428;
+ --accent-foreground: #111111;
 
-  /* Destructive */
-  --destructive: oklch(0.58 0.22 27);
+ /* Destructive */
+  --destructive: #b91c1c;
+ --destructive-foreground: #ffffff;
 
-  /* Borders & Inputs */
-  --border: oklch(0.22 0 0);
-  --input: oklch(0.18 0 0);
-  --ring: oklch(0.65 0.22 268);
+ /* Semantic states */
+ --success: #15803d;
+ --success-foreground: #ffffff;
+ --success-soft: #dcfce7;
+ --warning: #d97706;
+ --warning-foreground: #ffffff;
+ --warning-soft: #fef3c7;
+ --danger-soft: #fee2e2;
+ --info-soft: #e0e7ff;
+ --info: #4338ca;
 
-  /* Radius */
-  --radius: 0.5rem;
+ /* Overlay scrim (modals) */
+ --scrim: rgb(17 17 17 / 0.6);
+
+ /* Borders & Inputs */
+ --border: #e5e7eb;
+ --input: #f5f5f7;
+ --ring: #f4323d;
+
+ /* Radius */
+ --radius: 0.75rem;
 }
 
-/* ── Brand alias (violet) — para clases bg-brand-* ────────────── */
+/* ── Modo oscuro: se activa con la clase .dark en <html> (ver lib/theme.ts) ── */
+.dark {
+ --background: #121214;
+ --foreground: #f4f4f5;
+ --card: #1a1a1d;
+ --card-foreground: #f4f4f5;
+ --popover: #1a1a1d;
+ --popover-foreground: #f4f4f5;
+ --muted: #242428;
+ --muted-foreground: #a1a1aa;
+ --destructive: #ef4444;
+ --success: #4ade80;
+ --success-foreground: #052e16;
+ --success-soft: #0f2e1b;
+ --warning: #fbbf24;
+ --warning-foreground: #1c1303;
+ --warning-soft: #33260a;
+ --danger-soft: #3a1416;
+ --info: #a5b4fc;
+ --info-soft: #1e2142;
+ --scrim: rgb(0 0 0 / 0.7);
+ --border: #2e2e33;
+ --input: #242428;
+ color-scheme: dark;
+}
+
+/* ── Brand color aliases ──────────────────────────────────────── */
 @theme inline {
-  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+ --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+ --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
+ --color-background: var(--background);
+ --color-foreground: var(--foreground);
+ --color-card: var(--card);
+ --color-card-foreground: var(--card-foreground);
+ --color-popover: var(--popover);
+ --color-popover-foreground: var(--popover-foreground);
+ --color-primary: var(--primary);
+ --color-primary-foreground: var(--primary-foreground);
+ --color-secondary: var(--secondary);
+ --color-secondary-foreground: var(--secondary-foreground);
+ --color-muted: var(--muted);
+ --color-muted-foreground: var(--muted-foreground);
+ --color-accent: var(--accent);
+ --color-accent-foreground: var(--accent-foreground);
+ --color-destructive: var(--destructive);
+ --color-destructive-foreground: var(--destructive-foreground);
+ --color-success: var(--success);
+ --color-success-foreground: var(--success-foreground);
+ --color-success-soft: var(--success-soft);
+ --color-warning: var(--warning);
+ --color-warning-foreground: var(--warning-foreground);
+ --color-warning-soft: var(--warning-soft);
+ --color-danger-soft: var(--danger-soft);
+ --color-info: var(--info);
+ --color-info-soft: var(--info-soft);
+ --color-scrim: var(--scrim);
+ --color-border: var(--border);
+ --color-input: var(--input);
+ --color-ring: var(--ring);
 
-  --radius-sm: calc(var(--radius) - 2px);
-  --radius-md: var(--radius);
-  --radius-lg: calc(var(--radius) + 2px);
-  --radius-xl: calc(var(--radius) + 6px);
+ --radius-sm: calc(var(--radius) - 2px);
+ --radius-md: var(--radius);
+ --radius-lg: calc(var(--radius) + 2px);
+ --radius-xl: calc(var(--radius) + 6px);
 
-  /* brand-* = violet */
-  --color-brand-50:  oklch(0.96 0.05 268);
-  --color-brand-100: oklch(0.92 0.08 268);
-  --color-brand-200: oklch(0.84 0.12 268);
-  --color-brand-300: oklch(0.76 0.16 268);
-  --color-brand-400: oklch(0.70 0.19 268);
-  --color-brand-500: oklch(0.65 0.22 268);
-  --color-brand-600: oklch(0.58 0.22 268);
-  --color-brand-700: oklch(0.50 0.20 268);
-  --color-brand-800: oklch(0.40 0.16 268);
-  --color-brand-900: oklch(0.28 0.10 268);
-  --color-brand-950: oklch(0.18 0.06 268);
+ /* brand-* = Rojo Renzo Wonka #f4323d */
+ --color-brand-50: #fff0f1;
+ --color-brand-100: #ffdfe1;
+ --color-brand-200: #ffc2c6;
+ --color-brand-300: #ff949b;
+ --color-brand-400: #f95a64;
+ --color-brand-500: #f4323d;
+ --color-brand-600: #d91d28;
+ --color-brand-700: #b6151e;
+ --color-brand-800: #96161e;
+ --color-brand-900: #7c181e;
+ --color-brand-950: #43070b;
+
+ /* accent-* = Amarillo/Naranja Renzo Wonka #f8a428 */
+ --color-accent-50: #fffaeb;
+ --color-accent-100: #fff1c6;
+ --color-accent-200: #ffe288;
+ --color-accent-300: #ffd05a;
+ --color-accent-400: #f8a428;
+ --color-accent-500: #e68a0c;
+ --color-accent-600: #c76a06;
+ --color-accent-700: #9e4a08;
+ --color-accent-800: #7e390f;
+ --color-accent-900: #663011;
+ --color-accent-950: #3c1706;
+
+ /* secondary-* = Rojo Renzo Wonka #f4323d */
+ --color-secondary-50: #fff0f1;
+ --color-secondary-100: #ffdfe1;
+ --color-secondary-200: #ffc2c6;
+ --color-secondary-300: #ff949b;
+ --color-secondary-400: #f95a64;
+ --color-secondary-500: #f4323d;
+ --color-secondary-600: #d91d28;
+ --color-secondary-700: #b6151e;
+ --color-secondary-800: #96161e;
+ --color-secondary-900: #7c181e;
+ --color-secondary-950: #43070b;
 }
 
 /* ── Base styles ───────────────────────────────────────────────── */
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
+ * {
+ @apply border-border outline-ring/50;
+ }
 
-  html,
-  body,
-  #root {
-    @apply min-h-full;
-  }
+ html,
+ body,
+ #root {
+ @apply min-h-full;
+ }
 
-  html {
-    @apply font-sans;
-  }
+ html {
+ @apply font-sans;
+ }
 
-  body {
-    @apply bg-background text-foreground antialiased;
-  }
+ body {
+ @apply bg-background text-foreground antialiased;
+ }
 
-  /* Scrollbar minimalista */
-  ::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: oklch(0.28 0 0);
-    border-radius: 99px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: oklch(0.36 0 0);
-  }
+ /* Scrollbar minimalista */
+ ::-webkit-scrollbar {
+ width: 5px;
+ height: 5px;
+ }
+ ::-webkit-scrollbar-track {
+ background: transparent;
+ }
+ ::-webkit-scrollbar-thumb {
+ background: oklch(0.28 0 0);
+ border-radius: 99px;
+ }
+ ::-webkit-scrollbar-thumb:hover {
+ background: oklch(0.36 0 0);
+ }
 }
 
 /* ── Animations ────────────────────────────────────────────────── */
 @keyframes shake {
-  0%   { transform: translateX(0); }
-  15%  { transform: translateX(-6px); }
-  30%  { transform: translateX(6px); }
-  45%  { transform: translateX(-5px); }
-  60%  { transform: translateX(5px); }
-  75%  { transform: translateX(-3px); }
-  90%  { transform: translateX(3px); }
-  100% { transform: translateX(0); }
+ 0% { transform: translateX(0); }
+ 15% { transform: translateX(-6px); }
+ 30% { transform: translateX(6px); }
+ 45% { transform: translateX(-5px); }
+ 60% { transform: translateX(5px); }
+ 75% { transform: translateX(-3px); }
+ 90% { transform: translateX(3px); }
+ 100% { transform: translateX(0); }
 }
 
 .animate-shake {
-  animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+ animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+ from { opacity: 0; transform: translateY(6px); }
+ to { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fade-in {
-  animation: fade-in 0.2s ease-out both;
+ animation: fade-in 0.2s ease-out both;
 }

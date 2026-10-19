@@ -11,10 +11,14 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+release
 *.local
 
 # Tauri build directory
 src-tauri/target/
+
+# Tauri signing keys (never commit)
+~/.tauri/
 
 # Env files
 .env

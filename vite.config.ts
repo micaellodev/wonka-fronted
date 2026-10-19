@@ -5,6 +5,7 @@ import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: './',
   plugins: [
     tailwindcss(),
     react(),
@@ -14,4 +15,6 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  // release/ holds 400MB+ of Electron build output; watching it exhausts memory
+  server: { watch: { ignored: ['**/release/**'] } },
 })
