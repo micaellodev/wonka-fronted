@@ -123,7 +123,7 @@ export const posController = new Elysia({ prefix: "/pos", tags: ["POS"] })
             } catch (err) {
                 const message = err instanceof Error ? err.message : "Unexpected error.";
 
-                if (message.toLowerCase().includes("insufficient stock") || message.includes("ya fue cobrado") || message.includes("duplicado")) {
+                if (message.toLowerCase().includes("insufficient stock") || message.includes("ya fue cobrado") || message.includes("duplicado") || message.startsWith("CASH_NOT_OPEN")) {
                     set.status = 409;
                 } else if (
                     message.toLowerCase().includes("not found") ||

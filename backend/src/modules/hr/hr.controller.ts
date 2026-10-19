@@ -14,6 +14,7 @@ import {
 import { prisma } from "../../lib/prisma.ts";
 import { RateLimitError } from "../../lib/rateLimiter.ts";
 import { clientIp, signToken } from "../../lib/auth.ts";
+import { permissionsFor } from "../../lib/permissions.ts";
 
 const AUTH_FAILURES = ["Pin Inválido.", "Worker does not have ADMIN privileges."];
 
@@ -143,6 +144,7 @@ export const hrController = new Elysia({ prefix: "/hr", tags: ["HR"] })
             const workers = await prisma.worker.findMany({
                 where: { tenantId: query.tenantId },
                 orderBy: { name: "asc" },
+                take: 500,
                 select: {
                     id: true,
                     name: true,
@@ -237,13 +239,18 @@ export const hrController = new Elysia({ prefix: "/hr", tags: ["HR"] })
     // ── GET /hr/attendance ────────────────────────────────────
     .get(
         "/attendance",
-        async ({ query }) => {
+        async ({ query, set }) => {
             const { tenantId, workerId, startDate, endDate, limit } = query;
+            const range = startDate && endDate ? { gte: new Date(startDate), lte: new Date(endDate + "T23:59:59.999Z") } : null;
+            if (range && (isNaN(range.gte.getTime()) || isNaN(range.lte.getTime()))) {
+                set.status = 400;
+                return { message: "startDate/endDate inválidas (use YYYY-MM-DD)." };
+            }
             const records = await prisma.attendance.findMany({
                 where: {
                     tenantId,
                     ...(workerId !== undefined ? { workerId } : {}),
-                    ...(startDate && endDate ? { checkIn: { gte: new Date(startDate), lte: new Date(endDate + 'T23:59:59.999Z') } } : {}),
+                    ...(range ? { checkIn: range } : {}),
                 },
                 orderBy: { checkIn: "desc" },
                 take: limit ? Number(limit) : 50,
@@ -262,7 +269,7 @@ export const hrController = new Elysia({ prefix: "/hr", tags: ["HR"] })
                 workerId: t.Optional(t.String()),
                 startDate: t.Optional(t.String()),
                 endDate: t.Optional(t.String()),
-                limit: t.Optional(t.Numeric()),
+                limit: t.Optional(t.Numeric({ minimum: 1, maximum: 200 })),
             }),
             detail: { summary: "List attendance records for a tenant" },
         }
@@ -274,7 +281,7 @@ export const hrController = new Elysia({ prefix: "/hr", tags: ["HR"] })
         async ({ body, set, request, server }) => {
             try {
                 const { worker, token } = await verifyPin(body.tenantId, body.pin, clientIp(request, server));
-                return { data: worker, token };
+                return { data: worker, token, permissions: permissionsFor(worker.role.name) };
             } catch (err) {
                 return fail(set, err);
             }

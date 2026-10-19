@@ -106,6 +106,7 @@ export const dashboardController = new Elysia({ prefix: "/dashboard", tags: ["Da
                         nombreComercial: t.String(),
                         direccion: t.String(),
                         ubigeo: t.String(),
+                        receiptFooter: t.String({ maxLength: 300 }),
                         apisperuToken: t.String(),
                         apisperuUrl: t.String(),
                         igvRate: t.Numeric(),

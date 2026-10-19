@@ -4,7 +4,9 @@
 // ============================================================
 
 import { Elysia } from "elysia";
+import { prisma } from "./prisma.ts";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { can, requiredPermission } from "./permissions.ts";
 
 export type AuthPayload = { workerId: string; tenantId: string; role: string; exp: number };
 
@@ -52,37 +54,29 @@ export function getAuth(request: Request): AuthPayload | null {
     return verifyToken(h.toLowerCase().startsWith("bearer ") ? h.slice(7).trim() : null);
 }
 
-/** Client identifier for rate limiting. shortcut: trusts the right-most X-Forwarded-For hop (Railway proxy); spoofable if the backend is exposed without a proxy. */
+/** Client identifier for rate limiting. X-Forwarded-For (right-most hop) is trusted only when TRUSTED_PROXY=true (behind Railway/nginx); otherwise it is spoofable and ignored. */
 export function clientIp(request: Request, server?: { requestIP(r: Request): { address: string } | null } | null): string {
-    const xff = request.headers.get("x-forwarded-for");
+    const xff = process.env["TRUSTED_PROXY"] === "true" ? request.headers.get("x-forwarded-for") : null;
     if (xff) return xff.split(",").pop()!.trim();
     return server?.requestIP(request)?.address ?? "unknown";
 }
 
+// Short-lived cache of "worker still active" so the guard does not query per request.
+// shortcut: per-process, 30s stale window for deactivation done on another instance; PATCH /hr/workers invalidates locally.
+const ACTIVE_TTL_MS = 30_000;
+const activeCache = new Map<string, { ok: boolean; at: number }>();
+export const invalidateWorkerCache = (workerId: string) => void activeCache.delete(workerId);
+
+async function isWorkerActive(a: AuthPayload): Promise<boolean> {
+    const hit = activeCache.get(a.workerId);
+    if (hit && Date.now() - hit.at < ACTIVE_TTL_MS) return hit.ok;
+    const ok = !!(await prisma.worker.findFirst({ where: { id: a.workerId, tenantId: a.tenantId, isActive: true }, select: { id: true } }));
+    activeCache.set(a.workerId, { ok, at: Date.now() });
+    return ok;
+}
+
 // "METHOD /path" keys; route patterns as Elysia reports them in `route`.
 const PUBLIC_ROUTES = new Set(["GET /health", "POST /hr/verify-pin", "POST /hr/attendance"]);
-
-/** Any non-GET under these prefixes is admin by default, so new mutation routes are not left open. */
-const ADMIN_WRITE_PREFIXES = ["/inventory", "/hr", "/upload", "/dashboard/settings", "/billing"];
-const WORKER_WRITES = new Set(["POST /hr/verify-pin", "POST /hr/attendance", "POST /hr/verify-admin"]);
-
-/** Admin routes outside the prefix rule (GETs and other modules). Approval-code endpoints used at the
- *  cashier terminal (POST /cash/close/:id/approve) stay worker-level: the 6-digit code is the admin factor. */
-const ADMIN_ROUTES = new Set([
-    "GET /hr/roles", "GET /hr/workers", "GET /hr/attendance",
-    "GET /dashboard/metrics", "GET /inventory/movements",
-    "GET /pos/void", "POST /pos/void/:id/resolve",
-    "GET /billing/notes",
-    "DELETE /cash/movements/:id",
-    "GET /playzone/reports/summary", "PUT /playzone/rates",
-]);
-
-export function isAdminRoute(method: string, route: string): boolean {
-    const key = `${method} ${route}`;
-    if (ADMIN_ROUTES.has(key)) return true;
-    if (method === "GET" || WORKER_WRITES.has(key)) return false;
-    return ADMIN_WRITE_PREFIXES.some((p) => route === p || route.startsWith(p + "/"));
-}
 
 const isPublic = (method: string, path: string) =>
     method === "OPTIONS" || PUBLIC_ROUTES.has(`${method} ${path.replace(/\/+$/, "") || "/"}`) || path === "/swagger" || path.startsWith("/swagger/");
@@ -100,10 +94,13 @@ export const authGuard = new Elysia({ name: "auth-guard" })
     })
     // 403 on tenant mismatch / missing admin role. Transform runs after parsing but before
     // schema validation, so a forbidden caller gets 403 instead of a 422 validation dump.
-    .onTransform({ as: "global" }, ({ request, route, query, body, params, status }) => {
+    .onTransform({ as: "global" }, async ({ request, route, query, body, params, status }) => {
         if (isPublic(request.method, new URL(request.url).pathname)) return;
         const auth = getAuth(request);
         if (!auth) throw status(401, denial("UNAUTHENTICATED", "Sesión no válida o expirada. Inicia sesión de nuevo."));
+        if (!(await isWorkerActive(auth))) {
+            throw status(401, denial("WORKER_INACTIVE", "Usuario inactivo o eliminado. Inicia sesión de nuevo."));
+        }
         const tenants = [
             (query as Record<string, unknown> | undefined)?.["tenantId"],
             (body as Record<string, unknown> | undefined)?.["tenantId"],
@@ -112,7 +109,8 @@ export const authGuard = new Elysia({ name: "auth-guard" })
         if (tenants.some((t) => t !== undefined && t !== auth.tenantId)) {
             throw status(403, denial("TENANT_MISMATCH", "No tienes acceso a este negocio."));
         }
-        if (isAdminRoute(request.method, route) && !isAdminRole(auth.role)) {
-            throw status(403, denial("ADMIN_REQUIRED", "Se requiere un usuario administrador."));
+        const needed = requiredPermission(request.method, route);
+        if (needed && !can(auth.role, needed)) {
+            throw status(403, denial("FORBIDDEN", "Tu rol no tiene permiso para esta acción."));
         }
     });

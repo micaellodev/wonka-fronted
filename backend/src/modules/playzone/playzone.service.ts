@@ -346,21 +346,30 @@ export async function createPlaySession(input: CreatePlaySessionInput) {
         throw new Error(`No hay tarifa configurada para ${input.durationMinutes} min.`);
     }
 
-    const wristbandCode = await generateUniqueCode(input.tenantId);
-
-    const session = await prisma.playSession.create({
-        data: {
-            tenantId: input.tenantId,
-            childId: input.childId,
-            durationMinutes: input.durationMinutes ?? null,
-            wristbandCode,
-            status: "ACTIVE",
-            startTime: new Date(),
-        },
-        include: {
-            child: { include: { guardian: true } },
-        },
-    });
+    // Two concurrent starts can pick the same free code: the partial unique index rejects the loser (P2002), retry.
+    const createWithCode = async () =>
+        prisma.playSession.create({
+            data: {
+                tenantId: input.tenantId,
+                childId: input.childId,
+                durationMinutes: input.durationMinutes ?? null,
+                wristbandCode: await generateUniqueCode(input.tenantId),
+                status: "ACTIVE",
+                startTime: new Date(),
+            },
+            include: {
+                child: { include: { guardian: true } },
+            },
+        });
+    let session!: Awaited<ReturnType<typeof createWithCode>>;
+    for (let attempt = 1; ; attempt++) {
+        try {
+            session = await createWithCode();
+            break;
+        } catch (e) {
+            if ((e as { code?: string }).code !== "P2002" || attempt >= 5) throw e;
+        }
+    }
 
     // Cargo base a cobrar en caja (las sesiones de tiempo libre se cobran al finalizar)
     const charge = session.durationMinutes === null ? null : computePlayzoneCharge(session, "base", rates);

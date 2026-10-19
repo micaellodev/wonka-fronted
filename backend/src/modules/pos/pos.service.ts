@@ -1,5 +1,7 @@
 import { prisma } from "../../lib/prisma.ts";
 import { Prisma } from "@prisma/client";
+import { cashDayLockKey, limaDayBounds, limaYmd } from "../cash/cash.service.ts";
+import { getTodayCashStatus } from "../cash/summary.ts";
 import {
     resolveIgvRegime,
     calculateFiscalLine,
@@ -233,6 +235,13 @@ export async function processSale(
     }
 
     const result = await prisma.$transaction(async (tx) => {
+        // Sales only count in an open drawer, otherwise the frozen close stops matching reality.
+        // The shared lock makes a concurrent close wait for this sale; the status is read after it.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock_shared(hashtext(${cashDayLockKey(input.tenantId)}))`;
+        const cashStatus = await getTodayCashStatus(input.tenantId, tx);
+        if (cashStatus !== "ABIERTA") {
+            throw new Error(`CASH_NOT_OPEN: la caja no está abierta (${cashStatus}).`);
+        }
         // ── Split real vs virtual line items ───────────────────
         // Virtual items are never looked up in the Product table and never
         // touch stock: `pz-*` (playzone time, priced from tenant rates) and
@@ -589,9 +598,7 @@ export async function getSaleById(tenantId: string, saleId: string) {
 }
 
 export async function listSalesToday(tenantId: string) {
-    const ymd = new Date().toLocaleDateString("en-CA", { timeZone: "America/Lima" });
-    const startOfDay = new Date(`${ymd}T00:00:00-05:00`);
-    const endOfDay = new Date(startOfDay.getTime() + 86_400_000);
+    const { start: startOfDay, end: endOfDay } = limaDayBounds(limaYmd());
 
     const sales = await prisma.sale.findMany({
         where: {
@@ -610,6 +617,8 @@ export async function listSalesToday(tenantId: string) {
             },
         },
         orderBy: { createdAt: "desc" },
+        // shortcut: hard cap keeps the payload bounded; a single day above this needs pagination.
+        take: 2000,
     });
 
     // Map virtual line item product names (playzone / free-sale)

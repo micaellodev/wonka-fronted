@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma.ts";
 import { checkRateLimit, resetRateLimit, undoAttempt } from "../../lib/rateLimiter.ts";
-import { signToken } from "../../lib/auth.ts";
+import { Prisma } from "@prisma/client";
+import { invalidateWorkerCache, signToken } from "../../lib/auth.ts";
 
 import { CryptoHasher } from "bun";
 
@@ -255,7 +256,7 @@ export async function updateWorker({
         }
     }
 
-    const dataToUpdate: any = {};
+    const dataToUpdate: Prisma.WorkerUncheckedUpdateInput = {};
     if (name !== undefined) dataToUpdate.name = name;
     if (roleId !== undefined) dataToUpdate.roleId = roleId;
     if (isActive !== undefined) dataToUpdate.isActive = isActive;
@@ -282,6 +283,7 @@ export async function updateWorker({
         },
     });
 
+    invalidateWorkerCache(workerId);
     return worker;
 }
 

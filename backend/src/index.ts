@@ -30,7 +30,9 @@ export function buildApp() {
                     'tauri://localhost',
                     'http://tauri.localhost',
                     'https://tauri.localhost',
-                    'http://localhost:5174'
+                    'http://localhost:5174',
+                    // Electron loads dist/index.html via file://, which sends Origin: null; auth is Bearer, not cookies
+                    'null'
                 ],
                 methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
                 allowedHeaders: ['Content-Type', 'Authorization'],

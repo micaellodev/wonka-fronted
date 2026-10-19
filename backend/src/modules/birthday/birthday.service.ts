@@ -43,6 +43,8 @@ export async function listBirthdayReservations(tenantId: string) {
         where: { tenantId },
         orderBy: { date: "asc" },
         include: { guardian: true, guests: true },
+        // shortcut: hard cap keeps the payload bounded; add date filters/pagination if a tenant exceeds it.
+        take: 1000,
     });
 }
 

@@ -25,6 +25,12 @@ describe("apertura de caja", () => {
         });
         expect(close.status).toBe(409);
     });
+    test("sin apertura: vender → 409 CASH_NOT_OPEN y no se crea la venta", async () => {
+        const r = await sell([{ productId: c.untracked.id, qty: 1 }]);
+        expect(r.status).toBe(409);
+        expect(String(r.json.message)).toContain("CASH_NOT_OPEN");
+        expect(await prisma.sale.count({ where: { tenantId: c.tid } })).toBe(0);
+    });
     test("abrir caja con 100 → movimiento OPENING en DB; segunda apertura 409", async () => {
         const r = await call("POST", "/cash/opening", { token: c.cashierToken, body: { tenantId: c.tid, workerId: c.cashier.id, amount: 100 } });
         expect(r.status).toBe(201);

@@ -49,49 +49,85 @@ export function aggregateSales(sales: SaleLike[]) {
   };
 }
 
+function deriveCashStatus(hasOpening: boolean, closeStatus?: string): CashStatus {
+  if (closeStatus) return closeStatus === "APPROVED" ? "CERRADA" : "PENDIENTE";
+  return hasOpening ? "ABIERTA" : "NO_ABIERTA";
+}
+
+/**
+ * Turnos: un día de Lima puede tener varios (apertura → cierre → nueva apertura tras aprobar el cierre).
+ * El turno actual es el de la ÚLTIMA apertura del día; su cierre es el más reciente creado desde esa apertura.
+ */
+export async function currentShift(db: Pick<typeof prisma, "cashMovement" | "cashClose">, tenantId: string, date: string) {
+  const { start, end } = limaDayBounds(date);
+  const opening = await db.cashMovement.findFirst({
+    where: { tenantId, type: "OPENING", createdAt: { gte: start, lt: end } },
+    include: { worker: { select: { name: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+  const close = await db.cashClose.findFirst({
+    where: { tenantId, closedDate: new Date(`${date}T00:00:00Z`), ...(opening ? { createdAt: { gte: opening.createdAt } } : {}) },
+    include: { worker: { select: { id: true, name: true } } },
+    orderBy: { updatedAt: "desc" },
+  });
+  return { start, end, opening, close };
+}
+
+/** Lightweight today's status (same rule as getDaySummary) for guards such as the POS. */
+export async function getTodayCashStatus(tenantId: string, db: Pick<typeof prisma, "cashMovement" | "cashClose"> = prisma): Promise<CashStatus> {
+  const { opening, close } = await currentShift(db, tenantId, limaYmd());
+  return deriveCashStatus(!!opening, close?.status);
+}
+
 export async function getDaySummary(tenantId: string, date: string = limaYmd()) {
   const { start, end } = limaDayBounds(date);
   const createdAt = { gte: start, lt: end };
 
-  const [opening, sales, movs, close, pendingVoids, pendingCloses, stock] = await Promise.all([
-    prisma.cashMovement.findFirst({
-      where: { tenantId, type: "OPENING", createdAt },
-      include: { worker: { select: { name: true } } },
-      orderBy: { createdAt: "asc" },
-    }),
+  const [shift, openings, sales, movs, pendingVoids, pendingCloses, stock] = await Promise.all([
+    currentShift(prisma, tenantId, date),
+    prisma.cashMovement.count({ where: { tenantId, type: "OPENING", createdAt } }),
     prisma.sale.findMany({
       where: { tenantId, createdAt },
       select: {
-        total: true, paymentMethod: true, status: true,
+        total: true, paymentMethod: true, status: true, createdAt: true,
         items: { select: { productId: true, isVirtual: true, virtualSku: true, unitPrice: true, qty: true } },
       },
     }),
     prisma.cashMovement.findMany({
       where: { tenantId, type: { in: ["IN", "OUT"] }, createdAt },
-      select: { type: true, amount: true, currency: true },
-    }),
-    prisma.cashClose.findFirst({
-      where: { tenantId, closedDate: new Date(`${date}T00:00:00Z`) },
-      include: { worker: { select: { id: true, name: true } } },
-      orderBy: { updatedAt: "desc" },
+      select: { type: true, amount: true, currency: true, createdAt: true },
     }),
     prisma.voidRequest.count({ where: { tenantId, status: "PENDING" } }),
     prisma.cashClose.count({ where: { tenantId, status: "PENDING_APPROVAL" } }),
     inventoryStats(tenantId),
   ]);
+  const { opening, close } = shift;
 
-  const agg = aggregateSales(sales);
-  const mv = { in: 0, out: 0, inUSD: 0, outUSD: 0, inCount: 0, outCount: 0 };
-  for (const m of movs) {
-    const k = m.type === "IN" ? "in" : "out";
-    mv[`${k}Count`]++;
-    mv[m.currency === "USD" ? (`${k}USD` as "inUSD" | "outUSD") : k] += Number(m.amount);
-  }
+  // Con una sola apertura (o ninguna) el turno es el día completo, igual que siempre; con varias, el turno actual
+  // son las ventas y movimientos desde su apertura. `sales`/`voided` siguen siendo del DÍA (panel "ventas hoy").
+  const since = openings > 1 && opening ? opening.createdAt : start;
+  const shiftSales = sales.filter((x) => x.createdAt >= since);
+  const shiftMovs = movs.filter((m) => m.createdAt >= since);
+
+  const day = aggregateSales(sales);
+  const agg = aggregateSales(shiftSales);
+  const sumMovs = (list: typeof movs) => {
+    const mv = { in: 0, out: 0, inUSD: 0, outUSD: 0, inCount: 0, outCount: 0 };
+    for (const m of list) {
+      const k = m.type === "IN" ? "in" : "out";
+      mv[`${k}Count`]++;
+      mv[m.currency === "USD" ? (`${k}USD` as "inUSD" | "outUSD") : k] += Number(m.amount);
+    }
+    return mv;
+  };
+  const dayMv = sumMovs(movs);
+  const mv = sumMovs(shiftMovs);
   const openingAmount = opening ? Number(opening.amount) : 0;
   const expectedCash = round2(openingAmount + agg.sales.byMethod.efectivo + mv.in - mv.out);
-  const cashStatus: CashStatus = close
-    ? close.status === "APPROVED" ? "CERRADA" : "PENDIENTE"
-    : opening ? "ABIERTA" : "NO_ABIERTA";
+  const cashStatus = deriveCashStatus(!!opening, close?.status);
+  const fmtMv = (m: typeof mv, count: number) => ({
+    in: round2(m.in), out: round2(m.out), inUSD: round2(m.inUSD), outUSD: round2(m.outUSD), inCount: m.inCount, outCount: m.outCount, count,
+  });
 
   return {
     date,
@@ -108,10 +144,10 @@ export async function getDaySummary(tenantId: string, date: string = limaYmd()) 
           totalExpected: Number(close.totalExpected),
         }
       : null,
-    ...agg,
-    movements: {
-      in: round2(mv.in), out: round2(mv.out), inUSD: round2(mv.inUSD), outUSD: round2(mv.outUSD), inCount: mv.inCount, outCount: mv.outCount, count: movs.length,
-    },
+    ...day,
+    movements: fmtMv(dayMv, movs.length),
+    /** Cifras del turno actual (= las del día cuando hay una sola apertura). Lo que se cuadra y cierra. */
+    shift: { number: openings, sales: agg.sales, voided: agg.voided, movements: fmtMv(mv, shiftMovs.length) },
     expectedCash,
     cashInflow: round2(openingAmount + agg.sales.byMethod.efectivo + mv.in),
     expectedTotal: round2(expectedCash + agg.sales.byMethod.yape + agg.sales.byMethod.tarjeta + agg.sales.byMethod.other),
@@ -122,12 +158,12 @@ export async function getDaySummary(tenantId: string, date: string = limaYmd()) 
 
 export type DaySummary = Awaited<ReturnType<typeof getDaySummary>>;
 
-/** Values frozen into CashClose when closing: derived only from a DaySummary. */
+/** Values frozen into CashClose when closing: derived only from a DaySummary, from the CURRENT SHIFT. */
 export function closeFigures(s: DaySummary) {
-  const { yape, tarjeta, other } = s.sales.byMethod;
+  const { yape, tarjeta, other } = s.shift.sales.byMethod;
   return {
     openingBalance: s.opening?.amount ?? 0,
-    totalSales: s.sales.total,
+    totalSales: s.shift.sales.total,
     expectedEfectivo: s.expectedCash,
     expectedYape: yape,
     expectedTarjeta: tarjeta,

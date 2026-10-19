@@ -12,7 +12,7 @@ import {
   listCashMovements,
   deleteCashMovement,
 } from "./cash.service.ts";
-import { getDaySummary } from "./summary.ts";
+import { getDaySummary, getTodayCashStatus } from "./summary.ts";
 
 // ============================================================
 //  Cash Management Controller — Prefix: /cash
@@ -95,7 +95,14 @@ export const cashController = new Elysia({ prefix: "/cash", tags: ["Cash Managem
    */
   .get(
     "/history",
-    async ({ query }) => {
+    async ({ query, set }) => {
+      if (query.from && query.to) {
+        const span = (Date.parse(query.to) - Date.parse(query.from)) / 86_400_000;
+        if (!(span >= 0 && span <= 365)) {
+          set.status = 422;
+          return { success: false, error: "Range must be 0-366 days." };
+        }
+      }
       const { records: results, totals } = await getCashCloseHistory(query.tenantId, query.days ?? 30, query.from, query.to);
       return {
         success: true,
@@ -119,11 +126,13 @@ export const cashController = new Elysia({ prefix: "/cash", tags: ["Cash Managem
   .get(
     "/opening-today",
     async ({ query }) => {
-      const opening = await getTodayOpening(query.tenantId);
+      const [opening, cashStatus] = await Promise.all([getTodayOpening(query.tenantId), getTodayCashStatus(query.tenantId)]);
       return {
         success: true,
         data: {
-          isOpened: opening !== null,
+          // Same rule as /cash/summary: after a close the drawer is no longer "opened".
+          isOpened: cashStatus === "ABIERTA",
+          cashStatus,
           openingBalance: opening?.amount ?? null,
           openedAt: opening?.openedAt ?? null,
         },
@@ -201,6 +210,8 @@ export const cashController = new Elysia({ prefix: "/cash", tags: ["Cash Managem
           set.status = 403;
         } else if (lower.includes("not found")) {
           set.status = 404;
+        } else if (lower.includes("already")) {
+          set.status = 409;
         } else {
           set.status = 422;
         }

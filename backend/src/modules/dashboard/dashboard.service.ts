@@ -19,6 +19,7 @@ export async function getTenantById(tenantId: string) {
             nombreComercial: true,
             direccion: true,
             ubigeo: true,
+            receiptFooter: true,
             apisperuToken: true,
             apisperuUrl: true,
             igvRate: true,
@@ -54,6 +55,7 @@ export type UpdateTenantInput = {
     nombreComercial?: string;
     direccion?: string;
     ubigeo?: string;
+    receiptFooter?: string;
     apisperuToken?: string;
     apisperuUrl?: string;
     igvRate?: number;
@@ -92,6 +94,7 @@ export async function updateTenant(tenantId: string, input: UpdateTenantInput) {
             ...(input.nombreComercial !== undefined && { nombreComercial: input.nombreComercial }),
             ...(input.direccion !== undefined && { direccion: input.direccion }),
             ...(input.ubigeo !== undefined && { ubigeo: input.ubigeo }),
+            ...(input.receiptFooter !== undefined && { receiptFooter: input.receiptFooter.trim() || null }),
             ...(input.apisperuToken !== undefined && { apisperuToken: input.apisperuToken }),
             ...(input.apisperuUrl !== undefined && { apisperuUrl: input.apisperuUrl }),
             ...(input.igvRate !== undefined && { igvRate: input.igvRate }),
@@ -116,6 +119,7 @@ export async function updateTenant(tenantId: string, input: UpdateTenantInput) {
             nombreComercial: true,
             direccion: true,
             ubigeo: true,
+            receiptFooter: true,
             apisperuToken: true,
             apisperuUrl: true,
             igvRate: true,
@@ -160,6 +164,7 @@ export async function getSalesReport(tenantId: string, from: string, to: string)
     const { start } = limaDayBounds(from);
     const { end } = limaDayBounds(to);
     if (end <= start) throw new Error("'from' must be on or before 'to'.");
+    if (end.getTime() - start.getTime() > 366 * 86_400_000) throw new Error("Range cannot exceed 366 days.");
 
     const sales = await prisma.sale.findMany({
         where: { tenantId, createdAt: { gte: start, lt: end } },

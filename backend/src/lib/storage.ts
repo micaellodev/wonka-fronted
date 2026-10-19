@@ -1,8 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 
 // Ensure variables are defined
-const supabaseUrl = process.env.SUPABASE_URL || "";
-const supabaseKey = process.env.SUPABASE_KEY || "";
+// Valores con comillas/espacios sobrantes (p. ej. cargados por un script de shell) hacían caer el arranque: se limpian y, si no son http(s), el almacenamiento queda desactivado.
+const clean = (v?: string) => (v ?? "").trim().replace(/^["']|["']$/g, "").trim();
+const rawUrl = clean(process.env.SUPABASE_URL);
+const supabaseUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : "";
+const supabaseKey = clean(process.env.SUPABASE_KEY);
 export const supabaseBucket = process.env.SUPABASE_BUCKET || "wonka_storage";
 
 // createClient throws on an empty URL, which would crash the whole server at import time.

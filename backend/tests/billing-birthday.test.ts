@@ -47,6 +47,15 @@ describe("emisión y recuperación de pendientes", () => {
         expect(await waitStatus(pendingId, "ACEPTADA")).toBe("ACEPTADA");
         expect((await prisma.sale.findUnique({ where: { id: pendingId } }))?.status).toBe("ACTIVE");
     });
+    test("pie de recibo: se guarda, se lee y vacío vuelve a null", async () => {
+        const set = (receiptFooter: string) => call("PATCH", "/dashboard/settings", { token: c.adminToken, query: { tenantId: c.tid }, body: { adminPin: c.adminPin, receiptFooter } });
+        const get = async () => (await call("GET", "/dashboard/settings", { token: c.cashierToken, query: { tenantId: c.tid } })).json.data.receiptFooter;
+        expect((await set("Gracias por su visita")).status).toBe(200);
+        expect(await get()).toBe("Gracias por su visita");
+        expect((await set("   ")).status).toBe(200);
+        expect(await get()).toBeNull();
+        expect((await set("x".repeat(301))).status).toBeGreaterThanOrEqual(400);
+    });
     test("boleta con facturación activa → ACEPTADA", async () => {
         const r = await boleta();
         expect(r.status).toBe(201);

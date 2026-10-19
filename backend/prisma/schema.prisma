@@ -30,6 +30,8 @@ model Tenant {
   nombreComercial String?
   direccion       String?
   ubigeo          String?
+  /// Texto al pie del recibo impreso. null = texto por defecto del frontend
+  receiptFooter   String?
 
   // Configuración APISPeru
   apisperuToken String?
@@ -150,6 +152,7 @@ model Attendance {
   worker   Worker @relation(fields: [workerId], references: [id])
 
   @@index([tenantId, workerId])
+  @@index([tenantId, checkIn])
   @@map("attendances")
 }
 
@@ -280,6 +283,7 @@ model Sale {
   @@index([tenantId])
   @@index([tenantId, workerId])
   @@index([tenantId, createdAt])
+  @@index([tenantId, status, sunatStatus, createdAt])
   @@map("sales")
 }
 
@@ -306,6 +310,8 @@ model SaleItem {
   virtualLabel String?
   virtualSku   String?
 
+  @@index([saleId])
+  @@index([virtualSku])
   @@map("sale_items")
 }
 
@@ -435,6 +441,7 @@ model PlaySession {
   /// once two sessions with it had been COMPLETED.
   @@unique([tenantId, wristbandCode], where: raw("status = 'ACTIVE'"), map: "play_sessions_active_wristband_key")
   @@index([tenantId, status])
+  @@index([tenantId, startTime])
   @@map("play_sessions")
 }
 
@@ -523,7 +530,7 @@ model CashClose {
   workerId String
   worker   Worker @relation(fields: [workerId], references: [id])
 
-  @@unique([tenantId, closedDate, workerId])
+  // Varios turnos por día: un mismo cajero puede cerrar más de una vez el mismo día (el límite es 1 cierre por turno, en el servicio).
   @@index([tenantId])
   @@index([tenantId, closedDate])
   @@index([tenantId, workerId])
