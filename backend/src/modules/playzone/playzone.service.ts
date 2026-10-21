@@ -42,6 +42,8 @@ export type CreatePlaySessionInput = {
     tenantId: string;
     childId: string;
     durationMinutes?: number;
+    companions?: number;
+    notes?: string;
 };
 
 export type PlayzoneReportSummary = {
@@ -86,10 +88,8 @@ export type PlayzoneRates = {
 
 export const DEFAULT_PLAYZONE_RATES: PlayzoneRates = {
     durations: [
-        { minutes: 1, price: 2, label: "1 Min" },
-        { minutes: 15, price: 15, label: "15 Min" },
-        { minutes: 30, price: 20, label: "30 Min" },
-        { minutes: 60, price: 40, label: "1 Hora" },
+        { minutes: 30, price: 10, label: "30 Min" },
+        { minutes: 60, price: 15, label: "1 Hora" },
     ],
     extraPerMinute: 1,
     freePerMinute: 0.5,
@@ -123,7 +123,13 @@ export async function updatePlayzoneRates(tenantId: string, rates: PlayzoneRates
     return rates;
 }
 
-export type PlayzoneChargeKind = "base" | "extra" | "free";
+export type PlayzoneChargeKind = "base" | "extra" | "free" | "comp";
+
+// shortcut: tarifas de acompañante fijas en código, pasar a playzoneRates si cambian por local
+export const MAX_COMPANIONS = 2;
+const COMPANION_PRICE = 5; // menor de 3 años: 1 acompañante ya va incluido
+/** Menor de 3 años: entra gratis. Sin edad registrada se cobra como mayor. */
+export const isUnder3 = (age: number | null | undefined) => age != null && age < 3;
 
 export type PlayzoneCharge = {
     /** virtualSku único por sesión y tipo: pz-base-<id> / pz-extra-<id> / pz-free-<id> */
@@ -137,10 +143,11 @@ export type PlayzoneCharge = {
 type ChargeableSession = {
     id: string;
     durationMinutes: number | null;
+    companions: number;
     startTime: Date;
     endTime: Date | null;
     wristbandCode: string;
-    child: { fullName: string };
+    child: { fullName: string; age: number | null };
 };
 
 function elapsedMinutesOf(start: Date, end: Date): number {
@@ -162,9 +169,15 @@ export function computePlayzoneCharge(
 
     if (kind === "base") {
         if (session.durationMinutes === null) throw new Error(`La sesión ${session.wristbandCode} es de tiempo libre; no tiene tarifa base.`);
+        if (isUnder3(session.child.age)) return { ...base, label: `JUEGOS GRATIS <3 AÑOS ${tag}`, amount: 0 };
         const rate = rates.durations.find((d) => d.minutes === session.durationMinutes);
         if (!rate) throw new Error(`No hay tarifa configurada para ${session.durationMinutes} min.`);
         return { ...base, label: `JUEGOS ${rate.label} ${tag}`, amount: rate.price };
+    }
+
+    if (kind === "comp") {
+        if (session.companions <= 0) throw new Error(`La sesión ${session.wristbandCode} no tiene acompañantes.`);
+        return { ...base, label: `ADICIONAL ACOMPAÑANTE x${session.companions} ${tag}`, amount: round2(session.companions * COMPANION_PRICE) };
     }
 
     if (!session.endTime) throw new Error(`La sesión ${session.wristbandCode} aún está activa; finalízala antes de cobrar el tiempo.`);
@@ -307,7 +320,7 @@ export async function addChild(input: AddChildInput) {
 
 async function generateUniqueCode(tenantId: string): Promise<string> {
     const activeSessions = await prisma.playSession.findMany({
-        where: { tenantId, status: "ACTIVE" },
+        where: { tenantId, status: { in: ["ACTIVE", "PENDING"] } },
         select: { wristbandCode: true },
     });
     const usedCodes = new Set(activeSessions.map((s) => s.wristbandCode));
@@ -331,6 +344,14 @@ export async function createPlaySession(input: CreatePlaySessionInput) {
     });
     if (!child) throw new Error("Niño no encontrado para este local.");
 
+    // Una sesión PENDING abandonada (cobro nunca confirmado) no bloquea: se descarta
+    await prisma.playSession.deleteMany({ where: { childId: input.childId, status: "PENDING" } });
+
+    const companions = input.companions ?? 0;
+    if (!Number.isInteger(companions) || companions < 0 || companions > MAX_COMPANIONS) {
+        throw new Error(`Máximo ${MAX_COMPANIONS} acompañantes adicionales.`);
+    }
+
     // Verify no active session already exists for this child
     const existing = await prisma.playSession.findFirst({
         where: { childId: input.childId, status: "ACTIVE" },
@@ -353,8 +374,11 @@ export async function createPlaySession(input: CreatePlaySessionInput) {
                 tenantId: input.tenantId,
                 childId: input.childId,
                 durationMinutes: input.durationMinutes ?? null,
+                companions,
+                notes: input.notes?.trim() || null,
                 wristbandCode: await generateUniqueCode(input.tenantId),
-                status: "ACTIVE",
+                // Con cargo base la sesión espera el cobro (processSale la activa); el tiempo libre se cobra al final
+                status: companions > 0 || (input.durationMinutes !== undefined && !isUnder3(child.age)) ? "PENDING" : "ACTIVE",
                 startTime: new Date(),
             },
             include: {
@@ -372,8 +396,10 @@ export async function createPlaySession(input: CreatePlaySessionInput) {
     }
 
     // Cargo base a cobrar en caja (las sesiones de tiempo libre se cobran al finalizar)
-    const charge = session.durationMinutes === null ? null : computePlayzoneCharge(session, "base", rates);
-    return { ...session, charge };
+    const baseCharge = session.durationMinutes === null ? null : computePlayzoneCharge(session, "base", rates);
+    const charge = baseCharge && baseCharge.amount > 0 ? baseCharge : null;
+    const companionsCharge = companions > 0 ? computePlayzoneCharge(session, "comp", rates) : null;
+    return { ...session, charge, companionsCharge };
 }
 
 // ── Session: lookup by code ──────────────────────────────────
@@ -428,7 +454,7 @@ export async function completeSession(tenantId: string, sessionId: string) {
     // updateMany con status ACTIVE: dos "Finalizar" simultáneos no completan dos veces
     const { count } = await prisma.playSession.updateMany({
         where: { id: sessionId, tenantId, status: "ACTIVE" },
-        data: { status: "COMPLETED", endTime: endedAt },
+        data: { status: "COMPLETED", endTime: endedAt, notes: null },
     });
     if (count === 0) throw new Error("Sesión activa no encontrada.");
     const completed = await prisma.playSession.findUniqueOrThrow({ where: { id: sessionId } });

@@ -12,7 +12,7 @@ await prisma.tenant.create({
         direccion: "Av. Los Juegos 123, Miraflores, Lima", ubigeo: "150122",
         apisperuToken: "demo-token", apisperuUrl: process.env["APISPERU_URL"] ?? "http://localhost:3999/api/v1",
         electronicInvoicingEnabled: true, defaultIgvRegime: "GRAVADO", pricesIncludeIgv: true,
-        playzoneRates: { durations: [{ minutes: 30, price: 15, label: "30 Min" }, { minutes: 60, price: 25, label: "1 Hora" }, { minutes: 120, price: 40, label: "2 Horas" }], extraPerMinute: 0.8, freePerMinute: 0.5 },
+        playzoneRates: { durations: [{ minutes: 30, price: 10, label: "30 Min" }, { minutes: 60, price: 15, label: "1 Hora" }], extraPerMinute: 0.8, freePerMinute: 0.5 },
     },
 });
 

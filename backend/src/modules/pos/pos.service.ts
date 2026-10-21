@@ -68,7 +68,7 @@ function isVirtualLineItem(productId: string): boolean {
     return productId.startsWith('pz-') || productId.startsWith('free-sale-');
 }
 
-const PZ_SKU = /^pz-(base|extra|free)-(.+)$/;
+const PZ_SKU = /^pz-(base|extra|free|comp)-(.+)$/;
 
 type VirtualLine = { qty: number; unitPrice: number; label: string; sku: string };
 
@@ -106,10 +106,14 @@ async function resolveVirtualLines(
         const kind = match[1] as PlayzoneChargeKind;
         const session = await tx.playSession.findFirst({
             where: { id: match[2]!, tenantId },
-            include: { child: { select: { fullName: true } } },
+            include: { child: { select: { fullName: true, age: true } } },
         });
         if (!session) throw new Error(`Play session "${match[2]}" not found for this tenant.`);
         const charge = computePlayzoneCharge(session, kind, rates!);
+        // El pago confirma el inicio: el reloj arranca al cobrar, no al registrar
+        if ((kind === "base" || kind === "comp") && session.status === "PENDING") {
+            await tx.playSession.update({ where: { id: session.id }, data: { status: "ACTIVE", startTime: new Date() } });
+        }
 
         // Serializa cobros concurrentes del mismo cargo hasta el commit
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${charge.sku}))`;

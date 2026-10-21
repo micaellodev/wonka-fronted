@@ -110,7 +110,10 @@ export const authGuard = new Elysia({ name: "auth-guard" })
             throw status(403, denial("TENANT_MISMATCH", "No tienes acceso a este negocio."));
         }
         const needed = requiredPermission(request.method, route);
-        if (needed && !can(auth.role, needed)) {
+        const stockInOnly = request.method === "POST" && route === "/inventory/products/:id/stock"
+            && (body as Record<string, unknown> | undefined)?.["type"] === "ENTRADA"
+            && can(auth.role, "inventory.stock.add");
+        if (needed && !can(auth.role, needed) && !stockInOnly) {
             throw status(403, denial("FORBIDDEN", "Tu rol no tiene permiso para esta acción."));
         }
     });

@@ -187,6 +187,8 @@ export const CreatePlaySessionBody = t.Object({
     tenantId: t.String({ minLength: 1 }),
     childId: t.String({ minLength: 1 }),
     durationMinutes: t.Optional(t.Integer({ minimum: 1 })),
+    companions: t.Optional(t.Integer({ minimum: 0, maximum: 2 })),
+    notes: t.Optional(t.String({ maxLength: 120 })),
 });
 
 export const PlaySessionLookupQuery = t.Object({

@@ -364,6 +364,8 @@ model VoidRequest {
 // ─────────────────────────────────────────────
 
 enum PlaySessionStatus {
+  /// Creada pero sin cobrar: el reloj no corre hasta que la venta se confirma
+  PENDING
   ACTIVE
   COMPLETED
 }
@@ -420,7 +422,11 @@ model PlaySession {
   id              String            @id @default(cuid())
   /// Duration in minutes. NULL means unlimited (open-ended)
   durationMinutes Int?
-  startTime       DateTime          @default(now())
+  /// Acompañantes de pago (extra a los incluidos): 0..2
+  companions      Int               @default(0)
+  /// Seña del apoderado (ej. cómo va vestido); se borra al finalizar
+  notes           String?
+  startTime      DateTime          @default(now())
   endTime         DateTime?
   status          PlaySessionStatus @default(ACTIVE)
   /// 3-digit zero-padded code written on the wristband, e.g. "045"

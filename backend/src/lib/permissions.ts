@@ -5,7 +5,7 @@
 // ============================================================
 
 export const PERMISSIONS = [
-    "employees.view", "employees.manage", "inventory.view", "inventory.edit", "reports.view",
+    "employees.view", "employees.manage", "inventory.view", "inventory.stock.add", "inventory.edit", "reports.view",
     "approvals.resolve", "billing.notes", "cash.manage", "playzone.rates", "company.settings",
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
@@ -24,6 +24,7 @@ const ROLE_PERMISSIONS: Record<string, readonly Permission[]> = {
     ADMINISTRADOR: PERMISSIONS,
     GERENTE,
     COCINA: ["inventory.view"],
+    CAJERO: ["inventory.view", "inventory.stock.add"],
 };
 
 export const permissionsFor = (role?: string | null): readonly Permission[] => ROLE_PERMISSIONS[normalize(role)] ?? [];

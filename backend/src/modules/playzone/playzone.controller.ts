@@ -165,6 +165,8 @@ export const playzoneController = new Elysia({ prefix: "/playzone", tags: ["Play
                     tenantId: body.tenantId,
                     childId: body.childId,
                     ...(body.durationMinutes !== undefined ? { durationMinutes: body.durationMinutes } : {}),
+                    ...(body.companions !== undefined ? { companions: body.companions } : {}),
+                    ...(body.notes !== undefined ? { notes: body.notes } : {}),
                 });
                 set.status = 201;
                 return {
