@@ -3,11 +3,12 @@
 import { useAuthStore } from '@/store/authStore'
 
 export type Permission =
-  | 'employees.view' | 'employees.manage' | 'inventory.view' | 'inventory.edit' | 'reports.view'
+  | 'employees.view' | 'employees.manage' | 'inventory.view' | 'inventory.stock.add' | 'inventory.edit' | 'reports.view'
   | 'approvals.resolve' | 'billing.notes' | 'cash.manage' | 'playzone.rates' | 'company.settings'
 
 /** Pantallas de back-office y el permiso que exigen; el resto de rutas es de trabajador. */
 const ROUTE_PERMISSION: Record<string, Permission> = {
+  '/admin': 'reports.view',
   '/admin/approvals': 'approvals.resolve',
   '/admin/company': 'company.settings',
   '/admin/inventory': 'inventory.view',
@@ -15,6 +16,11 @@ const ROUTE_PERMISSION: Record<string, Permission> = {
   '/admin/billing-notes': 'billing.notes',
   '/admin/reports': 'reports.view',
   '/admin/cashier': 'reports.view',
+  '/admin/playzone': 'playzone.rates',
+  '/admin/cash-close': 'cash.manage',
+  '/admin/cash-movements': 'cash.manage',
+  '/admin/sales-history': 'reports.view',
+  '/admin/statistics': 'reports.view',
 }
 
 const isAdminName = (name?: string) => name === 'ADMIN' || name === 'ADMINISTRADOR'

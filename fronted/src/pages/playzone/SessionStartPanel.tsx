@@ -1,18 +1,24 @@
 // Panel central: niño elegido, tarifas y botón de inicio. Extraído de PlayZoneScreen sin cambios de comportamiento.
-import { Timer, Clock, XCircle, Infinity as InfinityIcon } from 'lucide-react'
+import { Timer, Clock, XCircle, Minus, Plus, Infinity as InfinityIcon } from 'lucide-react'
 import { formatPEN } from '@/lib/format'
 import { type Child, type DurationOpt, fmtPrice, SectionLabel } from './shared'
 
-export function SessionStartPanel({ selectedChild, setSelectedChild, durationOptions, selectedDuration, setSelectedDuration, starting, onStart, lastCode }: {
+export function SessionStartPanel({ selectedChild, setSelectedChild, durationOptions, selectedDuration, setSelectedDuration, companions, setCompanions, notes, setNotes, starting, onStart, lastCode }: {
+ notes: string
+ setNotes: (s: string) => void
  selectedChild: (Child & { guardianName: string }) | null
  setSelectedChild: (c: null) => void
  durationOptions: DurationOpt[]
  selectedDuration: DurationOpt
  setSelectedDuration: (d: DurationOpt) => void
+ companions: number
+ setCompanions: (n: number) => void
  starting: boolean
  onStart: () => void
  lastCode: { code: string; price: number | null; childName: string } | null
 }) {
+ const under3 = selectedChild !== null && selectedChild.age !== null && selectedChild.age < 3
+ const unit = 5
  return (
  <section className="flex flex-col w-full lg:w-65 lg:shrink-0 border-b lg:border-b-0 lg:border-r border-border bg-background/60 overflow-y-auto shadow-xl z-10 relative">
  <div className="p-4 border-b border-border">
@@ -70,6 +76,35 @@ export function SessionStartPanel({ selectedChild, setSelectedChild, durationOpt
  </div>
  </div>
 
+ {/* Acompañantes */}
+ <div className="px-4">
+ <SectionLabel>Acompañantes extra</SectionLabel>
+ <p className="text-[11px] text-muted-foreground mb-2">
+ {under3 ? 'Menor de 3 años: entra gratis con 1 acompañante incluido. Extra: S/ 5 c/u.' : 'Mayor de 3 años: sin acompañante incluido. Si entra con alguien: S/ 5 c/u.'}
+ </p>
+ <div className="flex items-center justify-between gap-2 bg-muted border-2 border-border rounded-sm p-2">
+ <button onClick={() => setCompanions(Math.max(0, companions - 1))} disabled={companions === 0} aria-label="Quitar acompañante"
+ className="w-12 h-12 flex items-center justify-center rounded-sm bg-background border border-border text-foreground disabled:opacity-30 transition-none">
+ <Minus className="w-5 h-5" />
+ </button>
+ <div className="flex flex-col items-center">
+ <span className="text-2xl font-black leading-none">{companions}</span>
+ <span className="text-[11px] font-black font-mono text-brand-500 mt-1">{companions === 0 ? 'sin extra' : formatPEN(companions * unit)}</span>
+ </div>
+ <button onClick={() => setCompanions(Math.min(2, companions + 1))} disabled={companions === 2} aria-label="Agregar acompañante"
+ className="w-12 h-12 flex items-center justify-center rounded-sm bg-brand-600 text-primary-foreground disabled:opacity-30 transition-none">
+ <Plus className="w-5 h-5" />
+ </button>
+ </div>
+ </div>
+
+ {/* Descripción del apoderado: visible solo mientras la sesión está activa */}
+ <div className="px-4">
+ <SectionLabel>Descripción (opcional)</SectionLabel>
+ <input value={notes} onChange={e => setNotes(e.target.value)} maxLength={120} placeholder="Ej: polo rojo, jeans, lentes"
+ className="w-full bg-muted border-2 border-border rounded-sm px-2 py-2 text-xs text-foreground" />
+ </div>
+
  {/* Start action */}
  <div className="px-4 pb-4">
  <button onClick={onStart} disabled={starting}
@@ -86,7 +121,7 @@ export function SessionStartPanel({ selectedChild, setSelectedChild, durationOpt
  {lastCode && (
  <div className="mt-auto p-4 pt-6 border-t border-border bg-muted">
  <p className="text-[11px] text-secondary-500 font-black uppercase tracking-widest text-center mb-2">
- Código Generado: Escribir en pulsera
+ Código Generado: Escribir en pulsera (el tiempo corre al cobrar en caja)
  </p>
  <div className="bg-background border-2 border-secondary-500 rounded-sm p-4 text-center shadow-inner">
  <span className="text-6xl font-black font-mono text-secondary-500 tracking-widest">

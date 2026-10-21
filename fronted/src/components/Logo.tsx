@@ -13,7 +13,7 @@ interface LogoProps {
 export function Logo({ variant = 'full', className = '' }: LogoProps) {
  // BASE_URL: '/' en la web, './' en Electron (file://); una ruta absoluta no carga en el escritorio
  const src = import.meta.env.BASE_URL + (variant === 'icon' ? 'icon.webp' : 'logo.webp')
- const alt = variant === 'icon' ? 'Renzo Wonka icono' : 'Renzo Wonka'
+ const alt = variant === 'icon' ? 'Wonka Park icono' : 'Wonka Park'
 
  return (
  <img

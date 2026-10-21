@@ -75,3 +75,15 @@ ALTER TABLE "stock_movements" ADD CONSTRAINT "stock_movements_productId_fkey" FO
 ALTER TABLE "stock_movements" ADD CONSTRAINT "stock_movements_workerId_fkey" FOREIGN KEY ("workerId") REFERENCES "workers"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 COMMIT;
 ```
+
+## Índices perf (2026-10-17) — SQL para producción (NO aplicado)
+Solo índices, aditivo. Nombres = convención Prisma.
+```sql
+BEGIN;
+CREATE INDEX IF NOT EXISTS "sales_tenantId_status_sunatStatus_createdAt_idx" ON "sales"("tenantId", "status", "sunatStatus", "createdAt");
+CREATE INDEX IF NOT EXISTS "sale_items_saleId_idx" ON "sale_items"("saleId");
+CREATE INDEX IF NOT EXISTS "sale_items_virtualSku_idx" ON "sale_items"("virtualSku");
+CREATE INDEX IF NOT EXISTS "attendances_tenantId_checkIn_idx" ON "attendances"("tenantId", "checkIn");
+CREATE INDEX IF NOT EXISTS "play_sessions_tenantId_startTime_idx" ON "play_sessions"("tenantId", "startTime");
+COMMIT;
+```

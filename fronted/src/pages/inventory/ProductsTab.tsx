@@ -32,7 +32,9 @@ export function ProductsTab({ tenantId, categories, initialStock, onChanged, onC
  tenantId: string; categories: Category[]; initialStock: StockFilter
  onChanged: () => void; onCategoriesChanged: () => void
 }) {
- const canEdit = useCan().can('inventory.edit')
+ const { can } = useCan()
+ const canEdit = can('inventory.edit')
+ const canAddStock = can('inventory.stock.add')
  const [search, setSearch] = useState('')
  const q = useDebounced(search)
  const [categoryId, setCategoryId] = useState('')
@@ -134,9 +136,9 @@ export function ProductsTab({ tenantId, categories, initialStock, onChanged, onC
     <ExportButtons name="inventario" className="ml-auto" disabled={total === 0} getRows={exportRows} />
     {canEdit && <div className="flex gap-2">
      <Button variant="secondary" onClick={() => setImportOpen(true)} data-testid="import-open"><Upload /> Importar Excel</Button>
-     <Button onClick={() => setProdModal({ editing: null })} disabled={categories.length === 0}
-      title={categories.length === 0 ? 'Crea al menos una categoría primero' : ''} data-testid="product-new"><Plus /> Nuevo producto</Button>
     </div>}
+    {canEdit && <Button onClick={() => setProdModal({ editing: null })} disabled={categories.length === 0}
+     title={categories.length === 0 ? 'Crea al menos una categoría primero' : ''} data-testid="product-new"><Plus /> Nuevo producto</Button>}
    </div>
 
    {error && <ErrorRetry message={error} onRetry={() => void load()} />}
@@ -175,12 +177,12 @@ export function ProductsTab({ tenantId, categories, initialStock, onChanged, onC
           <TableCell data-testid="product-stock-cell"><StockBadge p={p} /></TableCell>
           <TableCell><Badge variant={p.isActive ? 'success' : 'outline'} data-testid="product-status">{p.isActive ? 'Activo' : 'Inactivo'}</Badge></TableCell>
           <TableCell>
-           {canEdit && <div className="flex justify-end gap-1">
-            <Button size="icon" variant="ghost" className="size-8" aria-label={`Editar ${p.name}`} title="Editar" onClick={() => setProdModal({ editing: p })} data-testid="product-edit"><Edit2 /></Button>
-            <Button size="icon" variant="ghost" className="size-8" aria-label={`Ajustar stock de ${p.name}`}
-             title={p.trackStock ? 'Ajustar stock' : 'Este producto no controla stock'} disabled={!p.trackStock} onClick={() => setStockFor(p)} data-testid="product-adjust"><SlidersHorizontal /></Button>
-            <Button size="icon" variant="ghost" className="size-8" aria-label={`${p.isActive ? 'Desactivar' : 'Activar'} ${p.name}`}
-             title={p.isActive ? 'Desactivar' : 'Activar'} onClick={() => { setToggleError(''); setToggleFor(p) }} data-testid="product-toggle"><Power /></Button>
+           {(canEdit || canAddStock) && <div className="flex justify-end gap-1">
+            {canEdit && <Button size="icon" variant="ghost" className="size-8" aria-label={`Editar ${p.name}`} title="Editar" onClick={() => setProdModal({ editing: p })} data-testid="product-edit"><Edit2 /></Button>}
+            <Button size="icon" variant="ghost" className="size-8" aria-label={`Agregar stock a ${p.name}`}
+             title={p.trackStock ? (canEdit ? 'Ajustar stock' : 'Agregar stock') : 'Este producto no controla stock'} disabled={!p.trackStock} onClick={() => setStockFor(p)} data-testid="product-adjust"><SlidersHorizontal /></Button>
+            {canEdit && <Button size="icon" variant="ghost" className="size-8" aria-label={`${p.isActive ? 'Desactivar' : 'Activar'} ${p.name}`}
+             title={p.isActive ? 'Desactivar' : 'Activar'} onClick={() => { setToggleError(''); setToggleFor(p) }} data-testid="product-toggle"><Power /></Button>}
            </div>}
           </TableCell>
          </TableRow>
@@ -197,7 +199,7 @@ export function ProductsTab({ tenantId, categories, initialStock, onChanged, onC
      onClose={() => setProdModal(null)} onSaved={() => { setProdModal(null); refresh() }}
      onAdjustStock={(p) => { setProdModal(null); setStockFor(p) }} />
    )}
-   {stockFor && <StockModal tenantId={tenantId} product={stockFor} onClose={() => setStockFor(null)} onSaved={() => { setStockFor(null); refresh() }} />}
+   {stockFor && <StockModal tenantId={tenantId} product={stockFor} entryOnly={!canEdit} onClose={() => setStockFor(null)} onSaved={() => { setStockFor(null); refresh() }} />}
    {toggleFor && (
     <ConfirmModal title={toggleFor.isActive ? 'Desactivar producto' : 'Activar producto'}
      message={toggleFor.isActive ? `"${toggleFor.name}" dejará de aparecer en el punto de venta.` : `"${toggleFor.name}" volverá a aparecer en el punto de venta.`}

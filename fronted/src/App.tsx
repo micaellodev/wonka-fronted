@@ -6,7 +6,6 @@ import { useEffect } from 'react'
 import { BrowserRouter, HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { TitleBar } from '@/components/TitleBar'
 import { Toaster } from '@/components/ui/toast'
-import { UpdateBanner } from '@/components/UpdateBanner'
 import { LoginScreen } from '@/pages/LoginScreen'
 import { POSScreen } from '@/pages/POSScreen'
 import { InventoryScreen } from '@/pages/InventoryScreen'
@@ -63,12 +62,12 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
 function AdminAuth({ children }: { children: React.ReactNode }) {
  const activeWorker = useAuthStore((s) => s.activeWorker)
  const isAdminAuthenticated = useAdminStore((s) => s.isAdminAuthenticated)
- const { canEnterAdmin, canRoute } = useCan()
+ const { can, canEnterAdmin, canRoute } = useCan()
  const { pathname } = useLocation()
  if (!activeWorker) return <Navigate to="/" replace />
  if (!(canEnterAdmin || isAdminAuthenticated)) return <Navigate to="/pos" replace />
  // Roles con permisos parciales (GERENTE, COCINA): solo las pantallas de su permiso
- return canRoute(pathname) || isAdminAuthenticated ? <>{children}</> : <Navigate to="/admin" replace />
+ return canRoute(pathname) || isAdminAuthenticated ? <>{children}</> : <Navigate to={can('inventory.view') ? '/admin/inventory' : '/pos'} replace />
 }
 
 /** Keeps the shared cash status fresh for every screen (cashier and admin): interval + focus. */
@@ -97,7 +96,6 @@ export default function App() {
  <div className="h-screen flex flex-col">
  <TitleBar />
  <Toaster />
- <UpdateBanner />
  <Router>
  <CashStatusSync />
  <div className="flex-1 overflow-hidden">

@@ -63,6 +63,8 @@ export function PlayZoneScreen() {
  // ── selected child + session start ──
  const [selectedChild, setSelectedChild] = useState<(Child & { guardianName: string }) | null>(null)
  const [selectedDuration, setSelectedDuration] = useState<DurationOpt>(FREE_OPTION)
+ const [companions, setCompanions] = useState(0)
+ const [notes, setNotes] = useState('')
  const [starting, setStarting] = useState(false)
  const [lastCode, setLastCode] = useState<{ code: string; price: number | null; childName: string } | null>(null)
 
@@ -244,11 +246,17 @@ export function PlayZoneScreen() {
  try {
  const body: Record<string, unknown> = { tenantId, childId: selectedChild.id }
  if (selectedDuration.minutes !== null) body.durationMinutes = selectedDuration.minutes
+ if (companions > 0) body.companions = companions
+ if (notes.trim()) body.notes = notes.trim()
  const res = await (api.playzone.sessions as Loose).post(body)
  if (!res.error) {
  const session = (res.data as Loose).data
- setLastCode({ code: session.wristbandCode, price: selectedDuration.price, childName: selectedChild.fullName })
+ const free = (selectedChild.age ?? 99) < 3
+ setLastCode({ code: session.wristbandCode, price: selectedDuration.price === null && companions === 0 ? null : (free ? 0 : selectedDuration.price ?? 0) + companions * 5, childName: selectedChild.fullName })
  queueCharge(session.charge)
+ queueCharge(session.companionsCharge)
+ setCompanions(0)
+ setNotes('')
  setSelectedChild(null)
  setSelectedDuration(durationOptions[0])
  fetchSessions()
@@ -581,7 +589,7 @@ export function PlayZoneScreen() {
  {/* ═══════════════════════════════════════════
  MIDDLE PANEL — Session Start (260px)
  ═══════════════════════════════════════════ */}
- <SessionStartPanel selectedChild={selectedChild} setSelectedChild={setSelectedChild} durationOptions={durationOptions} selectedDuration={selectedDuration} setSelectedDuration={setSelectedDuration} starting={starting} onStart={handleStart} lastCode={lastCode} />
+ <SessionStartPanel selectedChild={selectedChild} setSelectedChild={setSelectedChild} durationOptions={durationOptions} selectedDuration={selectedDuration} setSelectedDuration={setSelectedDuration} companions={companions} setCompanions={setCompanions} notes={notes} setNotes={setNotes} starting={starting} onStart={handleStart} lastCode={lastCode} />
 
  {/* ═══════════════════════════════════════════
  RIGHT PANEL — Active Sessions Grid

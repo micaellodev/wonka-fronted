@@ -1,5 +1,9 @@
+import { useEffect, useState } from 'react'
+
 export function TitleBar() {
   const api = window.electronAPI
+  const [pending, setPending] = useState(false)
+  useEffect(() => api?.onUpdateStatus(() => setPending(true)), [api])
 
   if (!api) return null
 
@@ -9,10 +13,18 @@ export function TitleBar() {
       style={{ appRegion: 'drag' } as React.CSSProperties}
     >
       <span className="pl-3 text-xs font-semibold text-muted-foreground tracking-wide">
-        Renzo Wonka POS
+        Wonka Park
       </span>
 
       <div className="flex h-full" style={{ appRegion: 'no-drag' } as React.CSSProperties}>
+        {pending && (
+          <button
+            onClick={() => api.installUpdate()}
+            className="my-1 mr-2 px-3 rounded-sm bg-brand-600 hover:bg-brand-500 text-primary-foreground text-[11px] font-black uppercase tracking-widest"
+          >
+            Actualización pendiente
+          </button>
+        )}
         <button
           onClick={() => api.minimize()}
           aria-label="Minimizar"

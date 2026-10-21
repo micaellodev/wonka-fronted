@@ -5,7 +5,7 @@ import { persist } from 'zustand/middleware'
 // etiqueta vienen del backend (tarifas del tenant); al vender, el backend
 // los recalcula desde la sesión y rechaza un cargo ya cobrado.
 
-export type PlayzoneChargeKind = 'base' | 'extra' | 'free'
+export type PlayzoneChargeKind = 'base' | 'extra' | 'free' | 'comp'
 
 /** Shape returned by the backend (`charge` on session start/complete). */
 export interface PlayzoneCharge {
@@ -17,7 +17,7 @@ export interface PlayzoneCharge {
 }
 
 export interface PlayzoneChargeLine {
- /** virtualSku: pz-base-<id> | pz-extra-<id> | pz-free-<id> — sent as productId */
+ /** virtualSku: pz-base-<id> | pz-extra-<id> | pz-free-<id> | pz-comp-<id> — sent as productId */
  id: string
  sessionId: string
  kind: PlayzoneChargeKind

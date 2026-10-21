@@ -6,9 +6,10 @@ const { app, ipcMain } = require('electron')
 const fs = require('fs')
 const path = require('path')
 
-const CHECK_EVERY_MS = 30 * 60 * 1000
+// Cada minuto: latest.yml pesa ~600 bytes y R2 no cobra descargas, así el aviso aparece casi al publicar la versión.
+const CHECK_EVERY_MS = 60 * 1000
 
-function setupUpdater(getWindow) {
+function setupUpdater(getWindow, openSplash) {
   const log = (msg) => {
     try { fs.appendFileSync(path.join(app.getPath('userData'), 'updater.log'), `${new Date().toISOString()} ${msg}\n`) } catch { /* sin log */ }
   }
@@ -23,30 +24,72 @@ function setupUpdater(getWindow) {
   const { autoUpdater } = require('electron-updater')
   autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = true
-  autoUpdater.logger = { info: log, warn: log, error: log, debug: () => {} }
+  // con una revisión por minuto, el registro no guarda las que no encuentran nada
+  autoUpdater.logger = { info: (m) => { if (!/Checking for update|is not available/.test(String(m))) log(m) }, warn: log, error: log, debug: () => {} }
 
-  autoUpdater.on('update-available', (i) => { log(`disponible ${i.version}`); send({ state: 'downloading', version: i.version }) })
+  // busy: hay una descarga en curso o una versión ya lista; no revisar de nuevo hasta que falle
+  let busy = false
+  let pendingVersion, downloaded = false
+  autoUpdater.on('update-available', (i) => { busy = true; pendingVersion = i.version; log(`disponible ${i.version}`); send({ state: 'downloading', version: i.version }) })
   autoUpdater.on('download-progress', (p) => send({ state: 'downloading', percent: Math.round(p.percent) }))
-  autoUpdater.on('update-downloaded', (i) => { log(`descargada ${i.version}`); send({ state: 'ready', version: i.version }) })
-  autoUpdater.on('error', (e) => log(`error: ${e?.message ?? e}`))
+  autoUpdater.on('update-downloaded', (i) => { downloaded = true; log(`descargada ${i.version}`); send({ state: 'ready', version: i.version }) })
+  autoUpdater.on('error', (e) => { busy = false; log(`error: ${e?.message ?? e}`) })
 
-  ipcMain.on('update:install', () => autoUpdater.quitAndInstall())
+  // Botón "Actualización pendiente": oculta la app, muestra la ventana de progreso (espera la descarga si aún corre) e instala.
+  // (true, true): instalación invisible y la app se vuelve a abrir sola; sin esto salía el instalador de Electron y no reabría
+  let installingNow = false
+  ipcMain.on('update:install', async () => {
+    if (installingNow) return
+    installingNow = true
+    const { splash, onProgress } = await openSplash()
+    getWindow()?.hide()
+    const alProgreso = (p) =>
+      onProgress({ stage: 'download', percent: Math.round(p.percent), transferred: p.transferred, total: p.total, speed: p.bytesPerSecond, version: pendingVersion })
+    autoUpdater.on('download-progress', alProgreso)
+    try {
+      onProgress({ stage: 'download', percent: downloaded ? 100 : 0, version: pendingVersion })
+      if (!downloaded) {
+        await new Promise((resolve, reject) => {
+          autoUpdater.once('update-downloaded', resolve)
+          autoUpdater.once('error', reject)
+        })
+      }
+      onProgress({ stage: 'install', version: pendingVersion })
+      await new Promise((r) => setTimeout(r, 1200)) // que se vea el 100% antes de cerrar
+      log('instalando desde el botón')
+      autoUpdater.quitAndInstall(true, true)
+    } catch (e) {
+      log(`instalar falló: ${e?.message ?? e}`)
+      autoUpdater.removeListener('download-progress', alProgreso)
+      installingNow = false
+      if (!splash.isDestroyed()) splash.close()
+      getWindow()?.show()
+    }
+  })
 
-  const check = () => autoUpdater.checkForUpdates().catch((e) => log(`check falló: ${e?.message ?? e}`))
+  const check = () => busy ? undefined : autoUpdater.checkForUpdates().catch((e) => log(`check falló: ${e?.message ?? e}`))
 
   // true = se está instalando (la app se cierra y reabre sola). Sin red o sin feed, a los 10 s sigue normal.
   const startup = async (onProgress) => {
-    autoUpdater.on('download-progress', (p) => onProgress(Math.round(p.percent)))
+    // Este oyente escribe en la ventana de carga: hay que quitarlo al terminar, o una descarga posterior en segundo plano
+    // lo dispara con esa ventana ya cerrada ("Object has been destroyed") y la descarga se queda pegada en 100%.
+    const alProgreso = (p) =>
+      onProgress({ stage: 'download', percent: Math.round(p.percent), transferred: p.transferred, total: p.total, speed: p.bytesPerSecond })
+    autoUpdater.on('download-progress', alProgreso)
+    onProgress({ stage: 'check' })
     try {
       const res = await Promise.race([autoUpdater.checkForUpdates(), new Promise((r) => setTimeout(r, 10000))])
       if (res?.isUpdateAvailable) {
-        onProgress(0, res.updateInfo.version)
+        onProgress({ stage: 'download', percent: 0, version: res.updateInfo.version })
         await res.downloadPromise
+        onProgress({ stage: 'install', version: res.updateInfo.version })
+        await new Promise((r) => setTimeout(r, 1200)) // que se vea el 100% antes de cerrar
         log('instalando al arrancar')
         autoUpdater.quitAndInstall(true, true)
         return true
       }
     } catch (e) { log(`startup falló: ${e?.message ?? e}`) }
+    autoUpdater.removeListener('download-progress', alProgreso)
     setInterval(check, CHECK_EVERY_MS)
     return false
   }

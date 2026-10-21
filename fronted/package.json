@@ -1,7 +1,7 @@
 {
   "name": "wonka-fronted",
   "private": true,
-  "version": "1.0.2",
+  "version": "1.0.15",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -15,7 +15,7 @@
   },
   "build": {
     "appId": "com.renzowonka.pos",
-    "productName": "Renzo Wonka POS",
+    "productName": "Wonka Park",
     "directories": {
       "output": "release"
     },
@@ -25,8 +25,10 @@
     ],
     "win": {
       "target": "nsis-web",
+      "icon": "icon.ico",
       "signAndEditExecutable": false
     },
+    "afterPack": "scripts/after-pack.cjs",
     "forceCodeSigning": false,
     "nsis": {
       "oneClick": true,

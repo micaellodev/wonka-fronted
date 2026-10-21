@@ -14,7 +14,6 @@ Evidencia: `e2e:<archivo>#<test>` = test de `bun test` contra backend :3016 + ve
 | Router | `/admin/*` con cajero | Redirige a `/pos` (AdminGuard) y el backend rechaza rutas admin con 403 | guard backend | probado | código:fronted/src/App.tsx:54-59; backend e2e:auth.test.ts#cashier ... → 403 |
 | Router | `/admin/playzone` | Accesible a cualquier trabajador (WorkerGuard) | — | probado | código:fronted/src/App.tsx:90 |
 | Router | ruta desconocida `*` | Redirige a `/` | — | probado | código:fronted/src/App.tsx:93 |
-| Splash | `/splash` | Pantalla de carga, sin controles | — | probado | código:fronted/src/App.tsx:69 |
 
 ## TitleBar / TerminalShell
 | Pantalla | Control/acción | Acción esperada | API/DB | Resultado | Evidencia |
@@ -272,4 +271,27 @@ UI: `fronted/e2e/integration.spec.ts` (tenant desechable, ver cabecera). API/DB:
 | Permisos y tenant ajeno | — | integration.test#permisos y aislamiento (3 tests) | — |
 
 ## Resumen
-Probados: 166 / 175 · bloqueados: 9 · pendientes: 0. Suite: 104 tests (backend/tests/).
+Probados: 166 / 175 · bloqueados: 9 · pendientes: 0. Suite: 268 tests (backend/tests/).
+
+## Ola 1-3 (UI kit, atajos POS, caja bloqueada) — estado honesto
+| Pantalla | Control/acción | Acción esperada | API/DB | Resultado | Evidencia |
+|---|---|---|---|---|---|
+| POS | F2 | Foco en búsqueda | — | probado | código:fronted/src/pages/POSScreen.tsx:110 (sin test de navegador) |
+| POS | F9 / Ctrl+Enter | Abre cobro si hay carrito | — | probado | código:fronted/src/pages/POSScreen.tsx:111 (sin test de navegador) |
+| POS | Esc | Cierra panel/diálogo | — | probado por código: Sheet (RightCheckoutDrawer.tsx:271) y ui/dialog lo manejan; sin prueba en navegador | |
+| ui/dialog | Esc, focus trap, aria-modal | Modal accesible (Base UI) | — | pendiente: sin prueba en navegador | |
+| ui/toast | `toast.*` visible | Aviso 3 s | — | `<Toaster/>` montado en App.tsx:92 (verificado); pendiente: prueba en navegador | código:fronted/src/App.tsx:92 |
+| POS | Venta con caja no ABIERTA | Rechaza `CASH_NOT_OPEN` | POST /pos/sales | probado (código backend:pos.service.ts:241-243; carrera: cash-race.test.ts) · pendiente: mensaje en UI | |
+| POS | Anular restaura stock | Solo productos con trackStock | POST /pos/void/:id/resolve | probado | e2e:data-void-stock.test.ts |
+| API | Recursos ajenos por :id (pos, inventory, cash, playzone) | 4xx y sin cambios | varias | probado | e2e:sec-cross-tenant-id.test.ts (birthday/:id, PATCH invitado y cash approve con id real ajeno: cubiertos) |
+
+## Roles, exportar, actualización (2026-10-18)
+| Pantalla | Control/acción | Acción esperada | Resultado | Evidencia |
+|---|---|---|---|---|
+| API | Rutas back-office por permiso (GERENTE/COCINA/CAJERO) | 200 con permiso, 403 sin él; `verify-pin` devuelve `permissions` | probado | e2e:roles-permissions.test.ts |
+| Admin | Menú/rutas filtrados por rol; inventario y empleados solo-lectura | GERENTE sin Empresa; COCINA solo inventario | probado (navegador) | playwright:roles.spec.ts |
+| Varias | Exportar CSV/Excel (ventas, inventario, movimientos de caja, estadísticas) | Descarga válida con filas del filtro | probado (navegador) | playwright:ui-keys.spec.ts |
+| Cierres de caja / Reporte de turno | Exportar CSV/Excel | Descarga con filas del periodo | pendiente: sin datos en el tenant de prueba (botón deshabilitado) | |
+| App escritorio | Auto-actualización | Detecta y descarga versión nueva; aviso "Reiniciar y actualizar" | probado parcialmente (log del updater con feed local); sin probar `quitAndInstall` | fronted/ACTUALIZACIONES.md |
+| Cabecera | Botón modo oscuro | Alterna `.dark` y persiste | probado (navegador) | playwright:ui-keys.spec.ts |
+| Caja | Varios turnos por día: abrir → cerrar/aprobar → abrir turno nuevo | Cada turno cuadra solo lo suyo; el día acumula | probado | e2e:cash-shifts.test.ts, playwright:shifts.spec.ts |

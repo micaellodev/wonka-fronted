@@ -39,6 +39,7 @@ export interface ActiveSession {
  remainingMinutes: number | null
  isUnlimited: boolean
  isOverdue: boolean
+ notes?: string | null
 }
 
 
@@ -132,6 +133,7 @@ export function SessionCard({
  <Shield className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
  <span className="text-xs text-muted-foreground truncate">{session.guardianName} ({session.guardianDni})</span>
  </div>
+ {session.notes && <p className="text-[11px] font-bold text-accent-500 break-words">📝 {session.notes}</p>}
  </div>
 
  {/* Timer bar */}

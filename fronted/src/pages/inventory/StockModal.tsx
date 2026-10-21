@@ -13,8 +13,8 @@ const KINDS: { id: Kind; label: string }[] = [
  { id: 'CORRECCION', label: 'Corrección' },
 ]
 
-export function StockModal({ tenantId, product, onClose, onSaved }: {
- tenantId: string; product: Product; onClose: () => void; onSaved: () => void
+export function StockModal({ tenantId, product, entryOnly = false, onClose, onSaved }: {
+ tenantId: string; product: Product; entryOnly?: boolean; onClose: () => void; onSaved: () => void
 }) {
  const [type, setType] = useState<Kind>('ENTRADA')
  const [qty, setQty] = useState('')
@@ -54,8 +54,8 @@ export function StockModal({ tenantId, product, onClose, onSaved }: {
  }
 
  return (
-  <Modal title="Ajustar stock" subtitle={`${product.name} · ${product.sku}`} onClose={onClose} testId="stock-modal">
-   <div className="inline-flex w-fit rounded-md border border-border bg-muted p-1" role="tablist">
+  <Modal title={entryOnly ? 'Agregar stock' : 'Ajustar stock'} subtitle={`${product.name} · ${product.sku}`} onClose={onClose} testId="stock-modal">
+   {!entryOnly && <div className="inline-flex w-fit rounded-md border border-border bg-muted p-1" role="tablist">
     {KINDS.map((k) => (
      <button key={k.id} type="button" role="tab" aria-selected={type === k.id} data-testid={`stock-type-${k.id}`}
       onClick={() => { setType(k.id); setError('') }}
@@ -63,7 +63,7 @@ export function StockModal({ tenantId, product, onClose, onSaved }: {
       {k.label}
      </button>
     ))}
-   </div>
+   </div>}
 
    <div className="grid grid-cols-2 gap-3">
     <Field label={type === 'CORRECCION' ? 'Stock final' : 'Cantidad'}>

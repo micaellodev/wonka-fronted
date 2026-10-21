@@ -8,11 +8,13 @@ let mainWindow
 
 function createWindow() {
   mainWindow = new BrowserWindow({
+    icon: path.join(__dirname, 'icon.png'),
     width: 1920,
     height: 1080,
     frame: false,
     fullscreen: true,
     backgroundColor: '#000000',
+    show: false, // se muestra al terminar la pantalla de carga (whenReady) o en ready-to-show
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -44,21 +46,33 @@ ipcMain.on('print:silent', (event, htmlContent) => {
   })
 })
 
-const SPLASH_HTML = `<body style="margin:0;background:#111;color:#eee;font:14px system-ui;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;-webkit-app-region:drag">
-<h3 style="margin:0 0 14px">Renzo Wonka POS</h3><div id="t">Buscando actualizaciones…</div>
-<div style="width:240px;height:6px;background:#333;border-radius:3px;margin-top:12px"><div id="b" style="width:0;height:100%;background:#f5a623;border-radius:3px;transition:width .2s"></div></div></body>`
+// Ventana de progreso de actualización (arranque y botón "Actualización pendiente")
+async function openSplash() {
+  const splash = new BrowserWindow({ width: 500, height: 300, frame: false, resizable: false, transparent: true, hasShadow: false, icon: path.join(__dirname, 'icon.png'), webPreferences: { contextIsolation: true } })
+  await splash.loadFile(path.join(__dirname, 'splash.html'))
+  const onProgress = (state) => {
+    if (splash.isDestroyed()) return
+    splash.webContents.executeJavaScript(`set(${JSON.stringify(state)})`).catch(() => {})
+  }
+  return { splash, onProgress }
+}
+
+const MIN_SPLASH_MS = 3500
 
 app.whenReady().then(async () => {
-  const splash = new BrowserWindow({ width: 340, height: 180, frame: false, resizable: false, backgroundColor: '#111' })
-  await splash.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(SPLASH_HTML)}`)
-  const updater = setupUpdater(() => mainWindow)
-  const installing = await updater.startup((pct, version) => {
-    const text = version ? `Descargando ${version}…` : `Descargando actualización ${pct}%`
-    splash.webContents.executeJavaScript(`t.textContent=${JSON.stringify(text)};b.style.width='${pct}%'`).catch(() => {})
-  })
+  const t0 = Date.now()
+  const { splash, onProgress } = await openSplash()
+  const updater = setupUpdater(() => mainWindow, openSplash)
+  const installing = await updater.startup(onProgress)
   if (installing) return
+  onProgress({ stage: 'load' })
   createWindow()
-  splash.close()
+  // La pantalla de carga dura al menos MIN_SPLASH_MS y hasta que la app esté pintada (tope 15 s por si algo se cuelga)
+  const ready = new Promise((r) => { mainWindow.once('ready-to-show', r); setTimeout(r, 15000) })
+  const minimo = new Promise((r) => setTimeout(r, Math.max(0, MIN_SPLASH_MS - (Date.now() - t0))))
+  await Promise.all([ready, minimo])
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.show()
+  if (!splash.isDestroyed()) splash.close()
 })
 
 app.on('window-all-closed', () => {
@@ -66,5 +80,8 @@ app.on('window-all-closed', () => {
 })
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow()
+    mainWindow.once('ready-to-show', () => mainWindow.show())
+  }
 })

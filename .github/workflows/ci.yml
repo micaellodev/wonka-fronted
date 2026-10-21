@@ -1,0 +1,45 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: wonka, POSTGRES_PASSWORD: wonka, POSTGRES_DB: wonka_dev }
+        ports: ['54329:5432']
+        options: >-
+          --health-cmd "pg_isready -U wonka" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://wonka:wonka@localhost:54329/wonka_dev
+      PORT: '3001'
+      NODE_ENV: development
+      APISPERU_URL: http://localhost:3999/api/v1
+      APISPERU_TOKEN: ci-token
+      AUTH_SECRET: ci-only-secret-0123456789abcdef0123456789
+      BASE_URL: http://localhost:3001
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: bun install
+        working-directory: backend
+      - run: bun install
+        working-directory: fronted
+      - run: bunx prisma db push && bun prisma/seed.ts
+        working-directory: backend
+      - run: bunx tsc --noEmit
+        working-directory: backend
+      - run: bunx tsc -b
+        working-directory: fronted
+      - name: Start mock + backend
+        working-directory: backend
+        run: |
+          bun scripts/mock-apisperu.ts > mock.log 2>&1 &
+          bun src/index.ts > api.log 2>&1 &
+          for i in $(seq 1 30); do curl -s localhost:3001 >/dev/null && break; sleep 1; done
+      - run: bun test tests/
+        working-directory: backend

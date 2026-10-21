@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "C:/Users/Valery/AppData/Local/Programs/Python/Python315/Scripts/graphify.exe hook-guard search"
+            "command": "C:/Users/val/AppData/Local/Programs/Python/Python312/Scripts/graphify.exe hook-guard search"
           }
         ]
       },
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "C:/Users/Valery/AppData/Local/Programs/Python/Python315/Scripts/graphify.exe hook-guard read"
+            "command": "C:/Users/val/AppData/Local/Programs/Python/Python312/Scripts/graphify.exe hook-guard read"
           }
         ]
       }

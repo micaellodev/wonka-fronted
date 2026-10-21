@@ -133,7 +133,7 @@ export function NewRoleDialog(p: {
             <div className="space-y-1.5">
               <Label htmlFor="role-name">Nombre del rol</Label>
               <Input id="role-name" autoFocus value={p.name} onChange={e => p.setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && p.onNameSubmit()} placeholder="Ej. GERENTE" />
-              <p className="text-xs text-muted-foreground">Permisos por nombre: <b>GERENTE</b> (reportes, inventario, aprobaciones, notas; sin empresa ni empleados), <b>COCINA</b> (solo ver inventario), <b>ADMIN</b> (todo). Cualquier otro nombre = cajero.</p>
+              <p className="text-xs text-muted-foreground">Permisos por nombre: <b>GERENTE</b> (reportes, inventario, aprobaciones, notas; sin empresa ni empleados), <b>COCINA</b> (solo ver inventario), <b>CAJERO</b> (ver inventario y agregar unidades al stock), <b>ADMIN</b> (todo). Otros nombres no tienen permisos adicionales.</p>
             </div>
             <Button className="w-full" onClick={p.onNameSubmit} disabled={!p.name.trim()}>Continuar</Button>
           </>

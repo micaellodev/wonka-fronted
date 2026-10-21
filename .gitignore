@@ -11,3 +11,12 @@ release/
 build/
 test-results/
 playwright-report/
+
+# Ignorados por tooling
+graphify-out/
+pgsql*/
+nohup.out
+.claude/settings.local.json
+.dev-logs/
+demo/salida/
+demo/audio/

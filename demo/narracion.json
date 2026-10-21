@@ -1,0 +1,30 @@
+{
+  "voz": "es-PE-CamilaNeural",
+  "ritmo": "-4%",
+  "lineas": {
+    "intro":     "Les presento Renzo Wonka POS: un solo sistema para vender, controlar la caja, manejar la zona de juegos y cuidar el inventario de su negocio.",
+    "login":     "Cada trabajador entra con su propio PIN. Así siempre se sabe quién hizo cada venta.",
+    "apertura":  "Antes de empezar, se registra el efectivo con el que abre la caja.",
+    "pos":       "El punto de venta es muy simple: los productos están ordenados por categorías, y con un toque se va armando el ticket.",
+    "ticket":    "El sistema controla el stock en tiempo real, y calcula el vuelto automáticamente.",
+    "cobro":     "Se puede cobrar en efectivo, con Yape o con tarjeta.",
+    "venta_ok":  "Y listo. La venta queda registrada, y el stock se descuenta solo.",
+    "boleta":    "Si el cliente pide boleta o factura, se emite de forma electrónica y se envía a SUNAT.",
+    "juegos":    "En la zona de juegos, el tiempo de cada niño se controla con una pulsera numerada.",
+    "dni":       "Se busca al apoderado por su DNI, y aparecen sus hijos.",
+    "tarifa":    "Se elige la tarifa, se inicia el juego, y el sistema genera el código de la pulsera.",
+    "juego_caja":"El cobro del tiempo pasa solo al ticket de caja, y se paga junto con cualquier otro producto.",
+    "movs":      "Cada ingreso o salida de efectivo queda registrado con su motivo, y se tiene en cuenta en el cuadre de la caja.",
+    "admin":     "La administradora ve el día completo en tiempo real: las ventas, la caja, el saldo esperado y las alertas de stock.",
+    "inventario":"En el inventario controla el stock y los mínimos, y puede cargar productos desde Excel.",
+    "historial": "El historial de ventas permite filtrar, anular con aprobación, y exportar todo a Excel con un solo clic.",
+    "stats":     "Las estadísticas muestran cuánto se vendió, por método de pago, y el ticket promedio.",
+    "empleados": "También se administra al equipo: sus roles y su asistencia.",
+    "oscuro":    "Y para trabajar de noche, hay modo oscuro.",
+    "roles":     "Cada rol ve solo lo que le corresponde. Por ejemplo, un gerente no puede tocar la configuración de la empresa.",
+    "cierre":    "Al final del turno, el sistema calcula lo esperado por cada método de pago. Solo hay que contar el dinero.",
+    "aprobacion":"El cierre lo aprueba la administradora con su código, así nadie cierra la caja solo.",
+    "turno2":    "¿Y si hay otro turno el mismo día? Se abre uno nuevo, con su propio cuadre, y el día va acumulando.",
+    "outro":     "Renzo Wonka POS. Ventas, caja, juegos e inventario, todo en un solo lugar. Gracias por su tiempo."
+  }
+}
