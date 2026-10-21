@@ -8,6 +8,7 @@ import {
     lookupSessionByCode,
     listActiveSessions,
     completeSession,
+    cancelPendingSession,
     getPlayzoneReportSummary,
     getPlayzoneRates,
     updatePlayzoneRates,
@@ -202,6 +203,26 @@ export const playzoneController = new Elysia({ prefix: "/playzone", tags: ["Play
             query: t.Object({ tenantId: t.String({ minLength: 1 }) }),
             params: t.Object({ id: t.String() }),
             detail: { summary: "Complete (check out) an active play session" },
+        }
+    )
+
+    // ── DELETE /playzone/sessions/:id/cancel ─────────────────
+    .delete(
+        "/sessions/:id/cancel",
+        async ({ params, query, set }) => {
+            try {
+                await cancelPendingSession(query.tenantId, params.id);
+                return { meta: { message: "Sesión cancelada." } };
+            } catch (err) {
+                const message = err instanceof Error ? err.message : "Error inesperado.";
+                set.status = message.includes("no encontrada") ? 404 : 422;
+                return { message };
+            }
+        },
+        {
+            query: t.Object({ tenantId: t.String({ minLength: 1 }) }),
+            params: t.Object({ id: t.String() }),
+            detail: { summary: "Cancel a play session still pending payment (removed from the cart)" },
         }
     )
 

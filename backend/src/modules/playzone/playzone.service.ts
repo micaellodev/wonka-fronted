@@ -424,6 +424,14 @@ export async function listActiveSessions(tenantId: string) {
     return sessions.map(enrichSession);
 }
 
+// ── Session: cancel (quitada del carrito antes de cobrar) ────
+
+export async function cancelPendingSession(tenantId: string, sessionId: string) {
+    // Solo PENDING: una sesión ya cobrada/activa no se puede borrar desde el carrito
+    const { count } = await prisma.playSession.deleteMany({ where: { id: sessionId, tenantId, status: "PENDING" } });
+    if (count === 0) throw new Error("Sesión pendiente no encontrada.");
+}
+
 // ── Session: complete ────────────────────────────────────────
 
 export async function completeSession(tenantId: string, sessionId: string) {
