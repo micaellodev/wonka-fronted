@@ -3,7 +3,8 @@ import { Timer, Clock, XCircle, Minus, Plus, Infinity as InfinityIcon } from 'lu
 import { formatPEN } from '@/lib/format'
 import { type Child, type DurationOpt, fmtPrice, SectionLabel } from './shared'
 
-export function SessionStartPanel({ selectedChild, setSelectedChild, durationOptions, selectedDuration, setSelectedDuration, companions, setCompanions, notes, setNotes, starting, onStart, lastCode }: {
+export function SessionStartPanel({ companionPrice, selectedChild, setSelectedChild, durationOptions, selectedDuration, setSelectedDuration, companions, setCompanions, notes, setNotes, starting, onStart, lastCode }: {
+ companionPrice: number
  notes: string
  setNotes: (s: string) => void
  selectedChild: (Child & { guardianName: string }) | null
@@ -18,7 +19,7 @@ export function SessionStartPanel({ selectedChild, setSelectedChild, durationOpt
  lastCode: { code: string; price: number | null; childName: string; note: string } | null
 }) {
  const under3 = selectedChild !== null && selectedChild.age !== null && selectedChild.age < 3
- const unit = 5
+ const unit = companionPrice
  const codeCard = lastCode && (
  <div className="p-4 border-b border-border bg-muted">
  <p className="text-[11px] text-secondary-500 font-black uppercase tracking-widest text-center mb-2">
@@ -100,7 +101,7 @@ export function SessionStartPanel({ selectedChild, setSelectedChild, durationOpt
  <div className="px-4">
  <SectionLabel>Acompañantes extra</SectionLabel>
  <p className="text-[11px] text-muted-foreground mb-2">
- {under3 ? 'Menor de 3 años: entra gratis con 1 acompañante incluido. Extra: S/ 5 c/u.' : 'Mayor de 3 años: sin acompañante incluido. Si entra con alguien: S/ 5 c/u.'}
+ {under3 ? 'Menor de 3 años: entra gratis con 1 acompañante incluido. Extra: ' + formatPEN(unit) + ' c/u.' : 'Mayor de 3 años: sin acompañante incluido. Si entra con alguien: ' + formatPEN(unit) + ' c/u.'}
  </p>
  <div className="flex items-center justify-between gap-2 bg-muted border-2 border-border rounded-sm p-2">
  <button onClick={() => setCompanions(Math.max(0, companions - 1))} disabled={companions === 0} aria-label="Quitar acompañante"

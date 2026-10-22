@@ -19,7 +19,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { formatPEN } from '@/lib/format'
 import {
- type Loose, type PlayzoneRates, type DurationOpt, FREE_OPTION, type Child, type Guardian, type ActiveSession, type PanelMode,
+ type Loose, type PlayzoneRates, DEFAULT_COMPANION_PRICE, type DurationOpt, FREE_OPTION, type Child, type Guardian, type ActiveSession, type PanelMode,
  SectionLabel
 } from './playzone/shared'
 import { BirthdaysView } from './playzone/BirthdaysView'
@@ -35,6 +35,7 @@ export function PlayZoneScreen() {
  const wide = useMediaQuery('(min-width: 1536px)')
  const { addCharge } = usePlayzoneTicketStore()
  const [durationOptions, setDurationOptions] = useState<DurationOpt[]>([FREE_OPTION])
+ const [companionPrice, setCompanionPrice] = useState(DEFAULT_COMPANION_PRICE)
  const [notice, setNotice] = useState<string | null>(null)
  const [crmOpen, setCrmOpen] = useState(true)
  const [activeTab, setActiveTab] = useState<'JUEGO_LIBRE' | 'CUMPLEAÑOS'>('JUEGO_LIBRE')
@@ -112,6 +113,7 @@ export function PlayZoneScreen() {
  const rates = (res.data as { data: PlayzoneRates }).data
  const opts: DurationOpt[] = [...rates.durations.map(d => ({ label: d.label, minutes: d.minutes, price: d.price })), FREE_OPTION]
  setDurationOptions(opts)
+ setCompanionPrice(rates.companionPrice ?? DEFAULT_COMPANION_PRICE)
  setSelectedDuration(opts[0])
  } catch (err) {
  setNotice(getApiErrorMessage(err, 'No se pudieron cargar las tarifas.'))
@@ -262,7 +264,7 @@ export function PlayZoneScreen() {
  : selectedDuration.minutes === null
  ? 'Tiempo libre: escribe este código en la pulsera. Se cobra al terminar el juego, con el botón "Terminar juego"'
  : 'Menor de 3 años: entra gratis. Escribe este código en la pulsera'
- setLastCode({ code: session.wristbandCode, price: selectedDuration.price === null && companions === 0 ? null : (free ? 0 : selectedDuration.price ?? 0) + companions * 5, childName: selectedChild.fullName, note })
+ setLastCode({ code: session.wristbandCode, price: selectedDuration.price === null && companions === 0 ? null : (free ? 0 : selectedDuration.price ?? 0) + companions * companionPrice, childName: selectedChild.fullName, note })
  queueCharge(session.charge)
  queueCharge(session.companionsCharge)
  if (selectedDuration.minutes !== null && !free && !session.charge) {
@@ -605,7 +607,7 @@ export function PlayZoneScreen() {
  {/* ═══════════════════════════════════════════
  MIDDLE PANEL — Session Start (260px)
  ═══════════════════════════════════════════ */}
- <SessionStartPanel selectedChild={selectedChild} setSelectedChild={setSelectedChild} durationOptions={durationOptions} selectedDuration={selectedDuration} setSelectedDuration={setSelectedDuration} companions={companions} setCompanions={setCompanions} notes={notes} setNotes={setNotes} starting={starting} onStart={handleStart} lastCode={lastCode} />
+ <SessionStartPanel companionPrice={companionPrice} selectedChild={selectedChild} setSelectedChild={setSelectedChild} durationOptions={durationOptions} selectedDuration={selectedDuration} setSelectedDuration={setSelectedDuration} companions={companions} setCompanions={setCompanions} notes={notes} setNotes={setNotes} starting={starting} onStart={handleStart} lastCode={lastCode} />
 
  {/* ═══════════════════════════════════════════
  RIGHT PANEL — Active Sessions Grid

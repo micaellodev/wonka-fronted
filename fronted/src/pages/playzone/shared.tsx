@@ -13,7 +13,11 @@ export interface PlayzoneRates {
  durations: Array<{ minutes: number; price: number; label: string }>
  extraPerMinute: number
  freePerMinute: number
+ companionPrice?: number
 }
+
+// Precio por acompañante si el backend (más antiguo) no lo envía
+export const DEFAULT_COMPANION_PRICE = 5
 
 export interface DurationOpt { label: string; minutes: number | null; price: number | null }
 

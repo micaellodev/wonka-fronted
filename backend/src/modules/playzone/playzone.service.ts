@@ -84,6 +84,8 @@ export type PlayzoneRates = {
     extraPerMinute: number;
     /** S/ por minuto jugado en sesiones de tiempo libre (sin duración) */
     freePerMinute: number;
+    /** S/ por acompañante adicional; si falta se usa COMPANION_PRICE (tarifas guardadas antes de este campo) */
+    companionPrice?: number;
 };
 
 export const DEFAULT_PLAYZONE_RATES: PlayzoneRates = {
@@ -93,6 +95,7 @@ export const DEFAULT_PLAYZONE_RATES: PlayzoneRates = {
     ],
     extraPerMinute: 1,
     freePerMinute: 0.5,
+    companionPrice: 5,
 };
 
 function isPlayzoneRates(v: unknown): v is PlayzoneRates {
@@ -102,14 +105,17 @@ function isPlayzoneRates(v: unknown): v is PlayzoneRates {
         Array.isArray(r.durations) &&
         r.durations.every((d) => Number.isInteger(d.minutes) && d.minutes > 0 && d.price >= 0 && typeof d.label === "string") &&
         typeof r.extraPerMinute === "number" && r.extraPerMinute >= 0 &&
-        typeof r.freePerMinute === "number" && r.freePerMinute >= 0
+        typeof r.freePerMinute === "number" && r.freePerMinute >= 0 &&
+        (r.companionPrice === undefined || (typeof r.companionPrice === "number" && r.companionPrice >= 0))
     );
 }
 
 export async function getPlayzoneRates(tenantId: string): Promise<PlayzoneRates> {
     const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
     if (!tenant) throw new Error("Tenant not found.");
-    return isPlayzoneRates(tenant.playzoneRates) ? tenant.playzoneRates : DEFAULT_PLAYZONE_RATES;
+    const rates = isPlayzoneRates(tenant.playzoneRates) ? tenant.playzoneRates : DEFAULT_PLAYZONE_RATES;
+    // El cliente siempre recibe el precio del acompañante, aunque las tarifas guardadas sean anteriores a este campo
+    return { ...rates, companionPrice: rates.companionPrice ?? COMPANION_PRICE };
 }
 
 export async function updatePlayzoneRates(tenantId: string, rates: PlayzoneRates): Promise<PlayzoneRates> {
@@ -125,9 +131,8 @@ export async function updatePlayzoneRates(tenantId: string, rates: PlayzoneRates
 
 export type PlayzoneChargeKind = "base" | "extra" | "free" | "comp";
 
-// shortcut: tarifas de acompañante fijas en código, pasar a playzoneRates si cambian por local
 export const MAX_COMPANIONS = 2;
-const COMPANION_PRICE = 5; // menor de 3 años: 1 acompañante ya va incluido
+const COMPANION_PRICE = 5; // valor por defecto de playzoneRates.companionPrice; menor de 3 años: 1 acompañante ya va incluido
 /** Menor de 3 años: entra gratis. Sin edad registrada se cobra como mayor. */
 export const isUnder3 = (age: number | null | undefined) => age != null && age < 3;
 
@@ -177,7 +182,7 @@ export function computePlayzoneCharge(
 
     if (kind === "comp") {
         if (session.companions <= 0) throw new Error(`La sesión ${session.wristbandCode} no tiene acompañantes.`);
-        return { ...base, label: `ADICIONAL ACOMPAÑANTE x${session.companions} ${tag}`, amount: round2(session.companions * COMPANION_PRICE) };
+        return { ...base, label: `ADICIONAL ACOMPAÑANTE x${session.companions} ${tag}`, amount: round2(session.companions * (rates.companionPrice ?? COMPANION_PRICE)) };
     }
 
     if (!session.endTime) throw new Error(`La sesión ${session.wristbandCode} aún está activa; finalízala antes de cobrar el tiempo.`);

@@ -216,6 +216,7 @@ export const UpdatePlayzoneRatesBody = t.Object({
     ),
     extraPerMinute: t.Number({ minimum: 0 }),
     freePerMinute: t.Number({ minimum: 0 }),
+    companionPrice: t.Optional(t.Number({ minimum: 0 })),
 });
 
 export const PlayzoneReportQuery = t.Object({
