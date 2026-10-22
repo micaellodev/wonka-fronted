@@ -46,13 +46,16 @@ export const usePlayzoneTicketStore = create<PlayzoneTicketState>()(
 
  addCharge: (charge) => {
  if (charge.amount <= 0) return
+ // El backend manda un solo cargo de acompañantes ("... ACOMPAÑANTE x2 [código] ..."): mostrar la cantidad real y no "1"
+ const comp = charge.kind === 'comp' ? /ACOMPA[ÑN]ANTE x(\d+)/i.exec(charge.label) : null
+ const qty = comp ? Math.max(1, Number(comp[1])) : 1
  const line: PlayzoneChargeLine = {
  id: charge.sku,
  sessionId: charge.sessionId,
  kind: charge.kind,
- label: charge.label,
- qty: 1,
- unitPrice: charge.amount,
+ label: comp ? charge.label.replace(/ x\d+(?= \[)/i, '') : charge.label,
+ qty,
+ unitPrice: charge.amount / qty,
  total: charge.amount,
  }
  // Same sku replaces (never duplicates) the line

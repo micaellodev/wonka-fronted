@@ -3,7 +3,7 @@ import { Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { type ActiveSession, type DurationOpt, SectionLabel, SessionCard } from './shared'
 
-export function WristbandSearch({ codeSearch, setCodeSearch, codeResult, codeSearching, onSearch, onCheckout, checkingOut, nowTick, durationOptions }: {
+export function WristbandSearch({ codeSearch, setCodeSearch, codeResult, codeSearching, onSearch, onCheckout, checkingOut, durationOptions }: {
  codeSearch: string
  setCodeSearch: (v: string) => void
  codeResult: ActiveSession | 'not_found' | null
@@ -11,7 +11,6 @@ export function WristbandSearch({ codeSearch, setCodeSearch, codeResult, codeSea
  onSearch: () => void
  onCheckout: (sessionId: string) => void
  checkingOut: string | null
- nowTick: number
  durationOptions: DurationOpt[]
 }) {
  return (
@@ -32,7 +31,7 @@ export function WristbandSearch({ codeSearch, setCodeSearch, codeResult, codeSea
  {codeResult && codeResult !== 'not_found' && (
  <div className="mt-3">
  <SessionCard session={codeResult as ActiveSession} onCheckout={onCheckout}
- checking={checkingOut === (codeResult as ActiveSession).id} nowTick={nowTick} durationOptions={durationOptions} />
+ checking={checkingOut === (codeResult as ActiveSession).id} durationOptions={durationOptions} />
  </div>
  )}
  {codeResult === 'not_found' && codeSearch.length === 3 && (

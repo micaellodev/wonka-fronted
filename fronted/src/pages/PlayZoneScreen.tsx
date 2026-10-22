@@ -34,6 +34,7 @@ export function PlayZoneScreen() {
  const { tenantId } = useAuthStore()
  const wide = useMediaQuery('(min-width: 1536px)')
  const { addCharge } = usePlayzoneTicketStore()
+ const ticketCharges = usePlayzoneTicketStore((s) => s.charges)
  const [durationOptions, setDurationOptions] = useState<DurationOpt[]>([FREE_OPTION])
  const [companionPrice, setCompanionPrice] = useState(DEFAULT_COMPANION_PRICE)
  const [notice, setNotice] = useState<string | null>(null)
@@ -72,25 +73,18 @@ export function PlayZoneScreen() {
  const [companions, setCompanions] = useState(0)
  const [notes, setNotes] = useState('')
  const [starting, setStarting] = useState(false)
- const [lastCode, setLastCode] = useState<{ code: string; price: number | null; childName: string; note: string } | null>(null)
+ const [lastCode, setLastCode] = useState<{ code: string; price: number | null; childName: string; note: string; sessionId: string; needsPayment: boolean } | null>(null)
 
  // ── active sessions ──
  // ── active sessions ──
  const [sessions, setSessions] = useState<ActiveSession[]>([])
  const [loadingSessions, setLoadingSessions] = useState(true)
  const [checkingOut, setCheckingOut] = useState<string | null>(null)
- const [nowTick, setNowTick] = useState(0)
 
  // ——— search by wristband code ———
  const [codeSearch, setCodeSearch] = useState('')
  const [codeResult, setCodeResult] = useState<ActiveSession | 'not_found' | null>(null)
  const [codeSearching, setCodeSearching] = useState(false)
-
- // ——— timer tick ————————————————————————————————————————————————
- useEffect(() => {
- const id = setInterval(() => setNowTick(n => n + 1), 60_000)
- return () => clearInterval(id)
- }, [])
 
  // ── fetch sessions ────────────────────────────────────────
  const fetchSessions = useCallback(async () => {
@@ -263,7 +257,7 @@ export function PlayZoneScreen() {
  : selectedDuration.minutes === null
  ? 'Tiempo libre: escribe este código en la pulsera. Se cobra al terminar el juego, con el botón "Terminar juego"'
  : 'Escribe este código en la pulsera'
- setLastCode({ code: session.wristbandCode, price: selectedDuration.price === null && companions === 0 ? null : (selectedDuration.price ?? 0) + companions * companionPrice, childName: selectedChild.fullName, note })
+ setLastCode({ code: session.wristbandCode, price: selectedDuration.price === null && companions === 0 ? null : (selectedDuration.price ?? 0) + companions * companionPrice, childName: selectedChild.fullName, note, sessionId: session.id, needsPayment: !!(session.charge || session.companionsCharge) })
  queueCharge(session.charge)
  queueCharge(session.companionsCharge)
  if (selectedDuration.minutes !== null && !session.charge) {
@@ -320,6 +314,9 @@ export function PlayZoneScreen() {
  } catch { setCodeResult('not_found') }
  finally { setCodeSearching(false) }
  }
+
+ // El aviso "cobra en el ticket" solo vale mientras el cargo siga en el ticket: al pagar o quitarlo desaparece
+ const shownCode = lastCode && (!lastCode.needsPayment || ticketCharges.some((c) => c.sessionId === lastCode.sessionId)) ? lastCode : null
 
  // ── render ────────────────────────────────────────────────
  return (
@@ -391,7 +388,7 @@ export function PlayZoneScreen() {
  error={searchError}
  />
 
- <WristbandSearch codeSearch={codeSearch} setCodeSearch={setCodeSearch} codeResult={codeResult} codeSearching={codeSearching} onSearch={handleCodeSearch} onCheckout={handleCheckout} checkingOut={checkingOut} nowTick={nowTick} durationOptions={durationOptions} />
+ <WristbandSearch codeSearch={codeSearch} setCodeSearch={setCodeSearch} codeResult={codeResult} codeSearching={codeSearching} onSearch={handleCodeSearch} onCheckout={handleCheckout} checkingOut={checkingOut} durationOptions={durationOptions} />
  <div className="flex gap-2 p-3 bg-muted border-b border-border">
  <button onClick={openRegistering}
  className="flex-1 flex items-center justify-center gap-2 py-3 bg-background border-2 border-border hover:border-muted-foreground text-foreground font-bold text-sm rounded-sm transition-none">
@@ -606,12 +603,15 @@ export function PlayZoneScreen() {
  {/* ═══════════════════════════════════════════
  MIDDLE PANEL — Session Start (260px)
  ═══════════════════════════════════════════ */}
- <SessionStartPanel companionPrice={companionPrice} selectedChild={selectedChild} setSelectedChild={setSelectedChild} durationOptions={durationOptions} selectedDuration={selectedDuration} setSelectedDuration={setSelectedDuration} companions={companions} setCompanions={setCompanions} notes={notes} setNotes={setNotes} starting={starting} onStart={handleStart} lastCode={lastCode} />
+ {/* Solo aparece cuando hay un niño elegido o un código recién generado: así las sesiones activas usan todo el ancho */}
+ {(selectedChild || shownCode) && (
+ <SessionStartPanel companionPrice={companionPrice} selectedChild={selectedChild} setSelectedChild={setSelectedChild} durationOptions={durationOptions} selectedDuration={selectedDuration} setSelectedDuration={setSelectedDuration} companions={companions} setCompanions={setCompanions} notes={notes} setNotes={setNotes} starting={starting} onStart={handleStart} lastCode={shownCode} />
+ )}
 
  {/* ═══════════════════════════════════════════
  RIGHT PANEL — Active Sessions Grid
  ═══════════════════════════════════════════ */}
- <ActiveSessionsGrid sessions={sessions} loadingSessions={loadingSessions} onCheckout={handleCheckout} checkingOut={checkingOut} nowTick={nowTick} durationOptions={durationOptions} />
+ <ActiveSessionsGrid sessions={sessions} loadingSessions={loadingSessions} onCheckout={handleCheckout} checkingOut={checkingOut} durationOptions={durationOptions} />
  </div>
  )}
 

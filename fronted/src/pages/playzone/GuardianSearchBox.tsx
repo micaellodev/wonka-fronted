@@ -70,7 +70,7 @@ export function GuardianSearchBox({ tenantId, value, onChange, onPick, onSubmit,
  onKeyDown={onKeyDown}
  onBlur={() => setOpen(false)}
  autoFocus role="combobox" aria-expanded={showList} aria-autocomplete="list" aria-label="DNI o nombre del apoderado"
- placeholder="DNI o nombre del apoderado"
+ placeholder="DNI o nombre"
  className="flex-1 bg-muted border-2 border-border focus:border-brand-500 rounded-sm px-3 py-2.5 text-sm font-bold text-foreground font-mono placeholder:text-muted-foreground focus:outline-none transition-colors"
  />
  <button onClick={onSubmit} disabled={searching || !isDni(value)} aria-label="Buscar apoderado"

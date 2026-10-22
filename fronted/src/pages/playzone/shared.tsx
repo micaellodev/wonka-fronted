@@ -1,7 +1,8 @@
 import { formatPEN } from '@/lib/format'
+import { useNow } from '@/hooks/useNow'
 import {
  Baby, CheckCircle2, AlertTriangle, XCircle,
- Infinity as InfinityIcon, Shield, LogOut
+ Shield, LogOut
 } from 'lucide-react'
 
 export type Loose = any
@@ -77,96 +78,89 @@ export function SectionLabel({ children, className }: { children: React.ReactNod
  return <p className={`text-[11px] font-black text-muted-foreground uppercase tracking-widest mb-1 ${className || ''}`}>{children}</p>
 }
 
+/** 125 s → "2:05"; 3725 s → "1:02:05" */
+function fmtClock(totalSec: number) {
+ const s = Math.max(0, Math.floor(totalSec))
+ const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); const sec = s % 60
+ const mm = String(m).padStart(2, '0'); const ss = String(sec).padStart(2, '0')
+ return h ? `${h}:${mm}:${ss}` : `${m}:${ss}`
+}
+
 export function SessionCard({
- session, onCheckout, checking, nowTick, durationOptions,
+ session, onCheckout, checking, durationOptions,
 }: {
  session: ActiveSession
  onCheckout: (id: string) => void
  checking: boolean
- nowTick: number
  durationOptions: DurationOpt[]
 }) {
- const elapsed = calcElapsed(session.startTime)
- const remaining = session.isUnlimited ? null : Math.max(0, (session.durationMinutes ?? 0) - elapsed)
- const isOverdue = !session.isUnlimited && remaining === 0
- const isWarning = !session.isUnlimited && !isOverdue && (remaining ?? 99) <= 5
+ const now = useNow()
+ const elapsedSec = Math.max(0, (now - new Date(session.startTime).getTime()) / 1000)
+ const totalSec = session.isUnlimited ? null : (session.durationMinutes ?? 0) * 60
+ const remainingSec = totalSec === null ? null : totalSec - elapsedSec
+ const isOverdue = remainingSec !== null && remainingSec <= 0
+ const isWarning = remainingSec !== null && !isOverdue && remainingSec <= 300
+ const pct = totalSec ? Math.min(100, (elapsedSec / totalSec) * 100) : 100
 
- const border = isOverdue ? 'border-primary' : isWarning ? 'border-warning/40' : 'border-secondary-500'
- const codeCls = isOverdue ? 'text-brand-500' : isWarning ? 'text-accent-500' : 'text-secondary-500'
- const bannerBg = isOverdue ? 'bg-brand-600' : isWarning ? 'bg-warning' : 'bg-secondary-600'
- const label = isOverdue ? '¡TIEMPO!' : isWarning ? '< 5 MIN' : 'EN JUEGO'
+ const tone = isOverdue
+ ? { border: 'border-primary', banner: 'bg-brand-600', text: 'text-brand-500', bar: 'bg-brand-500', label: '¡TIEMPO TERMINADO!', Icon: XCircle }
+ : isWarning
+ ? { border: 'border-warning', banner: 'bg-warning', text: 'text-accent-500', bar: 'bg-warning', label: 'POR TERMINAR', Icon: AlertTriangle }
+ : { border: 'border-success', banner: 'bg-success', text: 'text-success', bar: 'bg-success', label: session.isUnlimited ? 'TIEMPO LIBRE' : 'EN JUEGO', Icon: CheckCircle2 }
 
- // use nowTick to force re-render
- void nowTick
-
- const price = durationOptions.find(o => o.minutes === session.durationMinutes)?.price ?? null
+ const price = durationOptions.find((o) => o.minutes === session.durationMinutes)?.price ?? null
+ const mainLabel = session.isUnlimited ? 'Transcurrido' : isOverdue ? 'Tiempo extra' : 'Restante'
+ const mainClock = session.isUnlimited ? fmtClock(elapsedSec) : isOverdue ? fmtClock(-(remainingSec ?? 0)) : fmtClock(remainingSec ?? 0)
 
  return (
- <div className={`flex flex-col bg-muted border-2 ${border} rounded-md overflow-hidden relative group`}>
- <div className={`${bannerBg} px-3 py-1 flex items-center justify-between`}>
- <span className="text-[11px] font-black text-foreground uppercase tracking-widest">{label}</span>
- <span className="text-[11px] font-mono text-foreground/60">
- {new Date(session.startTime).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
- </span>
+ <div className={`flex flex-col overflow-hidden rounded-xl border-2 bg-background shadow-sm ${tone.border}`}>
+ <div className={`${tone.banner} ${isOverdue ? 'animate-pulse' : ''} flex items-center justify-between gap-2 px-3 py-1.5 text-xs font-black uppercase tracking-wide ${isOverdue || isWarning ? 'text-white' : 'text-success-foreground'}`}>
+ <span className="flex min-w-0 items-center gap-1.5"><tone.Icon className="h-4 w-4" aria-hidden /> {tone.label}</span>
+ <span className="shrink-0 whitespace-nowrap font-mono font-semibold opacity-90" title="Hora de inicio">{new Date(session.startTime).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</span>
  </div>
 
- <div className="p-3 flex flex-col gap-2.5">
- {/* Code + price */}
- <div className="flex items-start justify-between">
- <span className={`text-5xl font-black font-mono tracking-widest ${codeCls}`}>
- {session.wristbandCode}
- </span>
- <div className="flex flex-col items-end gap-1 mt-1">
- {isOverdue ? <XCircle className="w-6 h-6 text-brand-500" />
- : isWarning ? <AlertTriangle className="w-6 h-6 text-accent-500" />
- : <CheckCircle2 className="w-6 h-6 text-secondary-500" />}
- <span className="text-[11px] font-black font-mono text-muted-foreground border border-border bg-background px-1.5 py-0.5 rounded-sm">
- {fmtPrice(price)}
- </span>
+ <div className="flex flex-col gap-3 p-3">
+ <div className="flex items-end justify-between gap-2">
+ <div>
+ <p className="text-xs font-semibold uppercase text-muted-foreground">Pulsera</p>
+ <p className={`font-mono text-4xl font-black leading-none tracking-wider ${tone.text}`}>{session.wristbandCode}</p>
+ </div>
+ <div className="text-right">
+ <p className="text-xs font-semibold uppercase text-muted-foreground">{mainLabel}</p>
+ <p className={`font-mono text-3xl font-black leading-none tabular-nums ${tone.text}`} aria-live="off">
+ {isOverdue && '+'}{mainClock}
+ </p>
  </div>
  </div>
 
- {/* Names */}
- <div className="border-t border-border pt-2 flex flex-col gap-1">
- <div className="flex items-center gap-1.5">
- <Baby className="w-3.5 h-3.5 text-brand-500 shrink-0" />
- <span className="text-sm font-bold text-foreground truncate">{session.childName}</span>
- {session.childAge && <span className="text-[11px] text-muted-foreground font-mono">({session.childAge}a, {session.childGender})</span>}
- </div>
- <div className="flex items-center gap-1.5">
- <Shield className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
- <span className="text-xs text-muted-foreground truncate">{session.guardianName} ({session.guardianDni})</span>
- </div>
- {session.notes && <p className="text-[11px] font-bold text-accent-500 break-words">📝 {session.notes}</p>}
+ <div className="h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} aria-label="Tiempo usado">
+ <div className={`h-full rounded-full transition-[width] duration-1000 ease-linear ${tone.bar} ${session.isUnlimited ? 'animate-pulse' : ''}`} style={{ width: `${pct}%` }} />
  </div>
 
- {/* Timer bar */}
- <div className="flex items-center justify-between bg-background border border-border rounded-sm px-2.5 py-1.5">
- <div className="flex flex-col">
- <span className="text-[11px] text-muted-foreground uppercase tracking-widest font-bold">Transcurrido</span>
- <span className="text-xs font-mono font-bold text-muted-foreground">{fmtTime(elapsed)}</span>
+ <div className="flex flex-col gap-1">
+ <div className="flex items-center gap-2">
+ <Baby className="h-4 w-4 shrink-0 text-brand-500" aria-hidden />
+ <span className="min-w-0 flex-1 truncate text-sm font-bold text-foreground" title={session.childName}>{session.childName}</span>
+ {session.childAge ? <span className="shrink-0 text-xs text-muted-foreground">{session.childAge} años</span> : null}
  </div>
- <span className="text-foreground">|</span>
- <div className="flex flex-col items-end">
- <span className="text-[11px] text-muted-foreground uppercase tracking-widest font-bold">Restante</span>
- {session.isUnlimited
- ? <InfinityIcon className="w-4 h-4 text-brand-500" />
- : <span className={`text-xs font-mono font-bold ${isOverdue ? 'text-brand-500' : isWarning ? 'text-accent-500' : 'text-secondary-500'}`}>
- {fmtTime(remaining ?? 0)}
+ <div className="flex items-center gap-2">
+ <Shield className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+ <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={session.guardianName}>{session.guardianName}</span>
+ <span className="shrink-0 rounded-md border border-border bg-muted px-1.5 py-0.5 font-mono text-xs font-bold text-muted-foreground">
+ {session.isUnlimited ? 'Libre' : session.durationMinutes ? `${session.durationMinutes} min` : ''}{price !== null ? ` · ${formatPEN(price)}` : ''}
  </span>
- }
  </div>
+ {session.notes && <p className="break-words rounded-md bg-muted px-2 py-1 text-xs font-medium text-foreground">📝 {session.notes}</p>}
  </div>
 
  <button
  onClick={() => onCheckout(session.id)}
  disabled={checking}
- className="flex items-center justify-center gap-1.5 w-full py-2 bg-muted border border-border hover:bg-brand-600 hover:border-primary text-muted-foreground hover:text-primary-foreground font-bold text-[11px] uppercase tracking-widest rounded-sm transition-none disabled:opacity-40"
+ className={`flex h-11 w-full items-center justify-center gap-2 rounded-lg text-sm font-bold transition-colors disabled:opacity-40 ${isOverdue ? 'bg-brand-600 text-white hover:bg-brand-700' : 'border border-border bg-muted text-foreground hover:bg-border'}`}
  >
- <LogOut className="w-3.5 h-3.5" /> Terminar juego
+ <LogOut className="h-4 w-4" aria-hidden /> {checking ? 'Terminando...' : 'Terminar juego'}
  </button>
  </div>
  </div>
  )
 }
-
