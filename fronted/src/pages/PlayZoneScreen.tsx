@@ -258,16 +258,15 @@ export function PlayZoneScreen() {
  const res = await (api.playzone.sessions as Loose).post(body)
  if (!res.error) {
  const session = (res.data as Loose).data
- const free = (selectedChild.age ?? 99) < 3
  const note = session.charge || session.companionsCharge
  ? 'Escribe este código en la pulsera. Ahora cobra en el ticket: el tiempo corre al cobrar'
  : selectedDuration.minutes === null
  ? 'Tiempo libre: escribe este código en la pulsera. Se cobra al terminar el juego, con el botón "Terminar juego"'
- : 'Menor de 3 años: entra gratis. Escribe este código en la pulsera'
- setLastCode({ code: session.wristbandCode, price: selectedDuration.price === null && companions === 0 ? null : (free ? 0 : selectedDuration.price ?? 0) + companions * companionPrice, childName: selectedChild.fullName, note })
+ : 'Escribe este código en la pulsera'
+ setLastCode({ code: session.wristbandCode, price: selectedDuration.price === null && companions === 0 ? null : (selectedDuration.price ?? 0) + companions * companionPrice, childName: selectedChild.fullName, note })
  queueCharge(session.charge)
  queueCharge(session.companionsCharge)
- if (selectedDuration.minutes !== null && !free && !session.charge) {
+ if (selectedDuration.minutes !== null && !session.charge) {
  console.warn('Sesión creada sin cargo base en la respuesta:', session)
  toast.error('La sesión se creó, pero el sistema no devolvió el monto a cobrar. Avisa al administrador.')
  }

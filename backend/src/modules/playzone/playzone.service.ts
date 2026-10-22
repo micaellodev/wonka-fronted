@@ -132,9 +132,7 @@ export async function updatePlayzoneRates(tenantId: string, rates: PlayzoneRates
 export type PlayzoneChargeKind = "base" | "extra" | "free" | "comp";
 
 export const MAX_COMPANIONS = 2;
-const COMPANION_PRICE = 5; // valor por defecto de playzoneRates.companionPrice; menor de 3 años: 1 acompañante ya va incluido
-/** Menor de 3 años: entra gratis. Sin edad registrada se cobra como mayor. */
-export const isUnder3 = (age: number | null | undefined) => age != null && age < 3;
+const COMPANION_PRICE = 5; // valor por defecto de playzoneRates.companionPrice; igual para cualquier edad del niño
 
 export type PlayzoneCharge = {
     /** virtualSku único por sesión y tipo: pz-base-<id> / pz-extra-<id> / pz-free-<id> */
@@ -174,7 +172,6 @@ export function computePlayzoneCharge(
 
     if (kind === "base") {
         if (session.durationMinutes === null) throw new Error(`La sesión ${session.wristbandCode} es de tiempo libre; no tiene tarifa base.`);
-        if (isUnder3(session.child.age)) return { ...base, label: `JUEGOS GRATIS <3 AÑOS ${tag}`, amount: 0 };
         const rate = rates.durations.find((d) => d.minutes === session.durationMinutes);
         if (!rate) throw new Error(`No hay tarifa configurada para ${session.durationMinutes} min.`);
         return { ...base, label: `JUEGOS ${rate.label} ${tag}`, amount: rate.price };
@@ -383,7 +380,7 @@ export async function createPlaySession(input: CreatePlaySessionInput) {
                 notes: input.notes?.trim() || null,
                 wristbandCode: await generateUniqueCode(input.tenantId),
                 // Con cargo base la sesión espera el cobro (processSale la activa); el tiempo libre se cobra al final
-                status: companions > 0 || (input.durationMinutes !== undefined && !isUnder3(child.age)) ? "PENDING" : "ACTIVE",
+                status: companions > 0 || input.durationMinutes !== undefined ? "PENDING" : "ACTIVE",
                 startTime: new Date(),
             },
             include: {

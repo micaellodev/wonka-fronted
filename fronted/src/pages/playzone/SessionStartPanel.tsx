@@ -18,7 +18,6 @@ export function SessionStartPanel({ companionPrice, selectedChild, setSelectedCh
  onStart: () => void
  lastCode: { code: string; price: number | null; childName: string; note: string } | null
 }) {
- const under3 = selectedChild !== null && selectedChild.age !== null && selectedChild.age < 3
  const unit = companionPrice
  const codeCard = lastCode && (
  <div className="p-4 border-b border-border bg-muted">
@@ -89,7 +88,7 @@ export function SessionStartPanel({ companionPrice, selectedChild, setSelectedCh
  {opt.label}
  </div>
  <span className={`text-[11px] font-black font-mono mt-1 ${isSel ? 'text-foreground/80' : 'text-brand-500'}`}>
- {opt.price !== null ? formatPEN(opt.price) : 'libre'}
+ {opt.price === null ? 'libre' : formatPEN(opt.price)}
  </span>
  </button>
  )
@@ -101,7 +100,7 @@ export function SessionStartPanel({ companionPrice, selectedChild, setSelectedCh
  <div className="px-4">
  <SectionLabel>Acompañantes extra</SectionLabel>
  <p className="text-[11px] text-muted-foreground mb-2">
- {under3 ? 'Menor de 3 años: entra gratis con 1 acompañante incluido. Extra: ' + formatPEN(unit) + ' c/u.' : 'Mayor de 3 años: sin acompañante incluido. Si entra con alguien: ' + formatPEN(unit) + ' c/u.'}
+ {'Cada acompañante paga ' + formatPEN(unit) + ', sin importar la edad del niño.'}
  </p>
  <div className="flex items-center justify-between gap-2 bg-muted border-2 border-border rounded-sm p-2">
  <button onClick={() => setCompanions(Math.max(0, companions - 1))} disabled={companions === 0} aria-label="Quitar acompañante"
