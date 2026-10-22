@@ -8,7 +8,7 @@ import { usePlayzoneTicketStore } from '@/store/playzoneTicketStore'
 import { formatPEN } from '@/lib/format'
 
 // Ticket para pantallas donde no cabe fijo: botón flotante con el total + panel lateral.
-export function TicketDrawer() {
+export function TicketDrawer({ onSaleComplete }: { onSaleComplete?: () => void }) {
  const [open, setOpen] = useState(false)
  const lines = useCartStore((s) => s.items.length) + usePlayzoneTicketStore((s) => s.charges.length)
  const total = useCartStore((s) => s.total) + usePlayzoneTicketStore((s) => s.total)
@@ -22,7 +22,7 @@ export function TicketDrawer() {
  <Sheet open={open} onOpenChange={setOpen}>
  <SheetContent side="right" className="w-full gap-0 bg-muted p-3 sm:max-w-[400px]">
  <SheetTitle className="sr-only">Ticket</SheetTitle>
- <TicketPanel onSaleComplete={() => setOpen(false)} />
+ <TicketPanel onSaleComplete={() => { setOpen(false); onSaleComplete?.() }} />
  </SheetContent>
  </Sheet>
  </>

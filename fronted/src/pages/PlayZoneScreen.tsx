@@ -616,7 +616,8 @@ export function PlayZoneScreen() {
  )}
 
  </div>
- {wide ? <TicketPanel /> : <TicketDrawer />}
+ {/* Al cobrar, el backend activa las sesiones pendientes: refrescar la lista sin esperar al sondeo de 60 s */}
+ {wide ? <TicketPanel onSaleComplete={fetchSessions} /> : <TicketDrawer onSaleComplete={fetchSessions} />}
  </div>
  </TerminalShell>
  )
