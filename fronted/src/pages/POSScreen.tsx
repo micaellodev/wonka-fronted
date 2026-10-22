@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { ShoppingCart, CreditCard, XCircle, Package, RefreshCw, ArrowLeft, Search, Heart, Trash2 } from 'lucide-react'
+import { Package, RefreshCw, ArrowLeft, Search, Heart } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
 import { useCartStore } from '@/store/cartStore'
-import { usePlayzoneTicketStore } from '@/store/playzoneTicketStore'
 import type { Product, Category } from '@/types'
 import { AttendanceModal } from '@/components/AttendanceModal'
 import { TerminalShell } from '@/components/TerminalShell'
@@ -12,10 +11,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/toast'
-import { RightCheckoutDrawer } from '@/components/RightCheckoutDrawer'
+import { TicketPanel } from '@/components/TicketPanel'
 import { formatPEN } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { ProductCard, CartRow, CatalogTabs, CategoryCard, type CatalogTab } from './pos/CatalogParts'
+import { ProductCard, CatalogTabs, CategoryCard, type CatalogTab } from './pos/CatalogParts'
 import { FreeSaleForm } from './pos/FreeSaleForm'
 import { TodaySalesPanel, type SaleToday } from './pos/TodaySalesPanel'
 
@@ -29,35 +28,15 @@ interface ProductsResponse {
 }
 
 
-function useClock() {
- const [now, setNow] = useState(new Date())
- useEffect(() => {
- const id = setInterval(() => setNow(new Date()), 1000)
- return () => clearInterval(id)
- }, [])
- return now
-}
-
 export function POSScreen() {
  const { tenantId, activeWorker } = useAuthStore()
- const { items, total, addItem, decrementItem, removeItem, clearCart } = useCartStore()
- const { charges: playzoneCharges, total: playzoneTotal, clearAllCharges, removeCharge } = usePlayzoneTicketStore()
- const now = useClock()
-
- // Quitar el tiempo (base) o el acompañante (comp) cancela la sesión pendiente y saca ambas líneas del ticket
- const handleRemoveCharge = async (charge: { id: string; sessionId: string; kind: string }) => {
-  if (charge.kind !== 'base' && charge.kind !== 'comp') return removeCharge(charge.id)
-  const res = await (api.playzone.sessions as any)({ id: charge.sessionId }).cancel.delete({ query: { tenantId } })
-  if (res.error) toast.error('No se pudo cancelar la sesión; se quitó solo del ticket.')
-  playzoneCharges.filter((c) => c.sessionId === charge.sessionId).forEach((c) => removeCharge(c.id))
- }
+ const { items, addItem } = useCartStore()
 
  const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<CatalogTab>('categories')
+  const [activeTab, setActiveTab] = useState<CatalogTab>('products')
   const [loading, setLoading] = useState(true)
- const [checkoutOpen, setCheckoutOpen] = useState(false)
  const [todaySalesOpen, setTodaySalesOpen] = useState(false)
  const [isAttendanceOpen, setIsAttendanceOpen] = useState(false)
  const [voidTarget, setVoidTarget] = useState<SaleToday | null>(null)
@@ -112,31 +91,13 @@ export function POSScreen() {
   : []
 
  const searchRef = useRef<HTMLInputElement>(null)
- const hasCart = items.length > 0 || playzoneCharges.length > 0
  useEffect(() => {
  const onKey = (e: KeyboardEvent) => {
  if (e.key === 'F2') { e.preventDefault(); setActiveTab('search'); setTimeout(() => searchRef.current?.focus(), 0) }
- else if (e.key === 'F9' || (e.ctrlKey && e.key === 'Enter')) { e.preventDefault(); if (hasCart) setCheckoutOpen(true) }
  }
  window.addEventListener('keydown', onKey)
  return () => window.removeEventListener('keydown', onKey)
- }, [hasCart])
-
- const handleCancel = () => {
- if (items.length === 0) return
- clearCart()
- clearAllCharges()
- toast.info('Orden cancelada')
- }
-
- const handleSaleComplete = (warning?: string) => {
- clearCart()
- clearAllCharges()
- if (warning) toast.info(warning)
- else toast.success('Venta procesada correctamente.')
- fetchProducts()
- setCheckoutOpen(false)
- }
+ }, [])
 
  const handleRequestVoid = async () => {
  if (!voidTarget || !activeWorker) return
@@ -158,7 +119,6 @@ export function POSScreen() {
  }
 
 
- const timeStr = now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 
  return (
  <TerminalShell activeSection="pos">
@@ -294,112 +254,8 @@ export function POSScreen() {
 
   {!loading && activeTab === 'free-sale' && <FreeSaleForm onAdd={addItem} />}
   </section>
-
- {/* Ticket */}
-  <aside className="flex min-h-0 flex-col rounded-xl border border-border bg-background">
- <div className="border-b border-border px-4 py-4">
- <h2 className="text-sm font-bold text-foreground tracking-widest uppercase">Ticket</h2>
- <p className="mt-0.5 text-[11px] font-mono text-muted-foreground">
- {timeStr} · {activeWorker?.name}
- </p>
+ <TicketPanel onSaleComplete={fetchProducts} />
  </div>
-
- {(items.length > 0 || playzoneCharges.length > 0) && (
-  <div className="flex justify-between border-b border-border px-4 py-2 text-[11px] font-mono font-bold uppercase text-muted-foreground">
-  <span className="flex-1">Descripción</span>
-  <span className="w-16 text-center">Cant</span>
-  <span className="w-20 text-right">Importe</span>
-  </div>
- )}
-
- <div className="flex-1 overflow-y-auto bg-muted p-2">
- {items.length === 0 && playzoneCharges.length === 0 ? (
- <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground py-12">
- <ShoppingCart className="w-10 h-10 opacity-30" />
- <p className="text-xs font-bold uppercase tracking-widest text-center">
- Ticket vacío
- </p>
- </div>
- ) : (
- <div className="space-y-1">
- {playzoneCharges.map((charge) => (
- <div key={charge.id} className="flex items-center gap-2 px-2 py-2 border-b border-border hover:bg-muted bg-warning-soft relative group">
- <button
- onClick={() => handleRemoveCharge(charge)}
- aria-label="Quitar del ticket"
- className="absolute -left-1 top-1/2 -translate-y-1/2 bg-primary text-primary-foreground p-1 rounded opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
- >
- <Trash2 className="w-3 h-3" />
- </button>
- <div className="flex-1 flex flex-col justify-center min-w-0 pr-1">
- <p className="text-xs font-bold text-foreground leading-tight uppercase truncate">{charge.label}</p>
- <p className="text-[11px] font-mono text-warning">PLAYZONE</p>
- </div>
- <div className="w-20 flex flex-col items-center shrink-0">
- <span className="text-xs font-black font-mono text-foreground">{charge.qty}</span>
- </div>
- <div className="w-20 text-right shrink-0">
- <span className="text-sm font-black font-mono text-secondary-500 tracking-tighter">
- {formatPEN(charge.total)}
- </span>
- </div>
- </div>
- ))}
- {items.map((item) => (
- <CartRow
-  key={item.product.id}
-  item={item}
-  onDecrement={() => decrementItem(item.product.id)}
-  onIncrement={() => addItem(item.product)}
-  onRemove={() => removeItem(item.product.id)}
- />
- ))}
- </div>
- )}
- </div>
-
-  <div className="flex shrink-0 flex-col gap-3 border-t border-border bg-background p-4">
- <div className="flex items-center justify-between">
- <span className="text-sm font-black uppercase tracking-widest text-foreground">
- Total a pagar
- </span>
- <span className="text-3xl font-black text-secondary-500 font-mono tracking-tighter">
- {formatPEN(total + playzoneTotal)}
- </span>
- </div>
-
- <div className="flex gap-2">
- <Button
-  variant="outline"
-  className="flex-[0.35] h-14 border-border text-muted-foreground hover:bg-muted"
-  onClick={handleCancel}
-  aria-label="Cancelar orden"
-  title="Cancelar orden"
-  disabled={items.length === 0 && playzoneCharges.length === 0}
- >
-  <XCircle className="w-5 h-5" />
- </Button>
- <Button
-  className="flex-1 h-14 bg-secondary-500 hover:bg-secondary-600 text-base font-black uppercase tracking-widest"
-  disabled={items.length === 0 && playzoneCharges.length === 0}
-  onClick={() => setCheckoutOpen(true)}
- >
-  <CreditCard className="w-5 h-5 mr-2" />
-  Cobrar
- </Button>
- </div>
- </div>
- </aside>
- </div>
-
- {/* Checkout drawer */}
- <RightCheckoutDrawer
- open={checkoutOpen}
- onClose={() => setCheckoutOpen(false)}
- cart={items}
- playzoneCharges={playzoneCharges}
- onSaleComplete={handleSaleComplete}
- />
 
  {/* Today sales panel */}
  <TodaySalesPanel

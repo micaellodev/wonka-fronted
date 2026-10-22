@@ -1,6 +1,6 @@
 // Cuadrícula de sesiones activas. Extraído de PlayZoneScreen sin cambios de comportamiento.
 import { Baby, RefreshCw, Timer } from 'lucide-react'
-import { type ActiveSession, type DurationOpt, SessionCard } from './shared'
+import { type ActiveSession, type DurationOpt, SessionCard, calcElapsed } from './shared'
 
 export function ActiveSessionsGrid({ sessions, loadingSessions, onCheckout, checkingOut, nowTick, durationOptions }: {
  sessions: ActiveSession[]
@@ -10,6 +10,9 @@ export function ActiveSessionsGrid({ sessions, loadingSessions, onCheckout, chec
  nowTick: number
  durationOptions: DurationOpt[]
 }) {
+ // Los que terminan primero (o ya terminaron) van arriba
+ const remaining = (s: ActiveSession) => (s.isUnlimited ? Infinity : (s.durationMinutes ?? 0) - calcElapsed(s.startTime))
+ const ordered = [...sessions].sort((a, b) => remaining(a) - remaining(b))
  return (
  <main className="flex-1 overflow-y-auto p-4 bg-background">
  <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
@@ -40,7 +43,7 @@ export function ActiveSessionsGrid({ sessions, loadingSessions, onCheckout, chec
 
  {!loadingSessions && sessions.length > 0 && (
  <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 items-start">
- {sessions.map(s => (
+ {ordered.map(s => (
  <SessionCard key={s.id} session={s} onCheckout={onCheckout}
  checking={checkingOut === s.id} nowTick={nowTick} durationOptions={durationOptions} />
  ))}

@@ -49,7 +49,7 @@ export function LoginScreen() {
  showToast({ type: 'success', message: `Bienvenido, ${worker.name}!` })
  } catch {
  triggerError()
- showToast({ type: 'error', message: 'Error de conexión. Verifica el servidor.' })
+ showToast({ type: 'error', message: 'No se pudo conectar. Revisa tu internet e inténtalo de nuevo.' })
  } finally {
  setLoading(false)
  }

@@ -38,12 +38,10 @@ export function ProductCard({
  </div>
 
  <div className="p-2 flex flex-col gap-1 w-full">
- <div className="flex justify-between items-start w-full gap-2">
- <p className="text-xs font-bold text-foreground leading-tight line-clamp-2">{product.name}</p>
-  <p className="text-sm font-bold text-foreground font-mono tracking-tight shrink-0 bg-muted px-1 border border-border rounded">
+ <p className="text-sm font-bold text-foreground leading-tight line-clamp-2 w-full">{product.name}</p>
+ <p className="text-base font-bold text-secondary-500 font-mono tracking-tight">
  {formatPEN(product.price)}
  </p>
- </div>
  <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
  {product.category.name}
  </span>
@@ -90,15 +88,7 @@ export function CartRow({
  const isMaxed = item.quantity >= stockLimit(item.product)
 
  return (
- <div className="flex items-center gap-2 px-2 py-2 border-b border-border hover:bg-muted relative group">
- <button
- onClick={onRemove}
- aria-label="Quitar del ticket"
- className="absolute -left-1 top-1/2 -translate-y-1/2 bg-primary text-primary-foreground p-1 rounded opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
- >
- <Trash2 className="w-3 h-3" />
- </button>
-
+ <div className="flex items-center gap-2 px-2 py-2 border-b border-border hover:bg-muted">
  <div className="flex-1 flex flex-col justify-center min-w-0 pr-1">
  <p className="text-xs font-bold text-foreground leading-tight uppercase truncate">{item.product.name}</p>
  <p className="text-[11px] font-mono text-muted-foreground">{formatPEN(item.product.price)} UN.</p>
@@ -131,6 +121,14 @@ export function CartRow({
  {formatPEN(subtotal)}
  </span>
  </div>
+ <button
+ onClick={onRemove}
+ aria-label="Quitar del ticket"
+ title="Quitar del ticket"
+ className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-danger-soft hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring focus:outline-none"
+ >
+ <Trash2 className="w-4 h-4" />
+ </button>
  </div>
  )
 }

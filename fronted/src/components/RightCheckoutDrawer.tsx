@@ -306,9 +306,15 @@ export function RightCheckoutDrawer({ open, onClose, cart, playzoneCharges, onSa
  step={0.01}
  value={cashGiven}
  onChange={(e) => setCashGiven(e.target.value)}
- placeholder="0.00" aria-label="0.00"
+ placeholder="0.00" aria-label="Monto recibido"
 
  />
+ <div className="flex flex-wrap gap-2">
+ <Button type="button" variant="outline" size="sm" onClick={() => setCashGiven(totalToPay.toFixed(2))}>Exacto</Button>
+ {[10, 20, 50, 100, 200].filter((b) => b >= totalToPay).slice(0, 4).map((b) => (
+ <Button key={b} type="button" variant="outline" size="sm" onClick={() => setCashGiven(String(b))}>S/ {b}</Button>
+ ))}
+ </div>
  {change > 0 && (
  <p className="text-sm text-success">Vuelto: {formatPEN(change)}</p>
  )}
@@ -321,7 +327,7 @@ export function RightCheckoutDrawer({ open, onClose, cart, playzoneCharges, onSa
  <Input
  value={yapeCode}
  onChange={(e) => setYapeCode(e.target.value)}
- placeholder="Opcional" aria-label="Opcional"
+ placeholder="Opcional" aria-label="Código de operación Yape"
 
  />
  </div>
@@ -333,7 +339,7 @@ export function RightCheckoutDrawer({ open, onClose, cart, playzoneCharges, onSa
  <Input
  value={referenceCode}
  onChange={(e) => setReferenceCode(e.target.value)}
- placeholder="Opcional" aria-label="Opcional"
+ placeholder="Opcional" aria-label="Código de referencia de tarjeta"
 
  />
  </div>
@@ -386,7 +392,7 @@ export function RightCheckoutDrawer({ open, onClose, cart, playzoneCharges, onSa
  <Input
  value={clientDocNumber}
  onChange={(e) => setClientDocNumber(e.target.value)}
- placeholder="12345678" aria-label="12345678"
+ placeholder="12345678" aria-label="DNI del cliente"
  maxLength={8}
 
  />
@@ -418,7 +424,7 @@ export function RightCheckoutDrawer({ open, onClose, cart, playzoneCharges, onSa
  <Input
  value={clientDocNumber}
  onChange={(e) => setClientDocNumber(e.target.value)}
- placeholder="20123456789" aria-label="20123456789"
+ placeholder="20123456789" aria-label="RUC del cliente"
  maxLength={11}
 
  />

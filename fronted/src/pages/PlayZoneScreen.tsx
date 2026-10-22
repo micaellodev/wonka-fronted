@@ -1,7 +1,7 @@
 // PlayZoneScreen — CRM + Time Tracking (Child-Centric UI)
 import { useEffect, useState, useCallback } from 'react'
 import {
- UserPlus, Search, RefreshCw,
+ UserPlus, RefreshCw,
  Baby, User, CheckCircle2, XCircle,
  ChevronRight, Plus,
  Shield, Phone, FileText, PartyPopper
@@ -10,6 +10,9 @@ import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
 import { usePlayzoneTicketStore, type PlayzoneCharge } from '@/store/playzoneTicketStore'
 import { TerminalShell } from '@/components/TerminalShell'
+import { TicketPanel } from '@/components/TicketPanel'
+import { TicketDrawer } from '@/components/TicketDrawer'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { apiErrorMessage as getApiErrorMessage } from '@/lib/api-error'
 import { toast } from '@/components/ui/toast'
 import { Input } from '@/components/ui/input'
@@ -23,11 +26,13 @@ import { BirthdaysView } from './playzone/BirthdaysView'
 import { SessionStartPanel } from './playzone/SessionStartPanel'
 import { ActiveSessionsGrid } from './playzone/ActiveSessionsGrid'
 import { WristbandSearch } from './playzone/WristbandSearch'
+import { GuardianSearchBox } from './playzone/GuardianSearchBox'
 
 // ── Main Screen ───────────────────────────────────────────────
 
 export function PlayZoneScreen() {
  const { tenantId } = useAuthStore()
+ const wide = useMediaQuery('(min-width: 1536px)')
  const { addCharge } = usePlayzoneTicketStore()
  const [durationOptions, setDurationOptions] = useState<DurationOpt[]>([FREE_OPTION])
  const [notice, setNotice] = useState<string | null>(null)
@@ -66,7 +71,7 @@ export function PlayZoneScreen() {
  const [companions, setCompanions] = useState(0)
  const [notes, setNotes] = useState('')
  const [starting, setStarting] = useState(false)
- const [lastCode, setLastCode] = useState<{ code: string; price: number | null; childName: string } | null>(null)
+ const [lastCode, setLastCode] = useState<{ code: string; price: number | null; childName: string; note: string } | null>(null)
 
  // ── active sessions ──
  // ── active sessions ──
@@ -252,9 +257,18 @@ export function PlayZoneScreen() {
  if (!res.error) {
  const session = (res.data as Loose).data
  const free = (selectedChild.age ?? 99) < 3
- setLastCode({ code: session.wristbandCode, price: selectedDuration.price === null && companions === 0 ? null : (free ? 0 : selectedDuration.price ?? 0) + companions * 5, childName: selectedChild.fullName })
+ const note = session.charge || session.companionsCharge
+ ? 'Escribe este código en la pulsera. Ahora cobra en el ticket: el tiempo corre al cobrar'
+ : selectedDuration.minutes === null
+ ? 'Tiempo libre: escribe este código en la pulsera. Se cobra al terminar el juego, con el botón "Terminar juego"'
+ : 'Menor de 3 años: entra gratis. Escribe este código en la pulsera'
+ setLastCode({ code: session.wristbandCode, price: selectedDuration.price === null && companions === 0 ? null : (free ? 0 : selectedDuration.price ?? 0) + companions * 5, childName: selectedChild.fullName, note })
  queueCharge(session.charge)
  queueCharge(session.companionsCharge)
+ if (selectedDuration.minutes !== null && !free && !session.charge) {
+ console.warn('Sesión creada sin cargo base en la respuesta:', session)
+ toast.error('La sesión se creó, pero el sistema no devolvió el monto a cobrar. Avisa al administrador.')
+ }
  setCompanions(0)
  setNotes('')
  setSelectedChild(null)
@@ -309,7 +323,8 @@ export function PlayZoneScreen() {
  // ── render ────────────────────────────────────────────────
  return (
  <TerminalShell activeSection="playzone">
- <div className="flex h-full flex-col overflow-hidden rounded-sm bg-transparent">
+ <div className={wide ? 'grid grid-cols-[minmax(0,1fr)_360px] gap-4 h-full min-h-0' : 'h-full min-h-0'}>
+ <div className="flex h-full min-w-0 flex-col overflow-hidden rounded-sm bg-transparent">
 
  {/* HEADER */}
  <header className="flex items-center justify-between px-5 py-3 bg-background border-b border-border shrink-0">
@@ -337,7 +352,7 @@ export function PlayZoneScreen() {
 
  <button onClick={fetchSessions} disabled={loadingSessions}
  className="flex items-center gap-1.5 px-3 py-2 bg-muted border border-border text-muted-foreground hover:text-foreground font-bold text-xs uppercase tracking-widest rounded-sm disabled:opacity-50 transition-none">
- <RefreshCw className={`w-3.5 h-3.5 ${loadingSessions ? 'animate-spin' : ''}`} /> SYNC
+ <RefreshCw className={`w-3.5 h-3.5 ${loadingSessions ? 'animate-spin' : ''}`} /> Actualizar
  </button>
  </header>
 
@@ -361,31 +376,28 @@ export function PlayZoneScreen() {
  </button>
  <aside className={`${crmOpen ? 'flex' : 'hidden'} lg:flex flex-col w-full lg:w-[320px] lg:shrink-0 border-b lg:border-b-0 lg:border-r border-border overflow-y-auto max-h-[60vh] lg:max-h-none bg-background`}>
 
+ <GuardianSearchBox
+ tenantId={tenantId}
+ value={searchQ}
+ onChange={setSearchQ}
+ onPick={(g) => {
+ setSearchError(''); setLastCode(null); setMode({ type: 'FOUND', guardian: g })
+ const only = g.children.length === 1 ? g.children[0] : null
+ setSelectedChild(only && !sessions.some((x) => x.childId === only.id) ? { ...only, guardianName: g.fullName } : null)
+ }}
+ onSubmit={handleSearch}
+ searching={searching}
+ error={searchError}
+ />
+
+ <WristbandSearch codeSearch={codeSearch} setCodeSearch={setCodeSearch} codeResult={codeResult} codeSearching={codeSearching} onSearch={handleCodeSearch} onCheckout={handleCheckout} checkingOut={checkingOut} nowTick={nowTick} durationOptions={durationOptions} />
  <div className="flex gap-2 p-3 bg-muted border-b border-border">
  <button onClick={openRegistering}
- className="flex-1 flex items-center justify-center gap-2 py-3 bg-brand-600 hover:bg-brand-600 text-primary-foreground font-black text-xs uppercase tracking-widest rounded-sm transition-none">
- <Plus className="w-4 h-4" /> Nuevo niño
+ className="flex-1 flex items-center justify-center gap-2 py-3 bg-background border-2 border-border hover:border-muted-foreground text-foreground font-bold text-sm rounded-sm transition-none">
+ <Plus className="w-4 h-4" /> Cliente nuevo (registrar)
  </button>
  </div>
 
- <div className="p-4 border-b border-border">
- <SectionLabel>Ya es cliente? (DNI padre)</SectionLabel>
- <div className="flex gap-2">
- <Input
- type="text" inputMode="numeric" maxLength={15}
- value={searchQ}
- onChange={e => setSearchQ(e.target.value.replace(/\D/g, ''))}
- onKeyDown={e => e.key === 'Enter' && handleSearch()}
- placeholder="DNI apoderado"
- className="flex-1 bg-muted border-2 border-border focus:border-brand-500 rounded-sm px-3 py-2.5 text-sm font-bold text-foreground font-mono placeholder:text-muted-foreground focus:outline-none transition-colors"
- />
- <button onClick={handleSearch} disabled={searching || !searchQ}
- className="px-3 py-2.5 bg-muted hover:bg-border disabled:opacity-40 text-foreground font-bold text-xs uppercase tracking-widest rounded-sm transition-none">
- {searching ? '...' : <Search className="w-4 h-4" />}
- </button>
- </div>
- {searchError && <p className="mt-2 text-[11px] text-brand-500 font-bold uppercase">{searchError}</p>}
- </div>
 
  {/* ── FOUND state: children + guardian info ── */}
  {mode.type === 'FOUND' && (
@@ -420,7 +432,7 @@ export function PlayZoneScreen() {
  <Baby className="w-4 h-4 shrink-0" />
  <div>
  <p className="text-sm font-bold truncate pr-2">{child.fullName}</p>
- <div className="flex gap-2 opacity-70 mt-0.5 font-mono text-[9px] uppercase tracking-widest">
+ <div className="flex gap-2 opacity-70 mt-0.5 font-mono text-[11px] uppercase tracking-widest">
  {child.age && <span>{child.age}A</span>}
  {child.gender && <span>{child.gender}</span>}
  {child.dni && <span>{child.dni}</span>}
@@ -428,7 +440,7 @@ export function PlayZoneScreen() {
  </div>
  </div>
  {isActive
- ? <span className="text-[9px] font-black text-secondary-500 border border-secondary-500 bg-secondary-500/10 px-1.5 py-0.5 rounded-sm uppercase tracking-widest">Activo</span>
+ ? <span className="text-[11px] font-black text-secondary-500 border border-secondary-500 bg-secondary-500/10 px-1.5 py-0.5 rounded-sm uppercase tracking-widest">Activo</span>
  : isSel ? <CheckCircle2 className="w-4 h-4 shrink-0" />
  : <ChevronRight className="w-4 h-4 shrink-0 opacity-50" />}
  </button>
@@ -459,9 +471,11 @@ export function PlayZoneScreen() {
  <option value="F">Femenino</option>
  </Select>
  </div>
+ <details className="group"><summary className="cursor-pointer select-none py-1 text-xs font-bold text-muted-foreground">DNI del niño (opcional)</summary><div className="mt-2">
  <Input type="text" value={newChildDni} onChange={e => setNewChildDni(e.target.value.replace(/\D/g, ''))}
  placeholder="DNI Niño (opcional)" maxLength={8}
  className="bg-background border border-border focus:border-brand-500 rounded-sm px-2.5 py-2 text-sm font-bold text-foreground font-mono placeholder:text-muted-foreground focus:outline-none" />
+ </div></details>
 
  <div className="flex gap-2 mt-1">
  <button onClick={() => { setShowAddChild(false); setNewChildName(''); setNewChildAge(''); setNewChildDni(''); setNewChildGender('') }}
@@ -503,7 +517,7 @@ export function PlayZoneScreen() {
  <div className="flex flex-col p-4 gap-4 bg-muted">
  <div className="flex items-center justify-between">
  <p className="text-[11px] font-black text-brand-500 uppercase tracking-widest">
- {mode.type === 'NOT_FOUND' ? 'No existe — crear perfil' : 'Registrar Nuevo Perfil'}
+ {mode.type === 'NOT_FOUND' ? 'No encontramos ese DNI: registra al cliente' : 'Registrar cliente nuevo'}
  </p>
  <button onClick={() => { setMode({ type: 'IDLE' }); setSearchQ('') }}
  className="text-muted-foreground hover:text-foreground transition-none">
@@ -535,9 +549,11 @@ export function PlayZoneScreen() {
  </Select>
  </div>
 
+ <details className="group"><summary className="cursor-pointer select-none py-1 text-xs font-bold text-muted-foreground">Más datos del niño (opcional)</summary><div className="mt-2">
  <Input type="text" value={childDni} onChange={e => setChildDni(e.target.value.replace(/\D/g, ''))}
  placeholder="DNI Niño (opcional)" maxLength={8}
  className="w-full bg-background border border-border focus:border-brand-500 rounded-sm px-3 py-2 text-sm font-bold text-foreground font-mono placeholder:text-muted-foreground focus:outline-none transition-colors" />
+ </div></details>
  </div>
  </div>
 
@@ -556,9 +572,11 @@ export function PlayZoneScreen() {
  placeholder="DNI Apoderado *" maxLength={15}
  className="w-full bg-background border border-border focus:border-brand-500 rounded-sm px-3 py-2 text-sm font-bold text-foreground font-mono placeholder:text-muted-foreground focus:outline-none transition-colors" />
 
+ <details className="group"><summary className="cursor-pointer select-none py-1 text-xs font-bold text-muted-foreground">Teléfono (opcional)</summary><div className="mt-2">
  <Input type="text" inputMode="numeric" value={guardianPhone} onChange={e => setGuardianPhone(e.target.value.replace(/\D/g, ''))}
  placeholder="Teléfono (opcional)" maxLength={15}
  className="w-full bg-background border border-border focus:border-brand-500 rounded-sm px-3 py-2 text-sm font-bold text-foreground font-mono placeholder:text-muted-foreground focus:outline-none transition-colors" />
+ </div></details>
  </div>
  </div>
 
@@ -566,7 +584,7 @@ export function PlayZoneScreen() {
  disabled={!guardianDni || !guardianName || !childName || registering}
  className="flex items-center justify-center gap-2 w-full py-4 mt-2 bg-brand-600 hover:bg-brand-600 disabled:opacity-40 disabled:cursor-not-allowed text-primary-foreground font-black text-xs uppercase tracking-widest rounded-sm transition-none">
  <UserPlus className="w-5 h-5" />
- {registering ? 'Guardando...' : 'Guardar y Seleccionar'}
+ {registering ? 'Guardando...' : 'Guardar y elegir niño'}
  </button>
  </div>
  </div>
@@ -577,13 +595,11 @@ export function PlayZoneScreen() {
  <div className="flex flex-col items-center justify-center flex-1 gap-3 text-foreground p-8 text-center bg-muted">
  <Baby className="w-12 h-12 text-foreground" />
  <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
- Busca un apoderado o registra un nuevo niño
+ Escribe el DNI del apoderado para empezar
  </p>
  </div>
  )}
 
- {/* Wristband search (bottom of side panel) */}
- <WristbandSearch codeSearch={codeSearch} setCodeSearch={setCodeSearch} codeResult={codeResult} codeSearching={codeSearching} onSearch={handleCodeSearch} onCheckout={handleCheckout} checkingOut={checkingOut} nowTick={nowTick} durationOptions={durationOptions} />
  </aside>
 
  {/* ═══════════════════════════════════════════
@@ -598,6 +614,8 @@ export function PlayZoneScreen() {
  </div>
  )}
 
+ </div>
+ {wide ? <TicketPanel /> : <TicketDrawer />}
  </div>
  </TerminalShell>
  )

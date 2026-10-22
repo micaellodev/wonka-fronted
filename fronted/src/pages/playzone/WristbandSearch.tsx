@@ -15,8 +15,8 @@ export function WristbandSearch({ codeSearch, setCodeSearch, codeResult, codeSea
  durationOptions: DurationOpt[]
 }) {
  return (
- <div className="mt-auto p-4 border-t border-border bg-background">
- <SectionLabel>Código de Pulsera (Búsqueda local)</SectionLabel>
+ <div className="p-4 border-b border-border bg-background">
+ <SectionLabel>Código de pulsera: buscar niño que sale</SectionLabel>
  <div className="flex gap-2">
  <Input type="text" inputMode="numeric" maxLength={3}
  value={codeSearch}

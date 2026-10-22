@@ -139,12 +139,12 @@ export function SessionCard({
  {/* Timer bar */}
  <div className="flex items-center justify-between bg-background border border-border rounded-sm px-2.5 py-1.5">
  <div className="flex flex-col">
- <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold">Elapsed</span>
+ <span className="text-[11px] text-muted-foreground uppercase tracking-widest font-bold">Transcurrido</span>
  <span className="text-xs font-mono font-bold text-muted-foreground">{fmtTime(elapsed)}</span>
  </div>
  <span className="text-foreground">|</span>
  <div className="flex flex-col items-end">
- <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold">Restante</span>
+ <span className="text-[11px] text-muted-foreground uppercase tracking-widest font-bold">Restante</span>
  {session.isUnlimited
  ? <InfinityIcon className="w-4 h-4 text-brand-500" />
  : <span className={`text-xs font-mono font-bold ${isOverdue ? 'text-brand-500' : isWarning ? 'text-accent-500' : 'text-secondary-500'}`}>
@@ -159,7 +159,7 @@ export function SessionCard({
  disabled={checking}
  className="flex items-center justify-center gap-1.5 w-full py-2 bg-muted border border-border hover:bg-brand-600 hover:border-primary text-muted-foreground hover:text-primary-foreground font-bold text-[11px] uppercase tracking-widest rounded-sm transition-none disabled:opacity-40"
  >
- <LogOut className="w-3.5 h-3.5" /> Finalizar
+ <LogOut className="w-3.5 h-3.5" /> Terminar juego
  </button>
  </div>
  </div>

@@ -15,10 +15,26 @@ export function SessionStartPanel({ selectedChild, setSelectedChild, durationOpt
  setCompanions: (n: number) => void
  starting: boolean
  onStart: () => void
- lastCode: { code: string; price: number | null; childName: string } | null
+ lastCode: { code: string; price: number | null; childName: string; note: string } | null
 }) {
  const under3 = selectedChild !== null && selectedChild.age !== null && selectedChild.age < 3
  const unit = 5
+ const codeCard = lastCode && (
+ <div className="p-4 border-b border-border bg-muted">
+ <p className="text-[11px] text-secondary-500 font-black uppercase tracking-widest text-center mb-2">
+ {lastCode.note}
+ </p>
+ <div className="bg-background border-2 border-secondary-500 rounded-sm p-4 text-center shadow-inner">
+ <span className="text-6xl font-black font-mono text-secondary-500 tracking-widest">
+ {lastCode.code}
+ </span>
+ </div>
+ <div className="flex items-center justify-between mt-3 text-muted-foreground">
+ <span className="text-[11px] font-bold uppercase tracking-widest truncate max-w-30">{lastCode.childName}</span>
+ <span className="text-sm font-black font-mono text-secondary-500">{fmtPrice(lastCode.price)}</span>
+ </div>
+ </div>
+ )
  return (
  <section className="flex flex-col w-full lg:w-65 lg:shrink-0 border-b lg:border-b-0 lg:border-r border-border bg-background/60 overflow-y-auto shadow-xl z-10 relative">
  <div className="p-4 border-b border-border">
@@ -29,14 +45,18 @@ export function SessionStartPanel({ selectedChild, setSelectedChild, durationOpt
  </div>
 
  {!selectedChild ? (
+ <>
+ {codeCard}
  <div className="flex flex-col items-center justify-center flex-1 gap-3 text-foreground p-8 text-center">
  <Clock className="w-10 h-10 opacity-30" />
  <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mt-2">
- Elija al niño a la izquierda
+ Busca al apoderado y elige al niño
  </p>
  </div>
+ </>
  ) : (
  <div className="flex flex-col gap-4">
+ {codeCard}
  {/* Selected child header */}
  <div className="px-4 py-3 bg-brand-900/30 border-b border-brand-800">
  <SectionLabel className="text-brand-500">Niño Seleccionado</SectionLabel>
@@ -47,7 +67,7 @@ export function SessionStartPanel({ selectedChild, setSelectedChild, durationOpt
  {selectedChild.age && `${selectedChild.age}A `}{selectedChild.gender} {selectedChild.dni && `· DNI: ${selectedChild.dni}`}
  </p>
  </div>
- <button onClick={() => setSelectedChild(null)} className="text-muted-foreground hover:text-foreground transition-none p-1">
+ <button onClick={() => setSelectedChild(null)} aria-label="Quitar niño seleccionado" className="text-muted-foreground hover:text-foreground transition-none p-1">
  <XCircle className="w-4 h-4" />
  </button>
  </div>
@@ -117,23 +137,6 @@ export function SessionStartPanel({ selectedChild, setSelectedChild, durationOpt
  </button>
  </div>
 
- {/* Last generated code alert */}
- {lastCode && (
- <div className="mt-auto p-4 pt-6 border-t border-border bg-muted">
- <p className="text-[11px] text-secondary-500 font-black uppercase tracking-widest text-center mb-2">
- Código Generado: Escribir en pulsera (el tiempo corre al cobrar en caja)
- </p>
- <div className="bg-background border-2 border-secondary-500 rounded-sm p-4 text-center shadow-inner">
- <span className="text-6xl font-black font-mono text-secondary-500 tracking-widest">
- {lastCode.code}
- </span>
- </div>
- <div className="flex items-center justify-between mt-3 text-muted-foreground">
- <span className="text-[11px] font-bold uppercase tracking-widest truncate max-w-30">{lastCode.childName}</span>
- <span className="text-sm font-black font-mono text-secondary-500">{fmtPrice(lastCode.price)}</span>
- </div>
- </div>
- )}
  </div>
  )}
  </section>
