@@ -187,6 +187,7 @@ export const CreatePlaySessionBody = t.Object({
     tenantId: t.String({ minLength: 1 }),
     childId: t.String({ minLength: 1 }),
     durationMinutes: t.Optional(t.Integer({ minimum: 1 })),
+    allyDiscount: t.Optional(t.Boolean()),
     companions: t.Optional(t.Integer({ minimum: 0, maximum: 2 })),
     notes: t.Optional(t.String({ maxLength: 120 })),
 });
@@ -217,6 +218,7 @@ export const UpdatePlayzoneRatesBody = t.Object({
     extraPerMinute: t.Number({ minimum: 0 }),
     freePerMinute: t.Number({ minimum: 0 }),
     companionPrice: t.Optional(t.Number({ minimum: 0 })),
+    wristbandEnabled: t.Optional(t.Boolean()),
 });
 
 export const PlayzoneReportQuery = t.Object({

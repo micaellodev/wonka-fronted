@@ -22,6 +22,16 @@ function createWindow() {
     },
   })
 
+  // Con escala de Windows alta (150-200%) el viewport en px CSS queda diminuto y la UI se recorta.
+  // Se reduce el zoom para que siempre quepan al menos 1280x720 px CSS; nunca se agranda (tope 1).
+  const fitZoom = () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    const [w, h] = mainWindow.getContentSize()
+    mainWindow.webContents.setZoomFactor(Math.min(1, w / 1280, h / 720))
+  }
+  mainWindow.webContents.on('did-finish-load', fitZoom)
+  mainWindow.on('resize', fitZoom)
+
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173')
   } else {

@@ -68,7 +68,7 @@ function isVirtualLineItem(productId: string): boolean {
     return productId.startsWith('pz-') || productId.startsWith('free-sale-');
 }
 
-const PZ_SKU = /^pz-(base|extra|free|comp)-(.+)$/;
+const PZ_SKU = /^pz-(base|extra|free|comp|disc)-(.+)$/;
 
 type VirtualLine = { qty: number; unitPrice: number; label: string; sku: string };
 
@@ -104,6 +104,10 @@ async function resolveVirtualLines(
         const match = PZ_SKU.exec(item.productId);
         if (!match) throw new Error(`Cargo de zona de juegos inválido: "${item.productId}".`);
         const kind = match[1] as PlayzoneChargeKind;
+        // El descuento por aliado solo vale junto al cargo base de la misma sesión (nunca suelto)
+        if (kind === "disc" && !items.some((i) => i.productId === `pz-base-${match[2]}`)) {
+            throw new Error("El descuento por aliado requiere cobrar el tiempo de la sesión en la misma venta.");
+        }
         const session = await tx.playSession.findFirst({
             where: { id: match[2]!, tenantId },
             include: { child: { select: { fullName: true, age: true } } },
@@ -262,6 +266,10 @@ export async function processSale(
             input.tenantId,
             input.items.filter((i) => isVirtualLineItem(i.productId))
         );
+        // Una línea negativa no es válida en boleta/factura electrónica: el descuento por aliado va solo en ticket
+        if (input.tipoComprobante !== "TICKET" && pzItems.some((l) => l.unitPrice < 0)) {
+            throw new Error("El descuento por aliado solo se puede cobrar con ticket (no boleta ni factura).");
+        }
         const productIds = realItems.map((i) => i.productId);
 
         // ── Step 1: Fetch all products (tenant-scoped) ───────────

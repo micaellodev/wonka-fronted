@@ -15,12 +15,13 @@ export interface PlayzoneRates {
  extraPerMinute: number
  freePerMinute: number
  companionPrice?: number
+ wristbandEnabled?: boolean
 }
 
 // Precio por acompañante si el backend (más antiguo) no lo envía
 export const DEFAULT_COMPANION_PRICE = 5
 
-export interface DurationOpt { label: string; minutes: number | null; price: number | null }
+export interface DurationOpt { label: string; minutes: number | null; price: number | null; ally?: boolean }
 
 export const FREE_OPTION: DurationOpt = { label: '∞ Libre', minutes: null, price: null }
 
@@ -39,6 +40,7 @@ export interface ActiveSession {
  guardianName: string
  guardianDni: string
  durationMinutes: number | null
+ allyDiscount?: boolean
  startTime: string
  elapsedMinutes: number
  remainingMinutes: number | null
@@ -87,8 +89,9 @@ function fmtClock(totalSec: number) {
 }
 
 export function SessionCard({
- session, onCheckout, checking, durationOptions,
+ session, onCheckout, checking, durationOptions, showCode = true,
 }: {
+ showCode?: boolean
  session: ActiveSession
  onCheckout: (id: string) => void
  checking: boolean
@@ -108,7 +111,7 @@ export function SessionCard({
  ? { border: 'border-warning', banner: 'bg-warning', text: 'text-accent-500', bar: 'bg-warning', label: 'POR TERMINAR', Icon: AlertTriangle }
  : { border: 'border-success', banner: 'bg-success', text: 'text-success', bar: 'bg-success', label: session.isUnlimited ? 'TIEMPO LIBRE' : 'EN JUEGO', Icon: CheckCircle2 }
 
- const price = durationOptions.find((o) => o.minutes === session.durationMinutes)?.price ?? null
+ const price = durationOptions.find((o) => !o.ally && o.minutes === session.durationMinutes)?.price ?? null
  const mainLabel = session.isUnlimited ? 'Transcurrido' : isOverdue ? 'Tiempo extra' : 'Restante'
  const mainClock = session.isUnlimited ? fmtClock(elapsedSec) : isOverdue ? fmtClock(-(remainingSec ?? 0)) : fmtClock(remainingSec ?? 0)
 
@@ -121,10 +124,10 @@ export function SessionCard({
 
  <div className="flex flex-col gap-3 p-3">
  <div className="flex items-end justify-between gap-2">
- <div>
+ {showCode ? <div>
  <p className="text-xs font-semibold uppercase text-muted-foreground">Pulsera</p>
  <p className={`font-mono text-4xl font-black leading-none tracking-wider ${tone.text}`}>{session.wristbandCode}</p>
- </div>
+ </div> : <div />}
  <div className="text-right">
  <p className="text-xs font-semibold uppercase text-muted-foreground">{mainLabel}</p>
  <p className={`font-mono text-3xl font-black leading-none tabular-nums ${tone.text}`} aria-live="off">

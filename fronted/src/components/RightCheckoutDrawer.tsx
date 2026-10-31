@@ -262,6 +262,9 @@ export function RightCheckoutDrawer({ open, onClose, cart, playzoneCharges, onSa
  { key: 'tarjeta', label: 'Tarjeta', icon: CreditCard },
  ]
 
+ // El descuento por aliado es una línea negativa: no existe en boleta/factura electrónica, solo ticket
+ const hasAllyDiscount = playzoneCharges.some((c) => c.kind === 'disc')
+
  const invoiceOptions: { key: InvoiceType; label: string; icon: typeof Ticket }[] = [
  { key: 'TICKET', label: 'Ticket', icon: Ticket },
  { key: 'BOLETA', label: 'Boleta', icon: FileText },
@@ -362,13 +365,13 @@ export function RightCheckoutDrawer({ open, onClose, cart, playzoneCharges, onSa
  setClientProvincia('')
  setClientDistrito('')
  }}
- disabled={opt.key !== 'TICKET' && !canInvoice}
+ disabled={opt.key !== 'TICKET' && (!canInvoice || hasAllyDiscount)}
  className={cn(
  'flex flex-col items-center gap-2 rounded-xl border px-2 py-3 text-sm font-medium transition-all',
  invoiceType === opt.key
  ? 'bg-primary border-primary text-primary-foreground'
  : 'bg-background border-border text-muted-foreground hover:bg-muted',
- opt.key !== 'TICKET' && !canInvoice && 'opacity-40 cursor-not-allowed'
+ opt.key !== 'TICKET' && (!canInvoice || hasAllyDiscount) && 'opacity-40 cursor-not-allowed'
  )}
  >
  <opt.icon className="w-5 h-5" />

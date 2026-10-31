@@ -88,7 +88,7 @@ export function SessionStartPanel({ companionPrice, selectedChild, setSelectedCh
  {opt.label}
  </div>
  <span className={`text-[11px] font-black font-mono mt-1 ${isSel ? 'text-foreground/80' : 'text-brand-500'}`}>
- {opt.price === null ? 'libre' : formatPEN(opt.price)}
+ {opt.price === null ? 'libre' : opt.ally ? `${formatPEN(opt.price!)} · gratis` : formatPEN(opt.price)}
  </span>
  </button>
  )

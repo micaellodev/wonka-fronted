@@ -12,13 +12,20 @@ interface ImportMeta {
  readonly env: ImportMetaEnv
 }
 
+interface UpdateStatus {
+ state: 'downloading' | 'ready' | 'error'
+ version?: string
+ percent?: number
+}
+
 interface ElectronAPI {
  minimize: () => void
  maximize: () => void
  close: () => void
  printSilent: (html: string) => void
  getVersion: () => Promise<string>
- onUpdateStatus: (cb: (s: { state: 'downloading' | 'ready'; version?: string; percent?: number }) => void) => () => void
+ onUpdateStatus: (cb: (s: UpdateStatus) => void) => () => void
+ getUpdateStatus: () => Promise<UpdateStatus | null>
  installUpdate: () => void
 }
 

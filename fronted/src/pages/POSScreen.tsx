@@ -12,10 +12,14 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/toast'
 import { TicketPanel } from '@/components/TicketPanel'
+import { TicketDrawer } from '@/components/TicketDrawer'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { formatPEN } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { ProductCard, CatalogTabs, CategoryCard, type CatalogTab } from './pos/CatalogParts'
 import { FreeSaleForm } from './pos/FreeSaleForm'
+import { VariantCard, VariantPicker } from './pos/Variants'
+import { groupVariants, splitCategory, splitVariant, topCategory } from '@/lib/catalog'
 import { TodaySalesPanel, type SaleToday } from './pos/TodaySalesPanel'
 
 // ============================================================
@@ -28,13 +32,21 @@ interface ProductsResponse {
 }
 
 
+// Valor de filtro para los productos que están en la categoría principal misma (sin subcategoría)
+const OTHERS = '\u0000otros'
+
 export function POSScreen() {
  const { tenantId, activeWorker } = useAuthStore()
  const { items, addItem } = useCartStore()
+ const wide = useMediaQuery('(min-width: 1280px)')
 
  const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  // Subcategoría elegida dentro de la categoría abierta (se olvida al cambiar de categoría)
+  const [subSel, setSubSel] = useState<{ cat: string | null; sub: string | null }>({ cat: null, sub: null })
+  const selectedSub = subSel.cat === selectedCategory ? subSel.sub : null
+  const [picker, setPicker] = useState<{ base: string; categoryId: string } | null>(null)
   const [activeTab, setActiveTab] = useState<CatalogTab>('products')
   const [loading, setLoading] = useState(true)
  const [todaySalesOpen, setTodaySalesOpen] = useState(false)
@@ -59,13 +71,13 @@ export function POSScreen() {
  const prods: Product[] = response.data ?? []
  setProducts(prods)
 
+ // El POS muestra las categorías principales; las subcategorías ("Bebidas › Gaseosas") son filtros dentro
  const catMap = new Map<string, Category>()
  prods.forEach((p) => {
- if (!catMap.has(p.category.id)) {
- catMap.set(p.category.id, { ...p.category, createdAt: '' })
- }
+ const top = topCategory(p.category.name)
+ if (!catMap.has(top)) catMap.set(top, { id: top, name: top, createdAt: '' })
  })
- setCategories(Array.from(catMap.values()))
+ setCategories(Array.from(catMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'es')))
  } catch {
  toast.error('No se pudo conectar con el servidor.')
  } finally {
@@ -77,14 +89,32 @@ export function POSScreen() {
  fetchProducts()
  }, [fetchProducts])
 
+ const cartQtyFor = (productId: string) => items.find((i) => i.product.id === productId)?.quantity ?? 0
+
   const visibleProducts = products.filter((p) => {
   if (!p.isActive) return false
   if (activeTab === 'products') return true
-  if (activeTab === 'categories' && selectedCategory) return p.category.id === selectedCategory
+  if (activeTab === 'categories' && selectedCategory) {
+  if (topCategory(p.category.name) !== selectedCategory) return false
+  if (selectedSub === null) return true
+  const { parent, leaf } = splitCategory(p.category.name)
+  return selectedSub === OTHERS ? !parent : parent !== null && leaf === selectedSub
+  }
   return false
   })
 
- const cartQtyFor = (productId: string) => items.find((i) => i.product.id === productId)?.quantity ?? 0
+ // Subcategorías de la categoría abierta, para los botones de filtro
+ const inOpen = selectedCategory ? products.filter((p) => p.isActive && topCategory(p.category.name) === selectedCategory) : []
+ const subOptions = [...new Set(inOpen.map((p) => splitCategory(p.category.name)).filter((c) => c.parent).map((c) => c.leaf))].sort((a, b) => a.localeCompare(b, 'es'))
+ const hasGeneral = inOpen.some((p) => !splitCategory(p.category.name).parent)
+
+ const renderCatalog = (list: Product[]) => groupVariants(list).map((item) => item.type === 'single'
+  ? <ProductCard key={item.product.id} product={item.product} onAdd={addItem} cartQty={cartQtyFor(item.product.id)} />
+  : <VariantCard key={`g-${item.variants[0]!.id}`} base={item.base} variants={item.variants}
+    cartQty={item.variants.reduce((sum, v) => sum + cartQtyFor(v.id), 0)}
+    onOpen={() => setPicker({ base: item.base, categoryId: item.variants[0]!.category.id })} />)
+ const pickerVariants = picker ? products.filter((p) => p.isActive && p.category.id === picker.categoryId && splitVariant(p.name).base === picker.base) : []
+
 
  const searchResults = searchQuery.trim()
   ? products.filter((p) => p.isActive && p.name.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -122,13 +152,13 @@ export function POSScreen() {
 
  return (
  <TerminalShell activeSection="pos">
- <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4 h-full min-h-0">
+ <div className={wide ? 'grid grid-cols-[minmax(0,1fr)_360px] grid-rows-[minmax(0,1fr)] gap-4 h-full min-h-0' : 'h-full min-h-0 pb-20'}>
  {/* Catalog */}
   <section className="flex min-h-0 flex-col rounded-xl border border-border bg-background p-4">
   <CatalogTabs activeTab={activeTab} onChange={setActiveTab} />
-  <p className="mb-2 text-[11px] text-muted-foreground"><kbd className="font-mono">F2</kbd> Buscar · <kbd className="font-mono">F9</kbd> / <kbd className="font-mono">Ctrl+Enter</kbd> Cobrar · <kbd className="font-mono">Esc</kbd> Cerrar panel</p>
+  <p className="mb-2 shrink-0 text-[11px] text-muted-foreground"><kbd className="font-mono">F2</kbd> Buscar · <kbd className="font-mono">F9</kbd> / <kbd className="font-mono">Ctrl+Enter</kbd> Cobrar · <kbd className="font-mono">Esc</kbd> Cerrar panel</p>
 
-  <div className="mb-3 flex items-center justify-between border-b border-border pb-2">
+  <div className="mb-3 flex shrink-0 items-center justify-between border-b border-border pb-2">
   <div className="flex items-center gap-2">
   {activeTab === 'categories' && selectedCategory && (
   <Button
@@ -165,12 +195,12 @@ export function POSScreen() {
   )}
 
   {!loading && activeTab === 'categories' && selectedCategory === null && (
-  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 overflow-y-auto pr-1">
+  <div className="grid min-h-0 flex-1 auto-rows-max content-start grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 overflow-y-auto pr-1">
   {categories.map((cat) => (
   <CategoryCard
   key={cat.id}
   category={cat}
-  productCount={products.filter((p) => p.isActive && p.category.id === cat.id).length}
+  productCount={products.filter((p) => p.isActive && topCategory(p.category.name) === cat.id).length}
   onClick={() => setSelectedCategory(cat.id)}
   />
   ))}
@@ -184,16 +214,18 @@ export function POSScreen() {
   </div>
   )}
 
-  {!loading && (activeTab === 'products' || (activeTab === 'categories' && selectedCategory !== null)) && visibleProducts.length > 0 && (
-  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 overflow-y-auto pr-1">
-  {visibleProducts.map((product) => (
-  <ProductCard
-  key={product.id}
-  product={product}
-  onAdd={addItem}
-  cartQty={cartQtyFor(product.id)}
-  />
+  {!loading && activeTab === 'categories' && selectedCategory !== null && subOptions.length > 0 && (
+  <div className="mb-3 flex shrink-0 flex-wrap gap-2" role="group" aria-label="Subcategorías" data-testid="sub-chips">
+  {([['Todas', null], ...subOptions.map((x) => [x, x] as const), ...(hasGeneral ? [['Otros', OTHERS] as const] : [])] as const).map(([label, value]) => (
+  <Button key={label} size="sm" variant={selectedSub === value ? 'default' : 'outline'} aria-pressed={selectedSub === value}
+  onClick={() => setSubSel({ cat: selectedCategory, sub: value })}>{label}</Button>
   ))}
+  </div>
+  )}
+
+  {!loading && (activeTab === 'products' || (activeTab === 'categories' && selectedCategory !== null)) && visibleProducts.length > 0 && (
+  <div className="grid min-h-0 flex-1 auto-rows-max content-start grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 overflow-y-auto pr-1">
+  {renderCatalog(visibleProducts)}
   </div>
   )}
 
@@ -205,7 +237,7 @@ export function POSScreen() {
   )}
 
   {!loading && activeTab === 'search' && (
-  <div className="flex flex-col gap-4 p-4">
+  <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
   <div className="relative">
   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
   <Input
@@ -229,15 +261,8 @@ export function POSScreen() {
   )}
 
   {searchQuery.trim() && searchResults.length > 0 && (
-  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-  {searchResults.map((p) => (
-  <ProductCard
-  key={p.id}
-  product={p}
-  onAdd={addItem}
-  cartQty={cartQtyFor(p.id)}
-  />
-  ))}
+  <div className="grid auto-rows-max grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+  {renderCatalog(searchResults)}
   </div>
   )}
 
@@ -254,8 +279,10 @@ export function POSScreen() {
 
   {!loading && activeTab === 'free-sale' && <FreeSaleForm onAdd={addItem} />}
   </section>
- <TicketPanel onSaleComplete={fetchProducts} />
+ {wide ? <TicketPanel onSaleComplete={fetchProducts} /> : <TicketDrawer onSaleComplete={fetchProducts} />}
  </div>
+
+ <VariantPicker base={picker?.base ?? null} variants={pickerVariants} cartQtyFor={cartQtyFor} onAdd={addItem} onClose={() => setPicker(null)} />
 
  {/* Today sales panel */}
  <TodaySalesPanel

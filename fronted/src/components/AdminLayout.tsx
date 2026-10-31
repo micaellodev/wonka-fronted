@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
  LayoutDashboard, Package, Users, Calculator, BarChart3, FileText, History, ClipboardList,
- Wallet, UserPlus, Receipt, LineChart, ShoppingCart, Building2, LogOut, Menu, Gamepad2, X,
+ Wallet, Receipt, LineChart, ShoppingCart, Building2, LogOut, Menu, Gamepad2, X,
 } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { Button } from '@/components/ui/button'
@@ -32,7 +32,6 @@ const groups = [
  { label: 'Estadísticas', to: '/admin/statistics', icon: LineChart },
  ] },
  { label: 'Operación', items: [
- { label: 'Registrar cliente', to: '/register-client', icon: UserPlus },
  { label: 'Punto de venta', to: '/pos', icon: ShoppingCart },
  ] },
 ]

@@ -422,6 +422,8 @@ model PlaySession {
   id              String            @id @default(cuid())
   /// Duration in minutes. NULL means unlimited (open-ended)
   durationMinutes Int?
+  /// Aliado: se cobra la tarifa normal pero el ticket lleva una línea de descuento por el mismo monto (queda en S/ 0)
+  allyDiscount    Boolean           @default(false)
   /// Acompañantes de pago (extra a los incluidos): 0..2
   companions      Int               @default(0)
   /// Seña del apoderado (ej. cómo va vestido); se borra al finalizar

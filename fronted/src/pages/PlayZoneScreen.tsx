@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
  UserPlus, RefreshCw,
- Baby, User, CheckCircle2, XCircle,
+ Baby, CheckCircle2,
  ChevronRight, Plus,
  Shield, Phone, FileText, PartyPopper
 } from 'lucide-react'
@@ -12,11 +12,11 @@ import { usePlayzoneTicketStore, type PlayzoneCharge } from '@/store/playzoneTic
 import { TerminalShell } from '@/components/TerminalShell'
 import { TicketPanel } from '@/components/TicketPanel'
 import { TicketDrawer } from '@/components/TicketDrawer'
+import { useCan } from '@/lib/permissions'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { apiErrorMessage as getApiErrorMessage } from '@/lib/api-error'
 import { toast } from '@/components/ui/toast'
 import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
 import { formatPEN } from '@/lib/format'
 import {
  type Loose, type PlayzoneRates, DEFAULT_COMPANION_PRICE, type DurationOpt, FREE_OPTION, type Child, type Guardian, type ActiveSession, type PanelMode,
@@ -27,6 +27,8 @@ import { SessionStartPanel } from './playzone/SessionStartPanel'
 import { ActiveSessionsGrid } from './playzone/ActiveSessionsGrid'
 import { WristbandSearch } from './playzone/WristbandSearch'
 import { GuardianSearchBox } from './playzone/GuardianSearchBox'
+import { GenderButtons } from './playzone/GenderButtons'
+import { RegisterModal } from './playzone/RegisterModal'
 
 // ── Main Screen ───────────────────────────────────────────────
 
@@ -37,6 +39,9 @@ export function PlayZoneScreen() {
  const ticketCharges = usePlayzoneTicketStore((s) => s.charges)
  const [durationOptions, setDurationOptions] = useState<DurationOpt[]>([FREE_OPTION])
  const [companionPrice, setCompanionPrice] = useState(DEFAULT_COMPANION_PRICE)
+ const [rates, setRates] = useState<PlayzoneRates | null>(null)
+ const { can } = useCan()
+ const wristbandOn = rates?.wristbandEnabled !== false
  const [notice, setNotice] = useState<string | null>(null)
  const [crmOpen, setCrmOpen] = useState(true)
  const [activeTab, setActiveTab] = useState<'JUEGO_LIBRE' | 'CUMPLEAÑOS'>('JUEGO_LIBRE')
@@ -47,17 +52,9 @@ export function PlayZoneScreen() {
  const [searching, setSearching] = useState(false)
  const [searchError, setSearchError] = useState('')
 
- // registration form (child prioritized)
- const [childDni, setChildDni] = useState('')
- const [childName, setChildName] = useState('')
- const [childAge, setChildAge] = useState('')
- const [childGender, setChildGender] = useState<'M' | 'F' | ''>('')
-
- const [guardianDni, setGuardianDni] = useState('')
- const [guardianName, setGuardianName] = useState('')
- const [guardianPhone, setGuardianPhone] = useState('')
-
- const [registering, setRegistering] = useState(false)
+ const [registerOpen, setRegisterOpen] = useState(false)
+ const [registerDni, setRegisterDni] = useState('')
+ const [registerKey, setRegisterKey] = useState(0)
 
  // add child form (inline)
  const [showAddChild, setShowAddChild] = useState(false)
@@ -105,7 +102,11 @@ export function PlayZoneScreen() {
  const res = await (api.playzone.rates as Loose).get({ query: { tenantId } })
  if (res.error) throw res.error
  const rates = (res.data as { data: PlayzoneRates }).data
- const opts: DurationOpt[] = [...rates.durations.map(d => ({ label: d.label, minutes: d.minutes, price: d.price })), FREE_OPTION]
+ setRates(rates)
+ const tarifas: DurationOpt[] = rates.durations.map(d => ({ label: d.label, minutes: d.minutes, price: d.price }))
+ // Aliado: misma tarifa de 30 min, pero el ticket lleva el descuento por el mismo monto
+ const t30 = tarifas.find(d => d.minutes === 30)
+ const opts: DurationOpt[] = [...tarifas, ...(t30 ? [{ label: '30 Min aliado', minutes: 30, price: t30.price, ally: true }] : []), FREE_OPTION]
  setDurationOptions(opts)
  setCompanionPrice(rates.companionPrice ?? DEFAULT_COMPANION_PRICE)
  setSelectedDuration(opts[0])
@@ -114,6 +115,19 @@ export function PlayZoneScreen() {
  }
  })()
  }, [tenantId])
+
+ // el dueño habilita/deshabilita el código de pulsera (se guarda con las tarifas)
+ const toggleWristband = async () => {
+ if (!rates) return
+ const next = { ...rates, wristbandEnabled: !wristbandOn }
+ try {
+ const res = await (api.playzone.rates as Loose).put({ tenantId, ...next })
+ if (res.error) throw res.error
+ setRates(next); setCodeResult(null)
+ } catch (err) {
+ setNotice(getApiErrorMessage(err, 'No se pudo guardar el cambio.'))
+ }
+ }
 
  // agrega el cargo calculado por el backend al ticket de caja
  const queueCharge = (charge: PlayzoneCharge | null | undefined) => {
@@ -140,78 +154,16 @@ export function PlayZoneScreen() {
  setMode({ type: 'FOUND', guardian: (res.data as Loose).data })
  } else {
  setMode({ type: 'NOT_FOUND', q })
- setGuardianDni(q)
- setChildName('')
- setChildDni('')
- setChildAge('')
- setChildGender('')
- setGuardianName('')
- setGuardianPhone('')
+ if (/^[0-9]{8}$/.test(q)) { setRegisterDni(q); setRegisterKey(k => k + 1); setRegisterOpen(true) }
  }
  } catch { setSearchError('Error de conexión.') }
  finally { setSearching(false) }
  }
 
  const openRegistering = () => {
- setMode({ type: 'REGISTERING' })
- setGuardianDni('')
- setGuardianName('')
- setGuardianPhone('')
- setChildName('')
- setChildDni('')
- setChildAge('')
- setChildGender('')
+ setRegisterDni(''); setRegisterKey(k => k + 1); setRegisterOpen(true)
  setSelectedChild(null)
  setLastCode(null)
- }
-
- // ── register guardian + child ─────────────────────────────
- const handleRegister = async () => {
- if (registering) return
- if (!tenantId) {
- toast.error('No hay tenant activo. Vuelve a iniciar sesión.')
- return
- }
-
- const dni = guardianDni.trim()
- const gName = guardianName.trim()
- const cName = childName.trim()
-
- if (!dni || !gName || !cName) return
- if (dni.length < 7 || dni.length > 15) {
- toast.error('El DNI del apoderado debe tener entre 7 y 15 digitos.')
- return
- }
- if (childAge) {
- const ageNum = Number(childAge)
- if (!Number.isInteger(ageNum) || ageNum < 1 || ageNum > 17) {
- toast.error('La edad del niño debe estar entre 1 y 17.')
- return
- }
- }
-
- setRegistering(true)
- try {
- const body: Record<string, unknown> = {
- tenantId,
- dni,
- fullName: gName,
- childName: cName,
- }
- if (guardianPhone) body.phone = guardianPhone.trim()
- if (childDni) body.childDni = childDni.trim()
- if (childAge) body.childAge = parseInt(childAge)
- if (childGender) body.childGender = childGender
-
- const res = await (api.playzone.guardians as Loose).post(body)
- if (!res.error) {
- const guardian: Guardian = (res.data as Loose).data
- setMode({ type: 'FOUND', guardian })
- } else {
- toast.error(getApiErrorMessage(res.error, 'Error al registrar.'))
- }
- } catch (err) { toast.error(getApiErrorMessage(err, 'Error de conexión.')) }
- finally { setRegistering(false) }
  }
 
  // ── add child to existing guardian ────────────────────────
@@ -247,6 +199,7 @@ export function PlayZoneScreen() {
  try {
  const body: Record<string, unknown> = { tenantId, childId: selectedChild.id }
  if (selectedDuration.minutes !== null) body.durationMinutes = selectedDuration.minutes
+ if (selectedDuration.ally) body.allyDiscount = true
  if (companions > 0) body.companions = companions
  if (notes.trim()) body.notes = notes.trim()
  const res = await (api.playzone.sessions as Loose).post(body)
@@ -260,6 +213,7 @@ export function PlayZoneScreen() {
  setLastCode({ code: session.wristbandCode, price: selectedDuration.price === null && companions === 0 ? null : (selectedDuration.price ?? 0) + companions * companionPrice, childName: selectedChild.fullName, note, sessionId: session.id, needsPayment: !!(session.charge || session.companionsCharge) })
  queueCharge(session.charge)
  queueCharge(session.companionsCharge)
+ queueCharge(session.discountCharge)
  if (selectedDuration.minutes !== null && !session.charge) {
  console.warn('Sesión creada sin cargo base en la respuesta:', session)
  toast.error('La sesión se creó, pero el sistema no devolvió el monto a cobrar. Avisa al administrador.')
@@ -316,12 +270,12 @@ export function PlayZoneScreen() {
  }
 
  // El aviso "cobra en el ticket" solo vale mientras el cargo siga en el ticket: al pagar o quitarlo desaparece
- const shownCode = lastCode && (!lastCode.needsPayment || ticketCharges.some((c) => c.sessionId === lastCode.sessionId)) ? lastCode : null
+ const shownCode = wristbandOn && lastCode && (!lastCode.needsPayment || ticketCharges.some((c) => c.sessionId === lastCode.sessionId)) ? lastCode : null
 
  // ── render ────────────────────────────────────────────────
  return (
  <TerminalShell activeSection="playzone">
- <div className={wide ? 'grid grid-cols-[minmax(0,1fr)_360px] gap-4 h-full min-h-0' : 'h-full min-h-0'}>
+ <div className={wide ? 'grid grid-cols-[minmax(0,1fr)_360px] grid-rows-[minmax(0,1fr)] gap-4 h-full min-h-0' : 'h-full min-h-0'}>
  <div className="flex h-full min-w-0 flex-col overflow-hidden rounded-sm bg-transparent">
 
  {/* HEADER */}
@@ -388,7 +342,15 @@ export function PlayZoneScreen() {
  error={searchError}
  />
 
- <WristbandSearch codeSearch={codeSearch} setCodeSearch={setCodeSearch} codeResult={codeResult} codeSearching={codeSearching} onSearch={handleCodeSearch} onCheckout={handleCheckout} checkingOut={checkingOut} durationOptions={durationOptions} />
+ <RegisterModal key={registerKey} open={registerOpen} initialDni={registerDni} tenantId={tenantId} onClose={() => setRegisterOpen(false)}
+ onDone={(g) => { setRegisterOpen(false); setSearchError(''); setMode({ type: 'FOUND', guardian: g }); setSelectedChild(g.children.length === 1 ? { ...g.children[0]!, guardianName: g.fullName } : null) }} />
+ {wristbandOn && <WristbandSearch codeSearch={codeSearch} setCodeSearch={setCodeSearch} codeResult={codeResult} codeSearching={codeSearching} onSearch={handleCodeSearch} onCheckout={handleCheckout} checkingOut={checkingOut} durationOptions={durationOptions} />}
+ {can('company.settings') && rates && (
+ <label className="flex items-center gap-2 px-4 py-2 border-b border-border text-xs font-bold uppercase tracking-widest text-muted-foreground cursor-pointer">
+ <input type="checkbox" checked={wristbandOn} onChange={toggleWristband} />
+ Código de pulsera
+ </label>
+ )}
  <div className="flex gap-2 p-3 bg-muted border-b border-border">
  <button onClick={openRegistering}
  className="flex-1 flex items-center justify-center gap-2 py-3 bg-background border-2 border-border hover:border-muted-foreground text-foreground font-bold text-sm rounded-sm transition-none">
@@ -462,12 +424,7 @@ export function PlayZoneScreen() {
  <Input type="number" value={newChildAge} onChange={e => setNewChildAge(e.target.value)}
  placeholder="Edad" min={1} max={17}
  className="bg-background border border-border focus:border-brand-500 rounded-sm px-2.5 py-2 text-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none" />
- <Select value={newChildGender} onChange={e => setNewChildGender(e.target.value as Loose)}
- className="bg-background border border-border focus:border-brand-500 rounded-sm px-2.5 py-2 text-sm font-bold text-foreground focus:outline-none appearance-none">
- <option value="">Sexo</option>
- <option value="M">Masculino</option>
- <option value="F">Femenino</option>
- </Select>
+ <GenderButtons value={newChildGender} onChange={setNewChildGender} />
  </div>
  <details className="group"><summary className="cursor-pointer select-none py-1 text-xs font-bold text-muted-foreground">DNI del niño (opcional)</summary><div className="mt-2">
  <Input type="text" value={newChildDni} onChange={e => setNewChildDni(e.target.value.replace(/\D/g, ''))}
@@ -510,81 +467,14 @@ export function PlayZoneScreen() {
  </div>
  )}
 
- {/* ── NOT_FOUND or MANUAL REGISTER: child-first form ── */}
- {(mode.type === 'NOT_FOUND' || mode.type === 'REGISTERING') && (
- <div className="flex flex-col p-4 gap-4 bg-muted">
- <div className="flex items-center justify-between">
- <p className="text-[11px] font-black text-brand-500 uppercase tracking-widest">
- {mode.type === 'NOT_FOUND' ? 'No encontramos ese DNI: registra al cliente' : 'Registrar cliente nuevo'}
- </p>
- <button onClick={() => { setMode({ type: 'IDLE' }); setSearchQ('') }}
- className="text-muted-foreground hover:text-foreground transition-none">
- <XCircle className="w-5 h-5" />
+ {/* ── NOT_FOUND: el registro se hace en el modal ── */}
+ {mode.type === 'NOT_FOUND' && (
+ <div className="flex flex-col items-center gap-3 p-6 text-center bg-muted">
+ <p className="text-xs font-black uppercase tracking-widest text-brand-500">No encontramos ese DNI</p>
+ <button onClick={() => { setRegisterDni(mode.q); setRegisterKey(k => k + 1); setRegisterOpen(true) }}
+ className="flex items-center gap-2 rounded-sm bg-brand-600 px-4 py-2 text-xs font-black uppercase tracking-widest text-primary-foreground">
+ <UserPlus className="w-4 h-4" /> Registrar cliente
  </button>
- </div>
-
- <div className="flex flex-col gap-3">
- {/* CHILD INFO */}
- <div className="p-3 bg-muted border-2 border-brand-800 rounded-sm">
- <div className="flex items-center gap-1.5 mb-3">
- <Baby className="w-4 h-4 text-brand-500" />
- <SectionLabel className="mb-0 text-brand-500">Datos del Niño</SectionLabel>
- </div>
- <div className="flex flex-col gap-2">
- <Input type="text" value={childName} onChange={e => setChildName(e.target.value)}
- placeholder="Nombre completo *"
- className="w-full bg-background border border-border focus:border-brand-500 rounded-sm px-3 py-2 text-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors" />
-
- <div className="grid grid-cols-2 gap-2">
- <Input type="number" value={childAge} onChange={e => setChildAge(e.target.value)}
- placeholder="Edad" min={1} max={17}
- className="w-full bg-background border border-border focus:border-brand-500 rounded-sm px-3 py-2 text-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors" />
- <Select value={childGender} onChange={e => setChildGender(e.target.value as Loose)}
- className="w-full bg-background border border-border focus:border-brand-500 rounded-sm px-3 py-2 text-sm font-bold text-muted-foreground focus:outline-none transition-colors appearance-none">
- <option value="">Sexo</option>
- <option value="M">Masculino</option>
- <option value="F">Femenino</option>
- </Select>
- </div>
-
- <details className="group"><summary className="cursor-pointer select-none py-1 text-xs font-bold text-muted-foreground">Más datos del niño (opcional)</summary><div className="mt-2">
- <Input type="text" value={childDni} onChange={e => setChildDni(e.target.value.replace(/\D/g, ''))}
- placeholder="DNI Niño (opcional)" maxLength={8}
- className="w-full bg-background border border-border focus:border-brand-500 rounded-sm px-3 py-2 text-sm font-bold text-foreground font-mono placeholder:text-muted-foreground focus:outline-none transition-colors" />
- </div></details>
- </div>
- </div>
-
- {/* GUARDIAN INFO */}
- <div className="p-3 bg-muted border-2 border-border rounded-sm">
- <div className="flex items-center gap-1.5 mb-3">
- <User className="w-4 h-4 text-muted-foreground" />
- <SectionLabel className="mb-0 text-muted-foreground">Datos del Apoderado</SectionLabel>
- </div>
- <div className="flex flex-col gap-2">
- <Input type="text" value={guardianName} onChange={e => setGuardianName(e.target.value)}
- placeholder="Nombre completo *"
- className="w-full bg-background border border-border focus:border-brand-500 rounded-sm px-3 py-2 text-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none transition-colors" />
-
- <Input type="text" inputMode="numeric" value={guardianDni} onChange={e => setGuardianDni(e.target.value.replace(/\D/g, ''))}
- placeholder="DNI Apoderado *" maxLength={15}
- className="w-full bg-background border border-border focus:border-brand-500 rounded-sm px-3 py-2 text-sm font-bold text-foreground font-mono placeholder:text-muted-foreground focus:outline-none transition-colors" />
-
- <details className="group"><summary className="cursor-pointer select-none py-1 text-xs font-bold text-muted-foreground">Teléfono (opcional)</summary><div className="mt-2">
- <Input type="text" inputMode="numeric" value={guardianPhone} onChange={e => setGuardianPhone(e.target.value.replace(/\D/g, ''))}
- placeholder="Teléfono (opcional)" maxLength={15}
- className="w-full bg-background border border-border focus:border-brand-500 rounded-sm px-3 py-2 text-sm font-bold text-foreground font-mono placeholder:text-muted-foreground focus:outline-none transition-colors" />
- </div></details>
- </div>
- </div>
-
- <button onClick={handleRegister}
- disabled={!guardianDni || !guardianName || !childName || registering}
- className="flex items-center justify-center gap-2 w-full py-4 mt-2 bg-brand-600 hover:bg-brand-600 disabled:opacity-40 disabled:cursor-not-allowed text-primary-foreground font-black text-xs uppercase tracking-widest rounded-sm transition-none">
- <UserPlus className="w-5 h-5" />
- {registering ? 'Guardando...' : 'Guardar y elegir niño'}
- </button>
- </div>
  </div>
  )}
 
@@ -611,7 +501,7 @@ export function PlayZoneScreen() {
  {/* ═══════════════════════════════════════════
  RIGHT PANEL — Active Sessions Grid
  ═══════════════════════════════════════════ */}
- <ActiveSessionsGrid sessions={sessions} loadingSessions={loadingSessions} onCheckout={handleCheckout} checkingOut={checkingOut} durationOptions={durationOptions} />
+ <ActiveSessionsGrid sessions={sessions} loadingSessions={loadingSessions} onCheckout={handleCheckout} checkingOut={checkingOut} durationOptions={durationOptions} showCode={wristbandOn} />
  </div>
  )}
 

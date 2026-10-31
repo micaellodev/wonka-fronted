@@ -5,7 +5,7 @@ import { persist } from 'zustand/middleware'
 // etiqueta vienen del backend (tarifas del tenant); al vender, el backend
 // los recalcula desde la sesión y rechaza un cargo ya cobrado.
 
-export type PlayzoneChargeKind = 'base' | 'extra' | 'free' | 'comp'
+export type PlayzoneChargeKind = 'base' | 'extra' | 'free' | 'comp' | 'disc'
 
 /** Shape returned by the backend (`charge` on session start/complete). */
 export interface PlayzoneCharge {
@@ -45,7 +45,7 @@ export const usePlayzoneTicketStore = create<PlayzoneTicketState>()(
  total: 0,
 
  addCharge: (charge) => {
- if (charge.amount <= 0) return
+ if (charge.amount === 0) return // 'disc' es negativo a propósito
  // El backend manda un solo cargo de acompañantes ("... ACOMPAÑANTE x2 [código] ..."): mostrar la cantidad real y no "1"
  const comp = charge.kind === 'comp' ? /ACOMPA[ÑN]ANTE x(\d+)/i.exec(charge.label) : null
  const qty = comp ? Math.max(1, Number(comp[1])) : 1

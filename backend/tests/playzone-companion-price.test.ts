@@ -19,7 +19,9 @@ const rates = (companionPrice?: number) => ({
     ...(companionPrice === undefined ? {} : { companionPrice }),
 });
 const getRates = async () => (await call("GET", "/playzone/rates", { token: c.cashierToken, query: { tenantId: c.tid } })).json.data;
-const startWithCompanion = async () => (await call("POST", "/playzone/sessions", { token: c.cashierToken, body: { tenantId: c.tid, childId, durationMinutes: 30, companions: 1 } })).json.data;
+// El tiempo corre al iniciar, así que se anula la sesión (como al quitarla del carrito) para poder repetir con el mismo niño
+const cancelSession = (id: string) => call("DELETE", `/playzone/sessions/${id}/cancel?tenantId=${c.tid}`, { token: c.cashierToken });
+const startWithCompanion = async () => { const d = (await call("POST", "/playzone/sessions", { token: c.cashierToken, body: { tenantId: c.tid, childId, durationMinutes: 30, companions: 1 } })).json.data; await cancelSession(d.id); return d; };
 
 describe("precio del acompañante", () => {
     test("sin configurar: GET devuelve 5 y el cargo es 5", async () => {
@@ -47,12 +49,12 @@ describe("mismos precios para cualquier edad", () => {
         babyId = g.json.data.children[0].id;
     });
     const start = async (childId: string, durationMinutes: number, companions = 0) =>
-        (await call("POST", "/playzone/sessions", { token: c.cashierToken, body: { tenantId: c.tid, childId, durationMinutes, companions } })).json.data;
+        (async () => { const d = (await call("POST", "/playzone/sessions", { token: c.cashierToken, body: { tenantId: c.tid, childId, durationMinutes, companions } })).json.data; await cancelSession(d.id); return d; })();
 
-    test("menor de 3 años: 30 min = 10 y 1 hora = 15, y la sesión queda pendiente de cobro", async () => {
+    test("menor de 3 años: 30 min = 10 y 1 hora = 15, y la sesión corre desde el inicio", async () => {
         const a = await start(babyId, 30);
         expect(a.charge.amount).toBe(10);
-        expect(a.status).toBe("PENDING");
+        expect(a.status).toBe("ACTIVE"); // la anulación posterior no cambia lo devuelto
         expect((await start(babyId, 60)).charge.amount).toBe(15);
     });
     test("mayor de 3 años paga lo mismo", async () => {

@@ -16,7 +16,6 @@ import {
  Ban,
  PackageX,
  LineChart,
- UserPlus,
  Clock,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
@@ -120,12 +119,6 @@ export function AdminDashboardScreen() {
  desc: 'Ingresos y salidas',
  icon: Wallet,
  route: '/admin/cash-movements',
- },
- {
- label: 'Registro de Clientes',
- desc: 'Alta de clientes',
- icon: UserPlus,
- route: '/register-client',
  },
  {
  label: 'Historial de Ventas',

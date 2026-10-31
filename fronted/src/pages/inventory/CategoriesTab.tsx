@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Edit2, Layers, Upload, ImageIcon } from 'lucide-react'
+import { Plus, Edit2, Layers, Upload, ImageIcon, CornerDownRight } from 'lucide-react'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -7,16 +7,23 @@ import { Skeleton } from '@/components/ui/skeleton'
 import type { Category } from '@/types'
 import { ImageCropModal } from './ImageCropModal'
 import { ConfirmModal, ErrorBox, ErrorRetry, Field, Modal } from './shared'
-import { apiMsg } from './utils'
+import { apiMsg, selectClass } from './utils'
 import { useCan } from '@/lib/permissions'
+import { CAT_SEP, joinCategory, sortCategories, splitCategory } from '@/lib/catalog'
 
 export type CategoryWithCount = Category & { _count?: { products: number } }
 
-function CategoryModal({ tenantId, editing, onClose, onSaved }: {
- tenantId: string; editing: CategoryWithCount | null; onClose: () => void; onSaved: () => void
+function CategoryModal({ tenantId, editing, categories, presetParent, onClose, onSaved }: {
+ tenantId: string; editing: CategoryWithCount | null; categories: CategoryWithCount[]; presetParent?: string
+ onClose: () => void; onSaved: () => void
 }) {
  const productCount = editing?._count?.products ?? 0
- const [name, setName] = useState(editing?.name ?? '')
+ const initial = splitCategory(editing?.name ?? '')
+ const [parent, setParent] = useState(initial.parent ?? presetParent ?? '')
+ const [name, setName] = useState(initial.leaf)
+ // Solo dos niveles: principal > subcategoría. Una principal con hijas no puede volverse subcategoría.
+ const children = editing && !initial.parent ? categories.filter((c) => splitCategory(c.name).parent === editing.name) : []
+ const parentOptions = categories.filter((c) => !splitCategory(c.name).parent && c.id !== editing?.id).map((c) => c.name)
  const [imageUrl, setImageUrl] = useState(editing?.imageUrl ?? '')
  const [uploading, setUploading] = useState(false)
  const [saving, setSaving] = useState(false)
@@ -49,8 +56,10 @@ function CategoryModal({ tenantId, editing, onClose, onSaved }: {
  }
 
  const handleSave = async () => {
-  const trimmed = name.trim()
-  if (!trimmed || saving || uploading) return
+  const leaf = name.trim()
+  if (!leaf || saving || uploading) return
+  if (leaf.includes(CAT_SEP.trim())) { setError(`El nombre no puede contener "${CAT_SEP.trim()}"; para una subcategoría elige la categoría principal.`); return }
+  const trimmed = parent ? joinCategory(parent, leaf) : leaf
   if (trimmed.length > 80) { setError('El nombre admite como máximo 80 caracteres.'); return }
   setSaving(true)
   setError('')
@@ -60,6 +69,15 @@ function CategoryModal({ tenantId, editing, onClose, onSaved }: {
     ? await api.inventory.categories({ id: editing.id }).patch({ name: trimmed, imageUrl }, { query: { tenantId } })
     : await api.inventory.categories.post({ tenantId, name: trimmed, ...(imageUrl ? { imageUrl } : {}) })
    if (res.error) { setError(apiMsg(res.error, 'Error guardando la categoría.')); return }
+   // Si se renombró una principal, sus subcategorías cambian de ruta con ella
+   if (editing && children.length && trimmed !== editing.name) {
+    let failed = 0
+    for (const ch of children) {
+     const r = await api.inventory.categories({ id: ch.id }).patch({ name: joinCategory(trimmed, splitCategory(ch.name).leaf) }, { query: { tenantId } })
+     if (r.error) failed++
+    }
+    if (failed) { setError(`Se renombró la categoría, pero ${failed} subcategoría(s) no se pudieron actualizar. Ábrelas y revisa su nombre.`); return }
+   }
    onSaved()
   } catch {
    setError('Error guardando la categoría.')
@@ -85,7 +103,7 @@ function CategoryModal({ tenantId, editing, onClose, onSaved }: {
  }
 
  return (
-  <Modal title={editing ? 'Editar categoría' : 'Nueva categoría'} subtitle="Nombre e imagen de la categoría." onClose={onClose} testId="category-modal">
+  <Modal title={editing ? 'Editar categoría' : parent ? 'Nueva subcategoría' : 'Nueva categoría'} subtitle="Nombre e imagen. Las subcategorías organizan una categoría principal (ej. Bebidas › Gaseosas)." onClose={onClose} testId="category-modal">
    <label className="group relative flex h-36 w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-border bg-muted hover:border-primary">
     {imageUrl ? (
      <>
@@ -101,8 +119,15 @@ function CategoryModal({ tenantId, editing, onClose, onSaved }: {
    </label>
    {cropSrc && <ImageCropModal imageSrc={cropSrc} aspectRatio={1} onConfirm={handleCropConfirm} onCancel={() => setCropSrc(null)} />}
 
-   <Field label="Nombre de la categoría">
-    <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Chocolates" maxLength={80}
+   <Field label="Categoría principal" hint={children.length ? 'Tiene subcategorías, por eso no puede colgar de otra.' : 'Déjalo en "Ninguna" si es una categoría principal.'}>
+    <select value={parent} onChange={(e) => setParent(e.target.value)} disabled={children.length > 0} className={selectClass} data-testid="category-parent">
+     <option value="">Ninguna (es principal)</option>
+     {parentOptions.map((p) => <option key={p} value={p}>{p}</option>)}
+    </select>
+   </Field>
+
+   <Field label={parent ? 'Nombre de la subcategoría' : 'Nombre de la categoría'}>
+    <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={parent ? 'Ej. Gaseosas' : 'Ej. Bebidas'} maxLength={80}
      onKeyDown={(e) => e.key === 'Enter' && handleSave()} data-testid="category-name" />
    </Field>
 
@@ -112,10 +137,10 @@ function CategoryModal({ tenantId, editing, onClose, onSaved }: {
    <ErrorBox message={error} />
 
    {editing && (
-    <Button type="button" variant="ghost" size="sm" className="self-start text-destructive" disabled={saving || productCount > 0}
-     title={productCount > 0 ? 'Solo se pueden eliminar categorías sin productos' : ''}
+    <Button type="button" variant="ghost" size="sm" className="self-start text-destructive" disabled={saving || productCount > 0 || children.length > 0}
+     title={productCount > 0 ? 'Solo se pueden eliminar categorías sin productos' : children.length > 0 ? 'Elimina primero sus subcategorías' : ''}
      onClick={() => setConfirmDel(true)} data-testid="category-delete">
-     Eliminar categoría{productCount > 0 ? ` (tiene ${productCount} productos)` : ''}
+     Eliminar categoría{productCount > 0 ? ` (tiene ${productCount} productos)` : children.length > 0 ? ` (tiene ${children.length} subcategorías)` : ''}
     </Button>
    )}
 
@@ -137,7 +162,7 @@ function CategoryModal({ tenantId, editing, onClose, onSaved }: {
 export function CategoriesTab({ tenantId, categories, loading, error, onReload }: {
  tenantId: string; categories: CategoryWithCount[]; loading: boolean; error: string; onReload: () => void
 }) {
- const [modal, setModal] = useState<{ editing: CategoryWithCount | null } | null>(null)
+ const [modal, setModal] = useState<{ editing: CategoryWithCount | null; parent?: string } | null>(null)
  const canEdit = useCan().can('inventory.edit')
 
  return (
@@ -157,8 +182,10 @@ export function CategoriesTab({ tenantId, categories, loading, error, onReload }
     </div>
    ) : (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-     {categories.map((cat) => {
+     {sortCategories(categories).map((cat) => {
       const count = cat._count?.products ?? 0
+      const { parent, leaf } = splitCategory(cat.name)
+      const subCount = parent ? 0 : categories.filter((c) => splitCategory(c.name).parent === cat.name).length
       return (
        <div key={cat.id} data-testid="category-card" className="group relative overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="aspect-square w-full overflow-hidden bg-muted">
@@ -166,8 +193,12 @@ export function CategoriesTab({ tenantId, categories, loading, error, onReload }
           : <div className="flex size-full items-center justify-center"><Layers className="size-10 text-muted-foreground opacity-50" /></div>}
         </div>
         <div className="p-3">
-         <p className="truncate text-sm font-bold text-foreground">{cat.name}</p>
-         <p className="mt-0.5 text-xs text-muted-foreground">{count} {count === 1 ? 'producto' : 'productos'}</p>
+         {parent && <p className="flex items-center gap-1 truncate text-[11px] font-semibold text-muted-foreground"><CornerDownRight className="size-3 shrink-0" aria-hidden /> {parent}</p>}
+         <p className="truncate text-sm font-bold text-foreground" title={cat.name}>{leaf}</p>
+         <p className="mt-0.5 text-xs text-muted-foreground">
+          {count} {count === 1 ? 'producto' : 'productos'}{subCount > 0 && ` · ${subCount} ${subCount === 1 ? 'subcategoría' : 'subcategorías'}`}
+         </p>
+         {canEdit && !parent && <Button size="sm" variant="ghost" className="mt-1 h-7 px-2 text-xs" onClick={() => setModal({ editing: null, parent: cat.name })} data-testid="category-add-sub"><Plus className="size-3" /> Subcategoría</Button>}
         </div>
         {canEdit && <Button size="icon" variant="outline" className="absolute right-2 top-2 size-8" aria-label={`Editar ${cat.name}`}
          onClick={() => setModal({ editing: cat })} data-testid="category-edit"><Edit2 /></Button>}
@@ -177,7 +208,7 @@ export function CategoriesTab({ tenantId, categories, loading, error, onReload }
     </div>
    )}
    {modal && (
-    <CategoryModal tenantId={tenantId} editing={modal.editing} onClose={() => setModal(null)} onSaved={() => { setModal(null); onReload() }} />
+    <CategoryModal tenantId={tenantId} editing={modal.editing} categories={categories} presetParent={modal.parent} onClose={() => setModal(null)} onSaved={() => { setModal(null); onReload() }} />
    )}
   </div>
  )

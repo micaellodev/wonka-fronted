@@ -2,6 +2,7 @@ import { Minus, Plus, Trash2, Package, Folder, Search, Heart, LayoutGrid, Shoppi
 import type { Product, Category, CartItem } from '@/types'
 import { stockLimit } from '@/store/cartStore'
 import { formatPEN } from '@/lib/format'
+import { splitVariant } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
 
 export function ProductCard({
@@ -90,8 +91,8 @@ export function CartRow({
  return (
  <div className="flex items-center gap-2 px-2 py-2 border-b border-border hover:bg-muted">
  <div className="flex-1 flex flex-col justify-center min-w-0 pr-1">
- <p className="text-xs font-bold text-foreground leading-tight uppercase truncate">{item.product.name}</p>
- <p className="text-[11px] font-mono text-muted-foreground">{formatPEN(item.product.price)} UN.</p>
+ <p className="text-xs font-bold text-foreground leading-tight uppercase truncate" title={item.product.name}>{splitVariant(item.product.name).variant ?? item.product.name}</p>
+ <p className="text-[11px] font-mono text-muted-foreground truncate">{splitVariant(item.product.name).variant ? `${splitVariant(item.product.name).base} · ` : ''}{formatPEN(item.product.price)} UN.</p>
  </div>
 
  <div className="w-20 flex flex-col items-center shrink-0">
@@ -151,7 +152,7 @@ export function CatalogTabs({
   ]
 
   return (
-  <div className="mb-3 flex items-center gap-1 border-b border-border pb-2 overflow-x-auto">
+  <div className="mb-3 flex shrink-0 items-center gap-1 border-b border-border pb-2 overflow-x-auto">
   {tabs.map((tab) => {
   const Icon = tab.icon
   const isActive = activeTab === tab.id

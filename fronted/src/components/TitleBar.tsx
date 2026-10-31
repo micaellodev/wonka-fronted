@@ -3,7 +3,12 @@ import { useEffect, useState } from 'react'
 export function TitleBar() {
   const api = window.electronAPI
   const [pending, setPending] = useState(false)
-  useEffect(() => api?.onUpdateStatus(() => setPending(true)), [api])
+  useEffect(() => {
+    if (!api) return
+    const apply = (s: UpdateStatus | null) => setPending(s?.state === 'downloading' || s?.state === 'ready')
+    void api.getUpdateStatus().then(apply)
+    return api.onUpdateStatus(apply)
+  }, [api])
 
   if (!api) return null
 

@@ -42,9 +42,12 @@ export type CreatePlaySessionInput = {
     tenantId: string;
     childId: string;
     durationMinutes?: number;
+    /** Descuento por aliado: exige durationMinutes; el ticket lleva el cargo base y una línea de descuento igual */
+    allyDiscount?: boolean;
     companions?: number;
     notes?: string;
 };
+
 
 export type PlayzoneReportSummary = {
     periodDays: number;
@@ -86,6 +89,8 @@ export type PlayzoneRates = {
     freePerMinute: number;
     /** S/ por acompañante adicional; si falta se usa COMPANION_PRICE (tarifas guardadas antes de este campo) */
     companionPrice?: number;
+    /** Código de pulsera visible en la UI (el dueño lo apaga); si falta, activo */
+    wristbandEnabled?: boolean;
 };
 
 export const DEFAULT_PLAYZONE_RATES: PlayzoneRates = {
@@ -106,7 +111,8 @@ function isPlayzoneRates(v: unknown): v is PlayzoneRates {
         r.durations.every((d) => Number.isInteger(d.minutes) && d.minutes > 0 && d.price >= 0 && typeof d.label === "string") &&
         typeof r.extraPerMinute === "number" && r.extraPerMinute >= 0 &&
         typeof r.freePerMinute === "number" && r.freePerMinute >= 0 &&
-        (r.companionPrice === undefined || (typeof r.companionPrice === "number" && r.companionPrice >= 0))
+        (r.companionPrice === undefined || (typeof r.companionPrice === "number" && r.companionPrice >= 0)) &&
+        (r.wristbandEnabled === undefined || typeof r.wristbandEnabled === "boolean")
     );
 }
 
@@ -129,7 +135,7 @@ export async function updatePlayzoneRates(tenantId: string, rates: PlayzoneRates
     return rates;
 }
 
-export type PlayzoneChargeKind = "base" | "extra" | "free" | "comp";
+export type PlayzoneChargeKind = "base" | "extra" | "free" | "comp" | "disc";
 
 export const MAX_COMPANIONS = 2;
 const COMPANION_PRICE = 5; // valor por defecto de playzoneRates.companionPrice; igual para cualquier edad del niño
@@ -146,6 +152,7 @@ export type PlayzoneCharge = {
 type ChargeableSession = {
     id: string;
     durationMinutes: number | null;
+    allyDiscount?: boolean;
     companions: number;
     startTime: Date;
     endTime: Date | null;
@@ -175,6 +182,13 @@ export function computePlayzoneCharge(
         const rate = rates.durations.find((d) => d.minutes === session.durationMinutes);
         if (!rate) throw new Error(`No hay tarifa configurada para ${session.durationMinutes} min.`);
         return { ...base, label: `JUEGOS ${rate.label} ${tag}`, amount: rate.price };
+    }
+
+    if (kind === "disc") {
+        if (!session.allyDiscount || session.durationMinutes === null) throw new Error(`La sesión ${session.wristbandCode} no tiene descuento por aliado.`);
+        const rate = rates.durations.find((d) => d.minutes === session.durationMinutes);
+        if (!rate) throw new Error(`No hay tarifa configurada para ${session.durationMinutes} min.`);
+        return { ...base, label: `DESCUENTO POR ALIADO ${tag}`, amount: -rate.price };
     }
 
     if (kind === "comp") {
@@ -365,6 +379,7 @@ export async function createPlaySession(input: CreatePlaySessionInput) {
     }
 
     const rates = await getPlayzoneRates(input.tenantId);
+    if (input.allyDiscount && input.durationMinutes === undefined) throw new Error("El descuento por aliado requiere un tiempo contratado.");
     if (input.durationMinutes !== undefined && !rates.durations.some((d) => d.minutes === input.durationMinutes)) {
         throw new Error(`No hay tarifa configurada para ${input.durationMinutes} min.`);
     }
@@ -376,11 +391,12 @@ export async function createPlaySession(input: CreatePlaySessionInput) {
                 tenantId: input.tenantId,
                 childId: input.childId,
                 durationMinutes: input.durationMinutes ?? null,
+                allyDiscount: !!input.allyDiscount,
                 companions,
                 notes: input.notes?.trim() || null,
                 wristbandCode: await generateUniqueCode(input.tenantId),
-                // Con cargo base la sesión espera el cobro (processSale la activa); el tiempo libre se cobra al final
-                status: companions > 0 || input.durationMinutes !== undefined ? "PENDING" : "ACTIVE",
+                // El tiempo corre desde que se inicia; el cobro en caja es independiente
+                status: "ACTIVE",
                 startTime: new Date(),
             },
             include: {
@@ -401,7 +417,8 @@ export async function createPlaySession(input: CreatePlaySessionInput) {
     const baseCharge = session.durationMinutes === null ? null : computePlayzoneCharge(session, "base", rates);
     const charge = baseCharge && baseCharge.amount > 0 ? baseCharge : null;
     const companionsCharge = companions > 0 ? computePlayzoneCharge(session, "comp", rates) : null;
-    return { ...session, charge, companionsCharge };
+    const discountCharge = session.allyDiscount && charge ? computePlayzoneCharge(session, "disc", rates) : null;
+    return { ...session, charge, companionsCharge, discountCharge };
 }
 
 // ── Session: lookup by code ──────────────────────────────────
@@ -429,8 +446,8 @@ export async function listActiveSessions(tenantId: string) {
 // ── Session: cancel (quitada del carrito antes de cobrar) ────
 
 export async function cancelPendingSession(tenantId: string, sessionId: string) {
-    // Solo PENDING: una sesión ya cobrada/activa no se puede borrar desde el carrito
-    const { count } = await prisma.playSession.deleteMany({ where: { id: sessionId, tenantId, status: "PENDING" } });
+    // Quitar del carrito anula la sesión; solo si el cargo base/acompañantes sigue sin cobrar (no hay venta con ese cargo)
+    const { count } = await prisma.playSession.deleteMany({ where: { id: sessionId, tenantId, status: { in: ["PENDING", "ACTIVE"] } } });
     if (count === 0) throw new Error("Sesión pendiente no encontrada.");
 }
 

@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/authStore'
 import { useCashStatusStore } from '@/store/cashStatusStore'
 import { TerminalShell } from '@/components/TerminalShell'
+import { CashOpeningModal } from '@/components/CashOpeningModal'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { toast } from '@/components/ui/toast'
@@ -70,6 +71,9 @@ export function CashCloseScreen() {
   const [countedYape, setCountedYape] = useState<string>('')
   const [countedTarjeta, setCountedTarjeta] = useState<string>('')
 
+  const [showOpenModal, setShowOpenModal] = useState(false)
+  const [opening, setOpening] = useState(false)
+  const [openError, setOpenError] = useState<string | null>(null)
   const [showCloseModal, setShowCloseModal] = useState(false)
   const [showPrintModal, setShowPrintModal] = useState(false)
   const [pendingClose, setPendingClose] = useState<CashCloseRecord | null>(null)
@@ -130,6 +134,24 @@ export function CashCloseScreen() {
   const countsValid = [valCountedEfectivo, valCountedYape, valCountedTarjeta].every(
     (v) => Number.isFinite(v) && v >= 0
   )
+
+  const handleOpening = async (amount: number) => {
+    if (!tenantId || !activeWorker) return
+    setOpening(true)
+    setOpenError(null)
+    try {
+      const { error } = await api.cash.opening.post({ tenantId, workerId: activeWorker.id, amount })
+      // 409: someone else already opened the drawer; just adopt it
+      if (error && error.status !== 409) throw error
+      await refresh(tenantId)
+      setShowOpenModal(false)
+      toast.success('Caja abierta')
+    } catch (err) {
+      setOpenError(apiErrorMessage(err))
+    } finally {
+      setOpening(false)
+    }
+  }
 
   const handleOpenDrawer = () => {
     // shortcut: no cash-drawer hardware integration yet; only informs the user.
@@ -225,9 +247,9 @@ export function CashCloseScreen() {
             <Button variant="outline" onClick={() => setShowPrintModal(true)} className={outlineBtn}>
               <Printer className="h-4 w-4" aria-hidden /> Imprimir
             </Button>
-            {summary?.cashStatus === 'CERRADA' && (
-              <Button onClick={() => navigate('/cash-guard')} className="h-10 px-5 text-xs font-bold tracking-wide">
-                Abrir turno nuevo
+            {(summary?.cashStatus === 'CERRADA' || summary?.cashStatus === 'NO_ABIERTA') && (
+              <Button onClick={() => { setOpenError(null); setShowOpenModal(true) }} className="h-10 px-5 text-xs font-bold tracking-wide">
+                {summary.cashStatus === 'CERRADA' ? 'Abrir turno nuevo' : 'Abrir caja'}
               </Button>
             )}
             <Button variant="outline" onClick={handleOpenDrawer} className={outlineBtn}>
@@ -437,6 +459,9 @@ export function CashCloseScreen() {
         />
         <CloseSuccessDialog open={successClose} />
       </div>
+      {showOpenModal && (
+        <CashOpeningModal onConfirm={handleOpening} isLoading={opening} serverError={openError} onCancel={() => setShowOpenModal(false)} />
+      )}
     </TerminalShell>
   )
 }

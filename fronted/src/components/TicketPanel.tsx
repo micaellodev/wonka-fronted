@@ -4,11 +4,13 @@ import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
 import { useCartStore } from '@/store/cartStore'
 import { usePlayzoneTicketStore } from '@/store/playzoneTicketStore'
+import { CASH_LABEL, useCashStatusStore } from '@/store/cashStatusStore'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
 import { RightCheckoutDrawer } from '@/components/RightCheckoutDrawer'
 import { CartRow } from '@/pages/pos/CatalogParts'
 import { formatPEN } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
 // ============================================================
 // TicketPanel — carrito + cobro, compartido por POS y Juegos
@@ -23,21 +25,33 @@ function useClock() {
  return now
 }
 
-export function TicketPanel({ onSaleComplete }: { onSaleComplete?: () => void }) {
+export function TicketPanel({ onSaleComplete, className }: { onSaleComplete?: () => void; className?: string }) {
  const { tenantId, activeWorker } = useAuthStore()
  const { items, total, addItem, decrementItem, removeItem, clearCart } = useCartStore()
  const { charges: playzoneCharges, total: playzoneTotal, clearAllCharges, removeCharge } = usePlayzoneTicketStore()
  const [checkoutOpen, setCheckoutOpen] = useState(false)
  const timeStr = useClock().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
  const hasCart = items.length > 0 || playzoneCharges.length > 0
+ const cashStatus = useCashStatusStore((st) => st.summary?.cashStatus)
+ const cashBlocked = !!cashStatus && cashStatus !== 'ABIERTA'
+
+ // Con la caja cerrada el botón sigue activo para poder avisar el porqué (un botón desactivado no dice nada)
+ const tryCharge = () => {
+ if (!hasCart) return
+ if (cashBlocked) {
+ toast.error(`La caja está ${CASH_LABEL[cashStatus!].toLowerCase()}. Abre la caja en "Apertura y cierre" para poder cobrar.`)
+ return
+ }
+ setCheckoutOpen(true)
+ }
 
  useEffect(() => {
  const onKey = (e: KeyboardEvent) => {
- if (e.key === 'F9' || (e.ctrlKey && e.key === 'Enter')) { e.preventDefault(); if (hasCart) setCheckoutOpen(true) }
+ if (e.key === 'F9' || (e.ctrlKey && e.key === 'Enter')) { e.preventDefault(); tryCharge() }
  }
  window.addEventListener('keydown', onKey)
  return () => window.removeEventListener('keydown', onKey)
- }, [hasCart])
+ }, [hasCart, cashBlocked, cashStatus])
 
  // Quitar el tiempo (base) o el acompañante (comp) cancela la sesión pendiente y saca ambas líneas del ticket
  const handleRemoveCharge = async (charge: { id: string; sessionId: string; kind: string }) => {
@@ -66,7 +80,7 @@ export function TicketPanel({ onSaleComplete }: { onSaleComplete?: () => void })
 
  return (
  <>
- <aside className="flex min-h-0 flex-col rounded-xl border border-border bg-background">
+ <aside className={cn('flex min-h-0 flex-col rounded-xl border border-border bg-background', className)}>
  <div className="border-b border-border px-4 py-4">
  <h2 className="text-sm font-bold text-foreground tracking-widest uppercase">Ticket</h2>
  <p className="mt-0.5 text-[11px] font-mono text-muted-foreground">
@@ -154,7 +168,7 @@ export function TicketPanel({ onSaleComplete }: { onSaleComplete?: () => void })
  <Button
   className="flex-1 h-14 bg-secondary-500 hover:bg-secondary-600 text-base font-black uppercase tracking-widest"
   disabled={!hasCart}
-  onClick={() => setCheckoutOpen(true)}
+  onClick={tryCharge}
  >
   <CreditCard className="w-5 h-5 mr-2" />
   Cobrar

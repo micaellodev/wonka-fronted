@@ -10,9 +10,10 @@ interface CashOpeningModalProps {
  isLoading?: boolean
  defaultAmount?: number | null
  serverError?: string | null
+ onCancel?: () => void
 }
 
-export function CashOpeningModal({ onConfirm, isLoading = false, defaultAmount = null, serverError = null }: CashOpeningModalProps) {
+export function CashOpeningModal({ onConfirm, isLoading = false, defaultAmount = null, serverError = null, onCancel }: CashOpeningModalProps) {
  const [amount, setAmount] = useState<string>(defaultAmount !== null ? String(defaultAmount) : '')
  const [error, setError] = useState<string>('')
 
@@ -34,9 +35,8 @@ export function CashOpeningModal({ onConfirm, isLoading = false, defaultAmount =
  }
 
  return (
- // Not dismissable: sales stay blocked until the day is opened.
- <Dialog open onOpenChange={() => {}}>
- <DialogContent size="md" showCloseButton={false}>
+ <Dialog open onOpenChange={(o) => { if (!o) onCancel?.() }}>
+ <DialogContent size="md" showCloseButton={!!onCancel}>
  <DialogHeader>
  <div className="flex items-center gap-3">
  <DollarSign className="h-5 w-5 text-primary" aria-hidden />

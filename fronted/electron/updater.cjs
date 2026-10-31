@@ -13,9 +13,16 @@ function setupUpdater(getWindow, openSplash) {
   const log = (msg) => {
     try { fs.appendFileSync(path.join(app.getPath('userData'), 'updater.log'), `${new Date().toISOString()} ${msg}\n`) } catch { /* sin log */ }
   }
-  const send = (payload) => getWindow()?.webContents.send('update:status', payload)
+  // lastStatus: el renderer lo pide al montar (si recargó, se perdió el aviso 'ready' y el botón no aparecía o quedaba viejo)
+  let lastStatus = null
+  const send = (payload) => {
+    lastStatus = payload
+    const w = getWindow()
+    if (w && !w.isDestroyed()) w.webContents.send('update:status', payload)
+  }
 
   ipcMain.handle('app:version', () => app.getVersion())
+  ipcMain.handle('update:get-status', () => lastStatus)
   if (!app.isPackaged || !fs.existsSync(path.join(process.resourcesPath, 'app-update.yml'))) {
     log('updater desactivado (no empaquetado o sin app-update.yml)')
     return { startup: async () => false }
@@ -33,7 +40,8 @@ function setupUpdater(getWindow, openSplash) {
   autoUpdater.on('update-available', (i) => { busy = true; pendingVersion = i.version; log(`disponible ${i.version}`); send({ state: 'downloading', version: i.version }) })
   autoUpdater.on('download-progress', (p) => send({ state: 'downloading', percent: Math.round(p.percent) }))
   autoUpdater.on('update-downloaded', (i) => { downloaded = true; log(`descargada ${i.version}`); send({ state: 'ready', version: i.version }) })
-  autoUpdater.on('error', (e) => { busy = false; log(`error: ${e?.message ?? e}`) })
+  // sin 'error' en el estado, el botón quedaba visible aunque la descarga hubiera fallado
+  autoUpdater.on('error', (e) => { busy = false; log(`error: ${e?.message ?? e}`); if (!downloaded) send({ state: 'error' }) })
 
   // Botón "Actualización pendiente": oculta la app, muestra la ventana de progreso (espera la descarga si aún corre) e instala.
   // (true, true): instalación invisible y la app se vuelve a abrir sola; sin esto salía el instalador de Electron y no reabría
@@ -49,10 +57,17 @@ function setupUpdater(getWindow, openSplash) {
     try {
       onProgress({ stage: 'download', percent: downloaded ? 100 : 0, version: pendingVersion })
       if (!downloaded) {
-        await new Promise((resolve, reject) => {
+        const waiting = new Promise((resolve, reject) => {
           autoUpdater.once('update-downloaded', resolve)
           autoUpdater.once('error', reject)
         })
+        waiting.catch(() => {})
+        // Sin descarga en curso (falló antes) esperar colgaba la app oculta para siempre: se vuelve a buscar
+        if (!busy) {
+          const r = await autoUpdater.checkForUpdates()
+          if (!r?.isUpdateAvailable) throw new Error('no hay actualización disponible')
+        }
+        await waiting
       }
       onProgress({ stage: 'install', version: pendingVersion })
       await new Promise((r) => setTimeout(r, 1200)) // que se vea el 100% antes de cerrar
@@ -62,6 +77,7 @@ function setupUpdater(getWindow, openSplash) {
       log(`instalar falló: ${e?.message ?? e}`)
       autoUpdater.removeListener('download-progress', alProgreso)
       installingNow = false
+      if (!downloaded) send({ state: 'error' })
       if (!splash.isDestroyed()) splash.close()
       getWindow()?.show()
     }

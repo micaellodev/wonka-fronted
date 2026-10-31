@@ -14,7 +14,6 @@ import { ReportsScreen } from '@/pages/ReportsScreen'
 import { CashCloseHistoryScreen } from '@/pages/CashCloseHistoryScreen'
 import { CashMovementsScreen } from '@/pages/CashMovementsScreen'
 import { PlayZoneScreen } from '@/pages/PlayZoneScreen'
-import { RegisterClientScreen } from '@/pages/RegisterClientScreen'
 import { BillingNotesScreen } from '@/pages/BillingNotesScreen'
 import { AdminDashboardScreen } from '@/pages/AdminDashboardScreen'
 import { CompanySettingsScreen } from '@/pages/CompanySettingsScreen'
@@ -23,23 +22,17 @@ import { CashCloseScreen } from '@/pages/CashCloseScreen'
 import { SalesHistoryScreen } from '@/pages/SalesHistoryScreen'
 import { SalesStatisticsScreen } from '@/pages/SalesStatisticsScreen'
 import { AdminLayout } from '@/components/AdminLayout'
-import { CashDrawerGuard } from '@/components/CashDrawerGuard'
 import { useAuthStore } from '@/store/authStore'
 import { useCan } from '@/lib/permissions'
 import { useAdminStore } from '@/store/adminStore'
 import { useCashStatusStore } from '@/store/cashStatusStore'
 
-/** Redirects to /cash-guard after successful login */
+/** After login go straight to the home screen; the cash opening lives in "Apertura y cierre" */
 function RootRedirect() {
  const activeWorker = useAuthStore((s) => s.activeWorker)
+ const { canEnterAdmin } = useCan()
  if (!activeWorker) return <LoginScreen />
- return <Navigate to="/cash-guard" replace />
-}
-
-/** Redirects to appropriate screen after login with cash drawer check */
-function CashDrawerGuardRoute() {
- const activeWorker = useAuthStore((s) => s.activeWorker)
- return activeWorker ? <CashDrawerGuard /> : <Navigate to="/" replace />
+ return <Navigate to={canEnterAdmin ? '/admin' : '/pos'} replace />
 }
 
 /** Guards /pos — unauthenticated users are sent back to login */
@@ -93,18 +86,17 @@ const Router = window.location.protocol === 'file:' ? HashRouter : BrowserRouter
 
 export default function App() {
  return (
- <div className="h-screen flex flex-col">
+ <div className="h-screen flex flex-col overflow-hidden">
  <TitleBar />
  <Toaster />
  <Router>
  <CashStatusSync />
- <div className="flex-1 overflow-hidden">
+ {/* min-h-0: sin esto el hijo flex no se encoge y la pantalla se corta por abajo en monitores chicos */}
+ <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
  <Routes>
  <Route path="/" element={<RootRedirect />} />
- <Route path="/cash-guard" element={<CashDrawerGuardRoute />} />
   <Route path="/pos" element={<PosGuard />} />
   <Route path="/sales-history" element={<WorkerGuard><SalesHistoryScreen /></WorkerGuard>} />
-    <Route path="/register-client" element={<WorkerGuard><RegisterClientScreen /></WorkerGuard>} />
   <Route path="/playzone" element={<WorkerGuard><PlayZoneScreen /></WorkerGuard>} />
   <Route path="/cash-close" element={<WorkerGuard><CashCloseScreen /></WorkerGuard>} />
   <Route path="/movimientos-caja" element={<WorkerGuard><CashMovementsScreen /></WorkerGuard>} />

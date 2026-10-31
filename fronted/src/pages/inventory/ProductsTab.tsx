@@ -13,6 +13,7 @@ import { ConfirmModal, ErrorRetry, Pager, TableSkeleton } from './shared'
 import { apiMsg, money, selectClass, useDebounced } from './utils'
 import { useCan } from '@/lib/permissions'
 import { ExportButtons } from '@/components/ExportButtons'
+import { categoryGroups, splitVariant } from '@/lib/catalog'
 
 export type StockFilter = 'all' | 'low' | 'out' | 'ok'
 const LIMIT = 20
@@ -120,7 +121,9 @@ export function ProductsTab({ tenantId, categories, initialStock, onChanged, onC
     </div>
     <select className={`${selectClass} w-auto`} value={categoryId} onChange={(e) => filter(setCategoryId)(e.target.value)} data-testid="filter-category" aria-label="Categoría">
      <option value="">Todas las categorías</option>
-     {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+     {categoryGroups(categories).map((g) => g.items.length === 1
+      ? <option key={g.items[0]!.id} value={g.items[0]!.id}>{g.items[0]!.label}</option>
+      : <optgroup key={g.label} label={g.label}>{g.items.map((i) => <option key={i.id} value={i.id}>{i.label}</option>)}</optgroup>)}
     </select>
     <select className={`${selectClass} w-auto`} value={stock} onChange={(e) => filter(setStock)(e.target.value as StockFilter)} data-testid="filter-stock" aria-label="Estado de stock">
      <option value="all">Todo el stock</option>
@@ -168,7 +171,10 @@ export function ProductsTab({ tenantId, categories, initialStock, onChanged, onC
              {p.imageUrl ? <img src={p.imageUrl} className="size-full object-cover" alt="" />
               : <div className="flex size-full items-center justify-center"><Package className="size-4 text-muted-foreground" /></div>}
             </div>
-            <span className="font-medium text-foreground" data-testid="product-name-cell">{p.name}</span>
+            <span className="font-medium text-foreground" data-testid="product-name-cell">
+             {splitVariant(p.name).base}
+             {splitVariant(p.name).variant && <Badge variant="outline" className="ml-2 normal-case">{splitVariant(p.name).variant}</Badge>}
+            </span>
            </div>
           </TableCell>
           <TableCell className="font-mono text-muted-foreground">{p.sku}</TableCell>

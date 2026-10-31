@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useCan } from '@/lib/permissions'
 
-type ActiveSection = 'pos' | 'sales-history' | 'sales-stats' | 'cash-history' | 'movimientos-caja' | 'cash-close' | 'reports' | 'register-client' | 'playzone'
+type ActiveSection = 'pos' | 'sales-history' | 'sales-stats' | 'cash-history' | 'movimientos-caja' | 'cash-close' | 'reports' | 'playzone'
 
 interface TerminalShellProps {
  children: ReactNode
@@ -34,8 +34,10 @@ export function TerminalShell({ children, activeSection }: TerminalShellProps) {
  // Dentro de /admin el AdminLayout ya aporta navegación y cabecera
  if (location.pathname.startsWith('/admin')) return <>{children}</>
 
+ // h-full (no min-h-screen): el alto lo da la ventana descontando la barra de título; el contenido
+ // hace scroll dentro de main y nunca se recorta por abajo (antes se comía el botón Cobrar)
  return (
- <div className="flex min-h-screen flex-col bg-muted text-foreground">
+ <div className="flex h-full min-h-0 flex-col bg-muted text-foreground">
  <header className="flex shrink-0 items-center justify-between border-b border-border bg-background px-4 py-3 sm:px-6">
  <div className="flex items-center gap-3">
  <Logo variant="full" className="h-10 w-auto" />
@@ -84,7 +86,6 @@ export function TerminalShell({ children, activeSection }: TerminalShellProps) {
  icon={<Gamepad2 className="h-5 w-5 text-destructive" />}
  label="Juegos"
  items={[
- { label: 'Registrar cliente', to: '/register-client', active: effectiveSection === 'register-client' },
  { label: 'Tiempos', to: '/playzone', active: effectiveSection === 'playzone' },
  ]}
  />
@@ -146,7 +147,6 @@ function getSectionFromPath(pathname: string): ActiveSection | undefined {
  if (pathname === '/movimientos-caja' || pathname === '/admin/cash-history') return 'movimientos-caja'
  if (pathname === '/cash-close') return 'cash-close'
  if (pathname === '/reporte-cierre-turno' || pathname === '/admin/reports') return 'reports'
- if (pathname === '/register-client') return 'register-client'
  if (pathname === '/playzone') return 'playzone'
  return undefined
 }
