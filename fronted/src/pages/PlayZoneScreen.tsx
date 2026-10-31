@@ -146,8 +146,12 @@ export function PlayZoneScreen() {
  setNotice(`Agregado a caja: ${charge.label} — ${formatPEN(charge.amount)}`)
  }
  useEffect(() => {
- const id = setInterval(fetchSessions, 60_000)
- return () => clearInterval(id)
+ // Las sesiones son del local (las ven todos los usuarios): se refrescan seguido y al volver a la ventana
+ const id = setInterval(fetchSessions, 10_000)
+ const onVisible = () => { if (document.visibilityState === 'visible') fetchSessions() }
+ document.addEventListener('visibilitychange', onVisible)
+ window.addEventListener('focus', fetchSessions)
+ return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVisible); window.removeEventListener('focus', fetchSessions) }
  }, [fetchSessions])
 
  // ── guardian lookup ───────────────────────────────────────
