@@ -28,6 +28,7 @@ export function RegisterModal({ open, initialDni, tenantId, onClose, onDone }: {
   const [kids, setKids] = useState<KidForm[]>([newKid(0)])
   const [nextKey, setNextKey] = useState(1)
   const [saving, setSaving] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
 
   const patchKid = (key: number, p: Partial<KidForm>) => setKids((ks) => ks.map((k) => (k.key === key ? { ...k, ...p } : k)))
 
@@ -56,10 +57,23 @@ export function RegisterModal({ open, initialDni, tenantId, onClose, onDone }: {
     if (d.length === 8) void lookup(d, (n) => patchKid(key, { name: n }), (b) => patchKid(key, { looking: b }))
   }
 
-  const valid = dni.length === 8 && name.trim().length >= 2 && phone.length === 9 && kids.every((k) => k.name.trim())
+  const dniBad = dni.length !== 8
+  const nameBad = name.trim().length < 2
+  const phoneBad = phone.length !== 9
+  // Tras intentar guardar, los datos obligatorios del apoderado que faltan se marcan en rojo
+  const red = (bad: boolean) => (submitted && bad ? ' border-red-500 focus:border-red-500 ring-1 ring-red-500' : '')
 
   const save = async () => {
-    if (!valid || saving) return
+    if (saving) return
+    setSubmitted(true)
+    if (dniBad || nameBad || phoneBad) {
+      toast.error('Completa los datos obligatorios del apoderado: DNI (8 dígitos), nombre y celular (9 dígitos).')
+      return
+    }
+    if (kids.some((k) => !k.name.trim())) {
+      toast.error('Escribe el nombre de cada niño.')
+      return
+    }
     for (const k of kids) {
       if (k.age && (!Number.isInteger(Number(k.age)) || Number(k.age) < 1 || Number(k.age) > 17)) {
         toast.error('La edad del niño debe estar entre 1 y 17.')
@@ -107,12 +121,12 @@ export function RegisterModal({ open, initialDni, tenantId, onClose, onDone }: {
           <SectionLabel className="mb-0">1. Apoderado</SectionLabel>
           <div className="grid gap-2 sm:grid-cols-2">
             <Input value={dni} onChange={(e) => onGuardianDni(e.target.value)} inputMode="numeric" maxLength={8}
-              placeholder="DNI (8 dígitos) *" className={`${field} font-mono`} />
+              placeholder="DNI (8 dígitos) *" className={`${field} font-mono${red(dniBad)}`} />
             <Input value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 9))} inputMode="numeric" maxLength={9}
-              placeholder="Celular (9 dígitos) *" className={`${field} font-mono`} />
+              placeholder="Celular (9 dígitos) *" className={`${field} font-mono${red(phoneBad)}`} />
           </div>
           <div className="relative">
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre completo (se completa con el DNI) *" className={field} />
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre completo (se completa con el DNI) *" className={`${field}${red(nameBad)}`} />
             {looking && <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" aria-label="Consultando RENIEC" />}
           </div>
         </section>
@@ -148,7 +162,7 @@ export function RegisterModal({ open, initialDni, tenantId, onClose, onDone }: {
           </button>
         </section>
 
-        <button onClick={save} disabled={!valid || saving}
+        <button onClick={save} disabled={saving}
           className="flex w-full items-center justify-center gap-2 rounded-sm bg-brand-600 py-3 text-xs font-black uppercase tracking-widest text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40">
           <UserPlus className="h-5 w-5" /> {saving ? 'Guardando...' : 'Guardar y elegir niño'}
         </button>

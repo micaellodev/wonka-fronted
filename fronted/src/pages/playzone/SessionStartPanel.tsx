@@ -1,4 +1,6 @@
 // Panel central: niño elegido, tarifas y botón de inicio. Extraído de PlayZoneScreen sin cambios de comportamiento.
+import { useState } from 'react'
+import { toast } from '@/components/ui/toast'
 import { Timer, Clock, XCircle, Minus, Plus, Infinity as InfinityIcon } from 'lucide-react'
 import { formatPEN } from '@/lib/format'
 import { type Child, type DurationOpt, fmtPrice, SectionLabel } from './shared'
@@ -19,6 +21,9 @@ export function SessionStartPanel({ companionPrice, selectedChild, setSelectedCh
  lastCode: { code: string; price: number | null; childName: string; note: string } | null
 }) {
  const unit = companionPrice
+ // La descripción es obligatoria: tras un intento de iniciar sin ella, el cuadro se marca en rojo hasta que se escriba
+ const [tried, setTried] = useState(false)
+ const missing = tried && !notes.trim()
  const codeCard = lastCode && (
  <div className="p-4 border-b border-border bg-muted">
  <p className="text-[11px] text-secondary-500 font-black uppercase tracking-widest text-center mb-2">
@@ -120,14 +125,14 @@ export function SessionStartPanel({ companionPrice, selectedChild, setSelectedCh
 
  {/* Descripción del apoderado: visible solo mientras la sesión está activa */}
  <div className="px-4">
- <SectionLabel>Descripción (opcional)</SectionLabel>
+ <SectionLabel>Descripción *</SectionLabel>
  <input value={notes} onChange={e => setNotes(e.target.value)} maxLength={120} placeholder="Ej: polo rojo, jeans, lentes"
- className="w-full bg-muted border-2 border-border rounded-sm px-2 py-2 text-xs text-foreground" />
+ className={`w-full bg-muted border-2 rounded-sm px-2 py-2 text-xs text-foreground ${missing ? 'border-red-500' : 'border-border'}`} />
  </div>
 
  {/* Start action */}
  <div className="px-4 pb-4">
- <button onClick={onStart} disabled={starting}
+ <button onClick={() => { if (!notes.trim()) { setTried(true); toast.error('Escribe la descripción del niño (ej: polo rojo, jeans, lentes) antes de iniciar.'); return } onStart() }} disabled={starting}
  className="flex items-center justify-center gap-2 w-full py-4 bg-brand-600 hover:bg-brand-600 disabled:opacity-40 text-primary-foreground font-black text-sm uppercase tracking-widest rounded-sm transition-none relative overflow-hidden group">
  <span className="absolute inset-0 w-full h-full bg-background/10 translate-y-full group-hover:translate-y-0 transition-transform"></span>
  <Timer className="w-5 h-5 relative z-10" />
