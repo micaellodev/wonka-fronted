@@ -27,7 +27,9 @@ function createWindow() {
   const fitZoom = () => {
     if (!mainWindow || mainWindow.isDestroyed()) return
     const [w, h] = mainWindow.getContentSize()
-    mainWindow.webContents.setZoomFactor(Math.min(1, w / 1280, h / 720))
+    // Minimizada la ventana mide 0: un zoom de 0 lanza "zoomFactor must be greater than 0"
+    if (w <= 0 || h <= 0 || mainWindow.isMinimized()) return
+    mainWindow.webContents.setZoomFactor(Math.max(0.25, Math.min(1, w / 1280, h / 720)))
   }
   mainWindow.webContents.on('did-finish-load', fitZoom)
   mainWindow.on('resize', fitZoom)
