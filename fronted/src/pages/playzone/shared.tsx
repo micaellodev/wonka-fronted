@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { formatPEN } from '@/lib/format'
 import { useNow } from '@/hooks/useNow'
 import {
@@ -89,15 +90,24 @@ function fmtClock(totalSec: number) {
 }
 
 export function SessionCard({
- session, onCheckout, checking, durationOptions, showCode = true,
+ session, onCheckout, checking, durationOptions, showCode = true, onExtend,
 }: {
  showCode?: boolean
+ onExtend?: (sessionId: string, minutes: number) => void
  session: ActiveSession
  onCheckout: (id: string) => void
  checking: boolean
  durationOptions: DurationOpt[]
 }) {
  const now = useNow()
+ // Clic derecho: menú para sumar 30 min o 1 hora (solo sesiones con tiempo contratado)
+ const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
+ useEffect(() => {
+ if (!menu) return
+ const close = () => setMenu(null)
+ window.addEventListener('click', close); window.addEventListener('scroll', close, true); window.addEventListener('resize', close)
+ return () => { window.removeEventListener('click', close); window.removeEventListener('scroll', close, true); window.removeEventListener('resize', close) }
+ }, [menu])
  const elapsedSec = Math.max(0, (now - new Date(session.startTime).getTime()) / 1000)
  const totalSec = session.isUnlimited ? null : (session.durationMinutes ?? 0) * 60
  const remainingSec = totalSec === null ? null : totalSec - elapsedSec
@@ -116,7 +126,20 @@ export function SessionCard({
  const mainClock = session.isUnlimited ? fmtClock(elapsedSec) : isOverdue ? fmtClock(-(remainingSec ?? 0)) : fmtClock(remainingSec ?? 0)
 
  return (
- <div className={`flex flex-col overflow-hidden rounded-xl border-2 bg-background shadow-sm ${tone.border}`}>
+ <div onContextMenu={onExtend && !session.isUnlimited ? (e) => { e.preventDefault(); setMenu({ x: Math.min(e.clientX, window.innerWidth - 200), y: Math.min(e.clientY, window.innerHeight - 130) }) } : undefined}
+ className={`flex flex-col overflow-hidden rounded-xl border-2 bg-background shadow-sm ${tone.border}`}>
+ {menu && onExtend && (
+ <div role="menu" style={{ left: menu.x, top: menu.y }} className="fixed z-50 w-48 overflow-hidden rounded-lg border border-border bg-background py-1 text-sm shadow-lg">
+ {[30, 60].map((m) => {
+ const rate = durationOptions.find((o) => !o.ally && o.minutes === m)
+ return rate ? (
+ <button key={m} role="menuitem" onClick={() => onExtend(session.id, m)} className="flex w-full items-center justify-between gap-2 px-3 py-2.5 font-bold text-foreground hover:bg-muted">
+ <span>+ {rate.label}</span><span className="font-mono text-xs text-muted-foreground">{formatPEN(rate.price ?? 0)}</span>
+ </button>
+ ) : null
+ })}
+ </div>
+ )}
  <div className={`${tone.banner} ${isOverdue ? 'animate-pulse' : ''} flex items-center justify-between gap-2 px-3 py-1.5 text-xs font-black uppercase tracking-wide ${isOverdue || isWarning ? 'text-white' : 'text-success-foreground'}`}>
  <span className="flex min-w-0 items-center gap-1.5"><tone.Icon className="h-4 w-4" aria-hidden /> {tone.label}</span>
  <span className="shrink-0 whitespace-nowrap font-mono font-semibold opacity-90" title="Hora de inicio">{new Date(session.startTime).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</span>

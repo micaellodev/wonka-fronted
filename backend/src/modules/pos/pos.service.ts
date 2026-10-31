@@ -10,6 +10,7 @@ import { emitSale, createVoidCreditNote, emitBillingNote } from "../billing/bill
 import nodemailer from "nodemailer";
 import {
     computePlayzoneCharge,
+    computeExtensionCharge,
     getPlayzoneRates,
     type PlayzoneChargeKind,
 } from "../playzone/playzone.service.ts";
@@ -68,7 +69,7 @@ function isVirtualLineItem(productId: string): boolean {
     return productId.startsWith('pz-') || productId.startsWith('free-sale-');
 }
 
-const PZ_SKU = /^pz-(base|extra|free|comp|disc)-(.+)$/;
+const PZ_SKU = /^pz-(base|extra|free|comp|disc|ext)-(.+)$/;
 
 type VirtualLine = { qty: number; unitPrice: number; label: string; sku: string };
 
@@ -108,12 +109,22 @@ async function resolveVirtualLines(
         if (kind === "disc" && !items.some((i) => i.productId === `pz-base-${match[2]}`)) {
             throw new Error("El descuento por aliado requiere cobrar el tiempo de la sesión en la misma venta.");
         }
+        // pz-ext-<sesión>~<min añadidos>~<duración total resultante>
+        const [sessionId, extAdd, extTotal] = kind === "ext" ? match[2]!.split("~") : [match[2]!];
         const session = await tx.playSession.findFirst({
-            where: { id: match[2]!, tenantId },
+            where: { id: sessionId!, tenantId },
             include: { child: { select: { fullName: true, age: true } } },
         });
         if (!session) throw new Error(`Play session "${match[2]}" not found for this tenant.`);
-        const charge = computePlayzoneCharge(session, kind, rates!);
+        let charge;
+        if (kind === "ext") {
+            const add = Number(extAdd), total = Number(extTotal);
+            // Solo cobra ampliaciones que la sesión ya tiene aplicadas
+            if (!Number.isInteger(add) || !Number.isInteger(total) || session.durationMinutes === null || total > session.durationMinutes) {
+                throw new Error("Ampliación de tiempo inválida.");
+            }
+            charge = computeExtensionCharge(session, add, total, rates!);
+        } else charge = computePlayzoneCharge(session, kind, rates!);
         // El pago confirma el inicio: el reloj arranca al cobrar, no al registrar
         if ((kind === "base" || kind === "comp") && session.status === "PENDING") {
             await tx.playSession.update({ where: { id: session.id }, data: { status: "ACTIVE", startTime: new Date() } });

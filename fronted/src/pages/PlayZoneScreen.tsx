@@ -129,6 +129,16 @@ export function PlayZoneScreen() {
  }
  }
 
+ // clic derecho en una tarjeta: suma 30 min o 1 h y deja el cargo en el ticket
+ const handleExtend = async (sessionId: string, minutes: number) => {
+ try {
+ const res = await (api.playzone.sessions as Loose)({ id: sessionId }).extend.post({ tenantId, minutes })
+ if (res.error) throw res.error
+ queueCharge((res.data as Loose).data.charge)
+ fetchSessions()
+ } catch (err) { toast.error(getApiErrorMessage(err, 'No se pudo agregar el tiempo.')) }
+ }
+
  // agrega el cargo calculado por el backend al ticket de caja
  const queueCharge = (charge: PlayzoneCharge | null | undefined) => {
  if (!charge) return
@@ -501,7 +511,7 @@ export function PlayZoneScreen() {
  {/* ═══════════════════════════════════════════
  RIGHT PANEL — Active Sessions Grid
  ═══════════════════════════════════════════ */}
- <ActiveSessionsGrid sessions={sessions} loadingSessions={loadingSessions} onCheckout={handleCheckout} checkingOut={checkingOut} durationOptions={durationOptions} showCode={wristbandOn} />
+ <ActiveSessionsGrid sessions={sessions} loadingSessions={loadingSessions} onCheckout={handleCheckout} checkingOut={checkingOut} durationOptions={durationOptions} showCode={wristbandOn} onExtend={handleExtend} />
  </div>
  )}
 

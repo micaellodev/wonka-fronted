@@ -55,6 +55,14 @@ export function TicketPanel({ onSaleComplete, className }: { onSaleComplete?: ()
 
  // Quitar el tiempo (base) o el acompañante (comp) cancela la sesión pendiente y saca ambas líneas del ticket
  const handleRemoveCharge = async (charge: { id: string; sessionId: string; kind: string }) => {
+  if (charge.kind === 'ext') {
+   // pz-ext-<sesión>~<min>~<total>: devuelve los minutos añadidos antes de sacar la línea
+   const minutes = Number(charge.id.split('~')[1])
+   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic route param typing
+   const r = await (api.playzone.sessions as any)({ id: charge.sessionId }).extend.delete(undefined, { query: { tenantId, minutes } })
+   if (r.error) toast.error('No se pudo revertir el tiempo agregado; se quitó solo del ticket.')
+   return removeCharge(charge.id)
+  }
   if (charge.kind !== 'base' && charge.kind !== 'comp') return removeCharge(charge.id)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic route param typing
   const res = await (api.playzone.sessions as any)({ id: charge.sessionId }).cancel.delete(undefined, { query: { tenantId } })

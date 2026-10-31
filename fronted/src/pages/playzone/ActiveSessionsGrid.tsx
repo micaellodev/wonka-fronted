@@ -5,8 +5,9 @@ import { type ActiveSession, type DurationOpt, SessionCard } from './shared'
 
 const WARNING_SEC = 300
 
-export function ActiveSessionsGrid({ sessions, loadingSessions, onCheckout, checkingOut, durationOptions, showCode }: {
+export function ActiveSessionsGrid({ sessions, loadingSessions, onCheckout, checkingOut, durationOptions, showCode, onExtend }: {
  showCode: boolean
+ onExtend: (sessionId: string, minutes: number) => void
  sessions: ActiveSession[]
  loadingSessions: boolean
  onCheckout: (sessionId: string) => void
@@ -58,7 +59,7 @@ export function ActiveSessionsGrid({ sessions, loadingSessions, onCheckout, chec
  {!loadingSessions && sessions.length > 0 && (
  <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,220px),1fr))] items-start gap-3">
  {ordered.map((s) => (
- <SessionCard key={s.id} session={s} onCheckout={onCheckout} checking={checkingOut === s.id} durationOptions={durationOptions} showCode={showCode} />
+ <SessionCard key={s.id} session={s} onCheckout={onCheckout} checking={checkingOut === s.id} durationOptions={durationOptions} showCode={showCode} onExtend={onExtend} />
  ))}
  </div>
  )}

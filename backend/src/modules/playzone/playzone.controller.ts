@@ -9,6 +9,8 @@ import {
     listActiveSessions,
     completeSession,
     cancelPendingSession,
+    extendSession,
+    undoExtension,
     getPlayzoneReportSummary,
     getPlayzoneRates,
     updatePlayzoneRates,
@@ -204,6 +206,45 @@ export const playzoneController = new Elysia({ prefix: "/playzone", tags: ["Play
             query: t.Object({ tenantId: t.String({ minLength: 1 }) }),
             params: t.Object({ id: t.String() }),
             detail: { summary: "Complete (check out) an active play session" },
+        }
+    )
+
+    // ── POST /playzone/sessions/:id/extend ───────────────────
+    .post(
+        "/sessions/:id/extend",
+        async ({ params, body, set }) => {
+            try {
+                return { data: await extendSession(body.tenantId, params.id, body.minutes), meta: { message: "Tiempo agregado." } };
+            } catch (err) {
+                const message = err instanceof Error ? err.message : "Error inesperado.";
+                set.status = message.includes("no encontrada") ? 404 : 422;
+                return { message };
+            }
+        },
+        {
+            params: t.Object({ id: t.String() }),
+            body: t.Object({ tenantId: t.String({ minLength: 1 }), minutes: t.Integer({ minimum: 1 }) }),
+            detail: { summary: "Add paid minutes to a running play session" },
+        }
+    )
+
+    // ── DELETE /playzone/sessions/:id/extend ─────────────────
+    .delete(
+        "/sessions/:id/extend",
+        async ({ params, query, set }) => {
+            try {
+                await undoExtension(query.tenantId, params.id, query.minutes);
+                return { meta: { message: "Ampliación revertida." } };
+            } catch (err) {
+                const message = err instanceof Error ? err.message : "Error inesperado.";
+                set.status = message.includes("no encontrada") ? 404 : 422;
+                return { message };
+            }
+        },
+        {
+            params: t.Object({ id: t.String() }),
+            query: t.Object({ tenantId: t.String({ minLength: 1 }), minutes: t.Numeric({ minimum: 1 }) }),
+            detail: { summary: "Undo an extension removed from the cart before payment" },
         }
     )
 

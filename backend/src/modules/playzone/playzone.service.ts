@@ -135,7 +135,7 @@ export async function updatePlayzoneRates(tenantId: string, rates: PlayzoneRates
     return rates;
 }
 
-export type PlayzoneChargeKind = "base" | "extra" | "free" | "comp" | "disc";
+export type PlayzoneChargeKind = "base" | "extra" | "free" | "comp" | "disc" | "ext";
 
 export const MAX_COMPANIONS = 2;
 const COMPANION_PRICE = 5; // valor por defecto de playzoneRates.companionPrice; igual para cualquier edad del niño
@@ -177,6 +177,8 @@ export function computePlayzoneCharge(
     const tag = `[${session.wristbandCode}] ${session.child.fullName}`;
     const base = { sku: `pz-${kind}-${session.id}`, kind, sessionId: session.id };
 
+    if (kind === "ext") throw new Error("El tiempo adicional se calcula con computeExtensionCharge.");
+
     if (kind === "base") {
         if (session.durationMinutes === null) throw new Error(`La sesión ${session.wristbandCode} es de tiempo libre; no tiene tarifa base.`);
         const rate = rates.durations.find((d) => d.minutes === session.durationMinutes);
@@ -210,6 +212,28 @@ export function computePlayzoneCharge(
     // Se cobra al menos 1 minuto para que una sesión libre nunca quede en S/ 0
     const minutes = Math.max(1, elapsed);
     return { ...base, label: `TIEMPO LIBRE ${minutes} MIN ${tag}`, amount: round2(minutes * rates.freePerMinute) };
+}
+
+/**
+ * Cargo por ampliar una sesión en curso. El sku lleva minutos añadidos y duración total resultante
+ * (`pz-ext-<sesión>~<min>~<total>`): es único por ampliación y el precio sale siempre de las tarifas del local.
+ */
+export function computeExtensionCharge(
+    session: ChargeableSession,
+    addMinutes: number,
+    totalMinutes: number,
+    rates: PlayzoneRates
+): PlayzoneCharge {
+    const rate = rates.durations.find((d) => d.minutes === addMinutes);
+    if (!rate) throw new Error(`No hay tarifa configurada para ${addMinutes} min.`);
+    const tag = `[${session.wristbandCode}] ${session.child.fullName}`;
+    return {
+        sku: `pz-ext-${session.id}~${addMinutes}~${totalMinutes}`,
+        kind: "ext",
+        sessionId: session.id,
+        label: `TIEMPO ADICIONAL ${rate.label} ${tag}`,
+        amount: rate.price,
+    };
 }
 
 function round2(n: number): number {
@@ -449,6 +473,35 @@ export async function cancelPendingSession(tenantId: string, sessionId: string) 
     // Quitar del carrito anula la sesión; solo si el cargo base/acompañantes sigue sin cobrar (no hay venta con ese cargo)
     const { count } = await prisma.playSession.deleteMany({ where: { id: sessionId, tenantId, status: { in: ["PENDING", "ACTIVE"] } } });
     if (count === 0) throw new Error("Sesión pendiente no encontrada.");
+}
+
+// ── Session: extend (+30 min / +1 h sobre una sesión en curso) ─
+
+export async function extendSession(tenantId: string, sessionId: string, minutes: number) {
+    const rates = await getPlayzoneRates(tenantId);
+    if (!rates.durations.some((d) => d.minutes === minutes)) throw new Error(`No hay tarifa configurada para ${minutes} min.`);
+    const s = await prisma.playSession.findFirst({
+        where: { id: sessionId, tenantId, status: "ACTIVE" },
+        include: { child: { select: { fullName: true, age: true } } },
+    });
+    if (!s) throw new Error("Sesión activa no encontrada.");
+    if (s.durationMinutes === null) throw new Error("La sesión es de tiempo libre; no se puede ampliar.");
+    const total = s.durationMinutes + minutes;
+    // Compara la duración leída: dos ampliaciones simultáneas no se pisan
+    const { count } = await prisma.playSession.updateMany({ where: { id: s.id, durationMinutes: s.durationMinutes }, data: { durationMinutes: total } });
+    if (count === 0) throw new Error("La sesión cambió; intenta de nuevo.");
+    return { durationMinutes: total, charge: computeExtensionCharge(s, minutes, total, rates) };
+}
+
+/** Quitar la ampliación del ticket antes de cobrar: devuelve los minutos, salvo que ya esté cobrada. */
+export async function undoExtension(tenantId: string, sessionId: string, minutes: number) {
+    const s = await prisma.playSession.findFirst({ where: { id: sessionId, tenantId, status: "ACTIVE" } });
+    if (!s || s.durationMinutes === null || s.durationMinutes - minutes <= 0) throw new Error("Sesión activa no encontrada.");
+    const sku = `pz-ext-${s.id}~${minutes}~${s.durationMinutes}`;
+    const billed = await prisma.saleItem.findFirst({ where: { virtualSku: sku, sale: { tenantId, status: { not: "CANCELLED" } } }, select: { id: true } });
+    if (billed) throw new Error("La ampliación ya fue cobrada.");
+    const { count } = await prisma.playSession.updateMany({ where: { id: s.id, durationMinutes: s.durationMinutes }, data: { durationMinutes: s.durationMinutes - minutes } });
+    if (count === 0) throw new Error("La sesión cambió; intenta de nuevo.");
 }
 
 // ── Session: complete ────────────────────────────────────────
