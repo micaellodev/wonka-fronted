@@ -195,8 +195,11 @@ export function CashCloseScreen() {
   const printFullReport = async () => {
     if (!tenantId || !summary) return
     try {
-      // Una página de 500 ventas del día Lima; el reporte se queda con las del turno
-      const { data, error } = await api.pos.sales.get({ query: { tenantId, limit: 500, page: 1, dateFrom: summary.date, dateTo: summary.date } })
+      // Una página de 500 ventas desde el día (Lima, UTC-5) de la apertura; el reporte se queda con las del turno.
+      // No se usa summary.date: un backend desplegado más viejo no lo envía y la fecha llegaba inválida.
+      const limaDay = (d: Date) => new Date(d.getTime() - 5 * 3600_000).toISOString().slice(0, 10)
+      const dateFrom = limaDay(new Date(summary.opening?.at ?? Date.now()))
+      const { data, error } = await api.pos.sales.get({ query: { tenantId, limit: 500, page: 1, dateFrom, dateTo: limaDay(new Date()) } })
       if (error) throw error
       const sales = ((data.data as Sale[]) || []).map((x) => ({ ...x, total: Number(x.total) }))
       await printCashCloseReport({
