@@ -157,7 +157,7 @@ export const GuardianLookupQuery = t.Object({
 
 export const GuardianListQuery = t.Object({
     tenantId: t.String({ minLength: 1 }),
-    /** Optional substring match against guardian name or DNI. */
+    /** Optional substring match against guardian name, DNI or phone. */
     search: t.Optional(t.String()),
     page: t.Optional(t.Numeric({ minimum: 1, default: 1 })),
     limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100, default: 20 })),

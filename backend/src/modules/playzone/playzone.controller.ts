@@ -72,6 +72,20 @@ export const playzoneController = new Elysia({ prefix: "/playzone", tags: ["Play
         }
     )
 
+    // ── GET /playzone/clients ─────────────────────────────────
+    // Mismo listado que /guardians pero con permiso (reports.view): es el padrón completo para la pantalla Clientes.
+    .get(
+        "/clients",
+        async ({ query }) =>
+            listGuardians({
+                tenantId: query.tenantId,
+                ...(query.search !== undefined ? { search: query.search } : {}),
+                page: query.page ?? 1,
+                limit: query.limit ?? 20,
+            }),
+        { query: GuardianListQuery, detail: { summary: "Client roster (admin)" } }
+    )
+
     // ── POST /playzone/guardians ─────────────────────────────
     .post(
         "/guardians",

@@ -273,6 +273,7 @@ export async function listGuardians({ tenantId, search, page, limit }: ListGuard
                   OR: [
                       { fullName: { contains: trimmedSearch, mode: "insensitive" as const } },
                       { dni: { contains: trimmedSearch } },
+                      { phone: { contains: trimmedSearch } },
                   ],
               }
             : {}),

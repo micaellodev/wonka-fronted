@@ -15,6 +15,7 @@ import { CashCloseHistoryScreen } from '@/pages/CashCloseHistoryScreen'
 import { CashMovementsScreen } from '@/pages/CashMovementsScreen'
 import { PlayZoneScreen } from '@/pages/PlayZoneScreen'
 import { BillingNotesScreen } from '@/pages/BillingNotesScreen'
+import { ClientsScreen } from '@/pages/ClientsScreen'
 import { AdminDashboardScreen } from '@/pages/AdminDashboardScreen'
 import { CompanySettingsScreen } from '@/pages/CompanySettingsScreen'
 import { ApprovalsScreen } from '@/pages/ApprovalsScreen'
@@ -117,6 +118,7 @@ export default function App() {
  <Route path="/admin/cashier" element={<AdminGuard><CashCloseHistoryScreen /></AdminGuard>} />
  <Route path="/admin/cash-history" element={<Navigate to="/admin/cashier" replace />} />
  <Route path="/admin/playzone" element={<AdminGuard><PlayZoneScreen /></AdminGuard>} />
+ <Route path="/admin/clients" element={<AdminGuard><ClientsScreen /></AdminGuard>} />
  <Route path="/admin/billing-notes" element={<AdminGuard><BillingNotesScreen /></AdminGuard>} />
 
  <Route path="*" element={<Navigate to="/" replace />} />

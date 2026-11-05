@@ -17,6 +17,7 @@ const ROUTE_PERMISSION: Record<string, Permission> = {
   '/admin/reports': 'reports.view',
   '/admin/cashier': 'reports.view',
   '/admin/playzone': 'playzone.rates',
+  '/admin/clients': 'reports.view',
   '/admin/cash-close': 'cash.manage',
   '/admin/cash-movements': 'cash.manage',
   '/admin/sales-history': 'reports.view',
