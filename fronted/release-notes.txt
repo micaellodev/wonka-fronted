@@ -1,2 +1,2 @@
-Cambio mediano · 14 archivos, 2134 líneas, 1 cambios
-- Impresión: gestor de impresora (selección, estado, A4/A5/80mm/58mm, prueba), impresión directa y vouchers de cierre
+Cambio pequeño · 1 archivos, 253 líneas, 1 cambios
+- Impresión: rollos sin tamaño de página personalizado (salía en blanco) y registro printer.log
