@@ -1,2 +1,2 @@
-Cambio pequeño · 1 archivos, 7 líneas, 1 cambios
-- Cierre de caja: el reporte calcula el día de Lima desde la apertura (fecha inválida con backend viejo)
+Cambio mediano · 5 archivos, 358 líneas, 1 cambios
+- Horas de comprobantes, cierre y turnos siempre en hora de Perú (UTC-5), sin depender de la zona de la PC
