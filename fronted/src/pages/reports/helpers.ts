@@ -1,3 +1,4 @@
+import { toLima } from '@/lib/format'
 export interface CashCloseRecord {
   id: string
   usd: number
@@ -47,12 +48,12 @@ export const fromDateKey = (val: string) => new Date(`${val}T12:00:00-05:00`)
 
 export function formatShiftTimeString(startIso: string, isEnCurso: boolean, endIso?: string) {
   const p = (n: number) => String(n).padStart(2, '0')
-  const start = new Date(startIso)
-  const head = `${p(start.getDate())}-${p(start.getMonth() + 1)}-${start.getFullYear()} | ${p(start.getHours())}:${p(start.getMinutes())}`
+  const start = toLima(new Date(startIso))
+  const head = `${p(start.getUTCDate())}-${p(start.getUTCMonth() + 1)}-${start.getUTCFullYear()} | ${p(start.getUTCHours())}:${p(start.getUTCMinutes())}`
   if (isEnCurso) return `${head} - En Curso`
   if (endIso) {
-    const end = new Date(endIso)
-    return `${head} - ${p(end.getHours())}:${p(end.getMinutes())}`
+    const end = toLima(new Date(endIso))
+    return `${head} - ${p(end.getUTCHours())}:${p(end.getUTCMinutes())}`
   }
   return `${head} - Cerrado`
 }

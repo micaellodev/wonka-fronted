@@ -3,6 +3,7 @@ import { RECEIPT_LOGO } from '../receipt-logo'
 // Incrustado: el comprobante se imprime desde un documento data: y una ruta relativa no carga (salía imagen rota)
 import RECEIPT_QR from '../../../public/qr-code.png?inline'
 import { printHtml } from '@/lib/print'
+import { toLima } from '@/lib/format'
 import { numberToWords, type CheckoutLine, type PaymentMethod, type SaleResultItem, type TenantFiscalConfig } from './fiscal'
 
 const DEFAULT_RECEIPT_FOOTER = '¡Aquí creamos sonrisas! Recuerda que la supervisión y responsabilidad ante cualquier accidente es exclusivamente de los papis.'
@@ -62,9 +63,9 @@ export function renderReceipt(i: ReceiptInput): string {
   const tipo = (i.tipo || 'TICKET').toUpperCase()
   const tipoLabel = tipo === 'BOLETA' ? 'BOLETA DE VENTA ELECTRONICA' : tipo === 'FACTURA' ? 'FACTURA DE VENTA ELECTRONICA' : 'BOLETA DE VENTA ELECTRONICA'
   const correlativo = serie && corr ? `${serie}-${corr}` : `TICKET-${i.ticketId}`
-  const now = i.date
-  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  const now = toLima(i.date)
+  const dateStr = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`
+  const timeStr = `${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}`
 
   const businessRazonSocial = config.razonSocial || config.name || ''
   const businessDireccion = config.direccion || ''

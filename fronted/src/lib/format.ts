@@ -10,6 +10,9 @@ export function formatCurrency(value: number): string {
  }).format(value)
 }
 
+/** Hora de Perú (UTC−5, sin horario de verano) aunque la PC tenga otra zona: el resultado se lee con getUTC*(). */
+export const toLima = (d: Date) => new Date(d.getTime() - 5 * 3600_000)
+
 export function formatDate(value: string | Date): string {
  const date = typeof value === 'string' ? new Date(value) : value
  return date.toLocaleDateString('es-PE', {

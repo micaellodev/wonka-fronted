@@ -1,5 +1,6 @@
 import { printHtml } from '@/lib/print'
 import { api } from '@/lib/api'
+import { toLima } from '@/lib/format'
 import { apiErrorMessage } from '@/lib/api-error'
 import { toast } from '@/components/ui/toast'
 import { useAuthStore } from '@/store/authStore'
@@ -30,15 +31,15 @@ export const escapeHtml = (v: string) =>
   v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 
 export function formatTableDateTime(isoStr: string): string {
-  const d = new Date(isoStr)
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  let hours = d.getHours()
-  const mins = String(d.getMinutes()).padStart(2, '0')
+  const d = toLima(new Date(isoStr))
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  let hours = d.getUTCHours()
+  const mins = String(d.getUTCMinutes()).padStart(2, '0')
   const ampm = hours >= 12 ? 'PM' : 'AM'
   hours = hours % 12
   if (hours === 0) hours = 12
-  return `${d.getFullYear()}-${m}-${day} ${hours}:${mins} ${ampm}`
+  return `${d.getUTCFullYear()}-${m}-${day} ${hours}:${mins} ${ampm}`
 }
 
 export function getCorrelativo(sale: Sale): string {
