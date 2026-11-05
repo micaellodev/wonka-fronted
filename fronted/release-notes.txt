@@ -1,2 +1,2 @@
-Cambio mediano · 2 archivos, 1140 líneas, 1 cambios
-- Registro de cliente: nombre sin comas (RENIEC y escritura manual)
+Cambio mediano · 14 archivos, 2134 líneas, 1 cambios
+- Impresión: gestor de impresora (selección, estado, A4/A5/80mm/58mm, prueba), impresión directa y vouchers de cierre
