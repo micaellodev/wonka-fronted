@@ -1,2 +1,2 @@
-Cambio mediano · 6 archivos, 1164 líneas, 1 cambios
-- Cierre de caja: reporte completo impreso (ventas por medio de pago, cuadre y detalle de cada venta); Impresora dentro del admin
+Cambio mediano · 3 archivos, 2084 líneas, 1 cambios
+- Historial de ventas: reimprimir con la misma maqueta que al cobrar (ticket, boleta, factura); QR incrustado
