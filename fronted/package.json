@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "electron:dev": "cross-env ELECTRON_BUILD=1 vite build && electron .",
     "electron:build": "cross-env ELECTRON_BUILD=1 vite build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --publish never",
-    "electron:release": "node scripts/release.mjs"
+    "electron:release": "node scripts/release.mjs",
+    "version:bump": "node scripts/bump.mjs"
   },
   "build": {
     "appId": "com.renzowonka.pos",

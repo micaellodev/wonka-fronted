@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 
 export function TitleBar() {
   const api = window.electronAPI
-  const [pending, setPending] = useState(false)
+  const [pending, setPending] = useState<UpdateStatus | null>(null)
   useEffect(() => {
     if (!api) return
-    const apply = (s: UpdateStatus | null) => setPending(s?.state === 'downloading' || s?.state === 'ready')
+    const apply = (s: UpdateStatus | null) => setPending(s?.state === 'downloading' || s?.state === 'ready' ? s : null)
     void api.getUpdateStatus().then(apply)
     return api.onUpdateStatus(apply)
   }, [api])
@@ -25,9 +25,10 @@ export function TitleBar() {
         {pending && (
           <button
             onClick={() => api.installUpdate()}
+            title={pending.notes}
             className="my-1 mr-2 px-3 rounded-sm bg-brand-600 hover:bg-brand-500 text-primary-foreground text-[11px] font-black uppercase tracking-widest"
           >
-            Actualización pendiente
+            Actualización pendiente{pending.version ? ` ${pending.version}` : ''}
           </button>
         )}
         <button

@@ -9,6 +9,11 @@ const path = require('path')
 // Cada minuto: latest.yml pesa ~600 bytes y R2 no cobra descargas, así el aviso aparece casi al publicar la versión.
 const CHECK_EVERY_MS = 60 * 1000
 
+// releaseNotes viene de latest.yml (texto) o, según el proveedor, como lista de { note }
+const notesOf = (i) => (Array.isArray(i?.releaseNotes) ? i.releaseNotes.map((n) => n.note).join('\n') : i?.releaseNotes) || undefined
+// Peso del paquete completo (latest.yml: packages.x64.size en nsis-web). La descarga real puede ser menor: electron-updater baja solo los bloques que cambiaron.
+const sizeOf = (i) => i?.packages?.x64?.size ?? i?.files?.[0]?.size ?? undefined
+
 function setupUpdater(getWindow, openSplash) {
   const log = (msg) => {
     try { fs.appendFileSync(path.join(app.getPath('userData'), 'updater.log'), `${new Date().toISOString()} ${msg}\n`) } catch { /* sin log */ }
@@ -36,10 +41,10 @@ function setupUpdater(getWindow, openSplash) {
 
   // busy: hay una descarga en curso o una versión ya lista; no revisar de nuevo hasta que falle
   let busy = false
-  let pendingVersion, downloaded = false
-  autoUpdater.on('update-available', (i) => { busy = true; pendingVersion = i.version; log(`disponible ${i.version}`); send({ state: 'downloading', version: i.version }) })
-  autoUpdater.on('download-progress', (p) => send({ state: 'downloading', percent: Math.round(p.percent) }))
-  autoUpdater.on('update-downloaded', (i) => { downloaded = true; log(`descargada ${i.version}`); send({ state: 'ready', version: i.version }) })
+  let pendingVersion, pendingNotes, pendingSize, downloaded = false
+  autoUpdater.on('update-available', (i) => { busy = true; pendingVersion = i.version; pendingNotes = notesOf(i); pendingSize = sizeOf(i); log(`disponible ${i.version}`); send({ state: 'downloading', version: i.version, notes: pendingNotes }) })
+  autoUpdater.on('download-progress', (p) => send({ state: 'downloading', percent: Math.round(p.percent), version: pendingVersion, notes: pendingNotes }))
+  autoUpdater.on('update-downloaded', (i) => { downloaded = true; log(`descargada ${i.version}`); send({ state: 'ready', version: i.version, notes: notesOf(i) ?? pendingNotes }) })
   // sin 'error' en el estado, el botón quedaba visible aunque la descarga hubiera fallado
   autoUpdater.on('error', (e) => { busy = false; log(`error: ${e?.message ?? e}`); if (!downloaded) send({ state: 'error' }) })
 
@@ -52,10 +57,10 @@ function setupUpdater(getWindow, openSplash) {
     const { splash, onProgress } = await openSplash()
     getWindow()?.hide()
     const alProgreso = (p) =>
-      onProgress({ stage: 'download', percent: Math.round(p.percent), transferred: p.transferred, total: p.total, speed: p.bytesPerSecond, version: pendingVersion })
+      onProgress({ stage: 'download', percent: Math.round(p.percent), transferred: p.transferred, total: p.total, speed: p.bytesPerSecond, version: pendingVersion, notes: pendingNotes, size: pendingSize })
     autoUpdater.on('download-progress', alProgreso)
     try {
-      onProgress({ stage: 'download', percent: downloaded ? 100 : 0, version: pendingVersion })
+      onProgress({ stage: 'download', percent: downloaded ? 100 : 0, version: pendingVersion, notes: pendingNotes, size: pendingSize })
       if (!downloaded) {
         const waiting = new Promise((resolve, reject) => {
           autoUpdater.once('update-downloaded', resolve)
@@ -69,7 +74,7 @@ function setupUpdater(getWindow, openSplash) {
         }
         await waiting
       }
-      onProgress({ stage: 'install', version: pendingVersion })
+      onProgress({ stage: 'install', version: pendingVersion, notes: pendingNotes, size: pendingSize })
       await new Promise((r) => setTimeout(r, 1200)) // que se vea el 100% antes de cerrar
       log('instalando desde el botón')
       autoUpdater.quitAndInstall(true, true)
@@ -90,15 +95,16 @@ function setupUpdater(getWindow, openSplash) {
     // Este oyente escribe en la ventana de carga: hay que quitarlo al terminar, o una descarga posterior en segundo plano
     // lo dispara con esa ventana ya cerrada ("Object has been destroyed") y la descarga se queda pegada en 100%.
     const alProgreso = (p) =>
-      onProgress({ stage: 'download', percent: Math.round(p.percent), transferred: p.transferred, total: p.total, speed: p.bytesPerSecond })
+      onProgress({ stage: 'download', percent: Math.round(p.percent), transferred: p.transferred, total: p.total, speed: p.bytesPerSecond, version: pendingVersion, notes: pendingNotes, size: pendingSize })
     autoUpdater.on('download-progress', alProgreso)
     onProgress({ stage: 'check' })
     try {
       const res = await Promise.race([autoUpdater.checkForUpdates(), new Promise((r) => setTimeout(r, 10000))])
       if (res?.isUpdateAvailable) {
-        onProgress({ stage: 'download', percent: 0, version: res.updateInfo.version })
+        const notes = notesOf(res.updateInfo), size = sizeOf(res.updateInfo)
+        onProgress({ stage: 'download', percent: 0, version: res.updateInfo.version, notes, size })
         await res.downloadPromise
-        onProgress({ stage: 'install', version: res.updateInfo.version })
+        onProgress({ stage: 'install', version: res.updateInfo.version, notes, size })
         await new Promise((r) => setTimeout(r, 1200)) // que se vea el 100% antes de cerrar
         log('instalando al arrancar')
         autoUpdater.quitAndInstall(true, true)

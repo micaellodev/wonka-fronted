@@ -32,6 +32,7 @@
   <div class="mod" id="m">Módulo 1 de 2 · Descarga</div>
   <div class="bar"><i id="b"></i></div>
   <div class="det" id="d">&nbsp;</div>
+  <div class="det" id="n"></div>
   <div class="det">No cierres esta ventana, será solo un momento.</div>
 </div>
 <script>
@@ -43,10 +44,12 @@
     const install = s.stage === 'install'
     t.textContent = install ? 'Instalando los archivos…' : s.stage === 'check' ? 'Buscando actualizaciones…' : 'Descargando actualizaciones…'
     m.textContent = install ? 'Módulo 2 de 2 · Instalación' : 'Módulo 1 de 2 · Descarga'
+    if (s.notes) n.textContent = s.notes.split('\n')[0] // solo el resumen de tamaño; el detalle va en el botón de la barra
     if (s.version) ver.textContent = 'Actualizando a la versión ' + s.version
     const pct = install ? 100 : s.percent || 0
     p.textContent = pct + '%'
     b.style.width = pct + '%'
-    d.innerHTML = install ? 'La app se reiniciará sola' : s.total ? mb(s.transferred) + ' de ' + mb(s.total) + ' MB  ·  ' + mb(s.speed) + ' MB/s' : '&nbsp;'
+    const full = s.size ? 'Actualización: ' + mb(s.size) + ' MB' : ''
+    d.innerHTML = install ? 'La app se reiniciará sola' : s.total ? 'Descargando ' + mb(s.transferred) + ' de ' + mb(s.total) + ' MB (solo lo que cambió)  ·  ' + mb(s.speed) + ' MB/s' + (full ? '<br>' + full : '') : full || '&nbsp;'
   }
 </script>

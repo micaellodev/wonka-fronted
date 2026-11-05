@@ -2,6 +2,7 @@
 //   $env:WONKA_UPDATE_URL = 'https://tu-host/wonka-updates'; bun run electron:release
 // Salida en release/: instalador .exe + .blockmap + latest.yml → subir los TRES a esa URL (el .exe nuevo siempre con versión mayor en package.json).
 import { spawnSync } from 'node:child_process'
+import { readFileSync, appendFileSync, existsSync } from 'node:fs'
 import { buildInstaller } from './build-installer.mjs'
 
 try { process.loadEnvFile('.env') } catch { /* sin .env: solo variables de entorno */ }
@@ -21,5 +22,10 @@ const run = (cmd, args) => {
 }
 run('bunx', ['vite', 'build'])
 run('bunx', ['electron-builder', '--win', '--publish', 'never', '-c.publish.provider=generic', `-c.publish.url=${url}`])
+// Novedades (las escribe version:bump): van en latest.yml y las cajas las ven al actualizar
+if (existsSync('release-notes.txt')) {
+  const notes = readFileSync('release-notes.txt', 'utf8').trimEnd().split('\n').map((l) => `  ${l}`).join('\n')
+  appendFileSync('release/nsis-web/latest.yml', `releaseNotes: |\n${notes}\n`)
+}
 buildInstaller(url.replace(/\/+$/, ''))
 console.log('\nListo. Sube TODO release/nsis-web/ a', url, '→ latest.yml, instalador.json, el .nsis.7z, el Setup web (lo usa el actualizador) e "Instalar Wonka Park.exe" (el que repartes a las cajas).')

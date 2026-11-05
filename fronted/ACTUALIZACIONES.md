@@ -10,7 +10,8 @@ Código: `electron/updater.cjs` (lógica), `electron/preload.cjs` (puente), `src
 
 ## Cómo publicar una versión nueva
 
-1. Sube la versión en `package.json` (`"version"`, p. ej. de `1.0.0` a `1.0.1`). Siempre mayor que la anterior.
+1. Con todo commiteado, sube la versión: `bun run version:bump`. Sin argumento elige el nivel según el tamaño de los cambios desde la versión anterior (menos de 300 líneas = patch, hasta 3000 = minor, más o un commit con `BREAKING` = major; umbrales en `scripts/bump.mjs`). También acepta `patch`, `minor` o `major` para forzarlo. Actualiza `package.json` y `package-lock.json`, escribe `release-notes.txt` (resumen del tamaño y lista de cambios) y crea el commit `Versión X.Y.Z` y la etiqueta `vX.Y.Z`. Luego `git push --follow-tags`.
+   `electron:release` copia `release-notes.txt` a `latest.yml`; las cajas ven el resumen en la pantalla de actualización y la lista completa al pasar el mouse por el botón "Actualización pendiente X.Y.Z".
 2. Compila con la URL pública donde alojarás las actualizaciones (PowerShell, desde `fronted/`):
    ```powershell
    $env:WONKA_UPDATE_URL = 'https://tu-host/wonka-updates'

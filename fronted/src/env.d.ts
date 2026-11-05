@@ -15,6 +15,7 @@ interface ImportMeta {
 interface UpdateStatus {
  state: 'downloading' | 'ready' | 'error'
  version?: string
+ notes?: string
  percent?: number
 }
 
