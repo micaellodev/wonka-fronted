@@ -90,7 +90,21 @@ Importante: **`appId` y `name` no se pueden cambiar después de repartir la app*
    - con la app en uso revisa cada 60 s, descarga en segundo plano y muestra el botón "Actualización pendiente";
    - nunca reinicia solo en medio del trabajo; si no se pulsa, instala al cerrar.
    - el registro de diagnóstico queda en `%APPDATA%\<name>\updater.log`.
-5. Las novedades de `release-notes.txt` (si usas `bump.mjs`) se copian a `latest.yml` y se muestran en la pantalla de actualización.
+5. Las novedades de `release-notes.txt` (si usas `bump.mjs`) se copian a `latest.yml` como `releaseNotes` y se muestran en la app:
+   - la pantalla de actualización muestra la primera línea (resumen de tamaño);
+   - el botón "Actualización pendiente X.Y.Z" de la barra de título muestra la lista completa al pasar el mouse.
+6. La pantalla de descarga muestra **dos cifras**: lo que se descarga de verdad (`Descargando 0,2 de 0,2 MB (solo lo que cambió)`) y el peso del paquete completo (`Actualización: 93,8 MB`, de `packages.x64.size` en `latest.yml`). La descarga real suele ser mucho menor que el paquete porque electron-updater baja solo los bloques que cambiaron; por eso la primera cifra puede salir muy baja. Es normal.
+
+### Subir la versión con `bump.mjs`
+
+```
+bun run version:bump            # elige el nivel solo
+bun run version:bump patch|minor|major   # fuerza el nivel
+```
+
+- Pide el árbol de `fronted/` limpio (todo commiteado) y deja un commit `Versión X.Y.Z` y la etiqueta `vX.Y.Z`. Después: `git push origin <rama>:main vX.Y.Z` (o `git push --follow-tags`).
+- Mide las líneas cambiadas desde el último commit de versión (mensaje `Versión X.Y.Z` o que termine en `(vX.Y.Z)`). Menos de 300 = patch, hasta 3000 = minor, más o un commit con `BREAKING` = major. Los umbrales (`MINOR` y `MAJOR`) están al inicio del script. Sin commit de versión previo mira los últimos 30 commits.
+- Limitación conocida: la medición cuenta también el `release-notes.txt` y el `package.json` del commit de versión anterior, así que un cambio mínimo justo después de un bump puede salir como "mediano". Si pasa, fuerza el nivel con `patch`.
 
 ## 5. Alojar las actualizaciones en Cloudflare R2
 
@@ -147,6 +161,8 @@ Deben responder la versión nueva. Después, en una caja con la versión anterio
 
 ## 6. Primera instalación y requisitos
 
+- **`VITE_API_URL` no puede ser `localhost` al hacer el release:** `release.mjs` se niega, porque esa URL queda grabada en el instalador y dejaría las cajas sin servidor. Si tu `.env` usa localhost, define la pública solo para ese comando: `$env:VITE_API_URL = 'https://tu-backend'`.
+
 - La primera instalación se hace con `Instalar <Producto>.exe`. Las versiones que ya estén instaladas sin actualizador no se actualizan solas: hay que instalar a mano una vez.
 - El actualizador no actúa con `electron:dev` ni con `electron:build` (no llevan URL de actualizaciones).
 - Cada versión nueva tiene que tener un `version` **mayor** que la anterior en `package.json`.
@@ -158,6 +174,8 @@ Deben responder la versión nueva. Después, en una caja con la versión anterio
 1. Copiar los archivos de la sección 1 e instalar las dependencias de la sección 2.
 2. Cambiar nombres, `appId` y logos (sección 3).
 3. Crear el bucket de R2, el dominio público y el token (sección 5.1 y 5.2).
-4. `bun run electron:release` con `WONKA_UPDATE_URL` y `VITE_API_URL` definidas.
-5. Subir `release/nsis-web/` al bucket (con `latest.yml` al final).
-6. Instalar la primera vez con `Instalar <Producto>.exe`; las siguientes versiones llegan solas.
+4. Commitear todo y correr `bun run version:bump` (sección 4).
+5. `bun run electron:release` con `WONKA_UPDATE_URL` y `VITE_API_URL` (pública) definidas.
+6. Subir `release/nsis-web/` al bucket (con `latest.yml` al final).
+7. Instalar la primera vez con `Instalar <Producto>.exe`; las siguientes versiones llegan solas.
+8. Subir el código con la etiqueta: `git push origin <rama>:main vX.Y.Z`.

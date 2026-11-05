@@ -1,5 +1,6 @@
 import type { PlayzoneChargeLine } from '@/store/playzoneTicketStore'
 import { RECEIPT_LOGO } from '../receipt-logo'
+import { printHtml } from '@/lib/print'
 import { numberToWords, type CheckoutLine, type PaymentMethod, type SaleResultItem, type TenantFiscalConfig } from './fiscal'
 
 const DEFAULT_RECEIPT_FOOTER = '¡Aquí creamos sonrisas! Recuerda que la supervisión y responsabilidad ante cualquier accidente es exclusivamente de los papis.'
@@ -129,25 +130,5 @@ export function printReceipt(p: {
  </div>
 </body>
 </html>`
-  if (window.electronAPI?.printSilent) {
-   window.electronAPI.printSilent(receiptHtml)
-  } else {
-   const iframe = document.createElement('iframe')
-   iframe.style.position = 'fixed'
-   iframe.style.right = '0'
-   iframe.style.bottom = '0'
-   iframe.style.width = '0'
-   iframe.style.height = '0'
-   iframe.style.border = 'none'
-   document.body.appendChild(iframe)
-   const doc = iframe.contentDocument
-   if (doc) {
-    doc.open()
-    doc.write(receiptHtml)
-    doc.close()
-    iframe.contentWindow?.focus()
-    iframe.contentWindow?.print()
-    setTimeout(() => document.body.removeChild(iframe), 1000)
-   }
-  }
+  void printHtml(receiptHtml)
  }

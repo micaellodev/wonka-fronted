@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { formatPEN } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { printVoucher, type VoucherRow } from '@/lib/print'
 import { formatShiftTimeString, type ShiftItem } from './helpers'
 
 function Row({ label, value, bold }: { label: string; value: React.ReactNode; bold?: boolean }) {
@@ -12,6 +13,30 @@ function Row({ label, value, bold }: { label: string; value: React.ReactNode; bo
       <span>{value}</span>
     </div>
   )
+}
+
+function shiftVoucher(shift: ShiftItem): [string[], VoucherRow[]] {
+  const r = shift.rawRecord
+  const rows: VoucherRow[] = [
+    { label: 'Caja:', value: shift.cajeroApertura },
+    { label: 'Cajero Cierre:', value: shift.cajeroCierre || 'En Curso' },
+    { label: 'Estado:', value: shift.isEnCurso ? 'ABIERTA' : r?.status === 'APPROVED' ? 'CERRADA' : 'PENDIENTE' },
+  ]
+  if (r) {
+    rows.push(
+      'line',
+      { label: 'Apertura:', value: formatPEN(r.openingBalance) },
+      { label: 'Ventas totales:', value: formatPEN(r.totalSales) },
+      { label: 'Efectivo esperado:', value: formatPEN(r.expectedEfectivo) },
+      { label: 'Ventas Yape:', value: formatPEN(r.expectedYape) },
+      { label: 'Ventas Tarjeta:', value: formatPEN(r.expectedTarjeta) },
+      { label: 'Total Esperado:', value: formatPEN(r.totalExpected), bold: true },
+      { label: 'Total Contado:', value: formatPEN(r.countedCash), bold: true },
+      { label: 'Diferencia:', value: formatPEN(r.difference) },
+    )
+  }
+  rows.push('line', { label: 'MONTO TOTAL:', value: formatPEN(shift.montoSoles), bold: true })
+  return [['WONKA POS', 'CIERRE Y ARQUEO DE CAJA', formatShiftTimeString(shift.startTime, shift.isEnCurso, shift.endTime)], rows]
 }
 
 export function ShiftVoucherDialog({ shift, onClose }: { shift: ShiftItem | null; onClose: () => void }) {
@@ -67,7 +92,7 @@ export function ShiftVoucherDialog({ shift, onClose }: { shift: ShiftItem | null
         )}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cerrar</Button>
-          <Button className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => window.print()}>
+          <Button className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => shift && void printVoucher(...shiftVoucher(shift))}>
             <Printer className="h-4 w-4" aria-hidden /> Imprimir
           </Button>
         </DialogFooter>

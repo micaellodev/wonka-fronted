@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
  LayoutDashboard, Package, Users, Calculator, BarChart3, FileText, History, ClipboardList,
- Wallet, Receipt, LineChart, ShoppingCart, Building2, LogOut, Menu, Gamepad2, X, Contact,
+ Wallet, Receipt, LineChart, ShoppingCart, Building2, LogOut, Menu, Gamepad2, X, Contact, Printer,
 } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { Button } from '@/components/ui/button'
@@ -34,6 +34,7 @@ const groups = [
  ] },
  { label: 'Operación', items: [
  { label: 'Punto de venta', to: '/pos', icon: ShoppingCart },
+ { label: 'Impresora', to: '/impresora', icon: Printer },
  ] },
 ]
 

@@ -1,4 +1,5 @@
 import { formatPEN } from '@/lib/format'
+import { printHtml } from '@/lib/print'
 
 export interface Sale {
   id: string
@@ -57,7 +58,7 @@ export function getDocumentTypeLabel(tipo: string): string {
   return 'Boleta'
 }
 
-/** Opens the browser print dialog with a standalone receipt (the colours here are for paper, not the app theme). */
+/** Prints a standalone receipt (direct to the configured printer in the desktop app) (the colours here are for paper, not the app theme). */
 export function printReceipt(s: Sale) {
   const receiptHtml = `
 <!DOCTYPE html>
@@ -78,10 +79,5 @@ export function printReceipt(s: Sale) {
   <div class="row"><span>Estado:</span><span>${s.status === 'CANCELLED' ? 'ANULADO' : 'EMITIDO'}</span></div>
   <div class="total">TOTAL: ${formatPEN(s.total)}</div>
 </body></html>`
-  const w = window.open('', '_blank', 'width=400,height=500')
-  if (w) {
-    w.document.write(receiptHtml)
-    w.document.close()
-    w.print()
-  }
+  void printHtml(receiptHtml)
 }

@@ -16,6 +16,7 @@ import { CashMovementsScreen } from '@/pages/CashMovementsScreen'
 import { PlayZoneScreen } from '@/pages/PlayZoneScreen'
 import { BillingNotesScreen } from '@/pages/BillingNotesScreen'
 import { ClientsScreen } from '@/pages/ClientsScreen'
+import { PrinterSettingsScreen } from '@/pages/PrinterSettingsScreen'
 import { AdminDashboardScreen } from '@/pages/AdminDashboardScreen'
 import { CompanySettingsScreen } from '@/pages/CompanySettingsScreen'
 import { ApprovalsScreen } from '@/pages/ApprovalsScreen'
@@ -99,7 +100,8 @@ export default function App() {
   <Route path="/pos" element={<PosGuard />} />
   <Route path="/sales-history" element={<WorkerGuard><SalesHistoryScreen /></WorkerGuard>} />
   <Route path="/playzone" element={<WorkerGuard><PlayZoneScreen /></WorkerGuard>} />
-  <Route path="/cash-close" element={<WorkerGuard><CashCloseScreen /></WorkerGuard>} />
+  <Route path="/impresora" element={<WorkerGuard><PrinterSettingsScreen /></WorkerGuard>} />
+ <Route path="/cash-close" element={<WorkerGuard><CashCloseScreen /></WorkerGuard>} />
   <Route path="/movimientos-caja" element={<WorkerGuard><CashMovementsScreen /></WorkerGuard>} />
   <Route path="/reporte-cierre-turno" element={<WorkerGuard><ReportsScreen /></WorkerGuard>} />
   <Route path="/estadisticas-venta" element={<WorkerGuard><SalesStatisticsScreen /></WorkerGuard>} />

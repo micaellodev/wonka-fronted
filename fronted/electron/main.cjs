@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('path')
 const { setupUpdater } = require('./updater.cjs')
+const { setupPrinting } = require('./printing.cjs')
 
 const isDev = !app.isPackaged
 
@@ -48,15 +49,7 @@ ipcMain.on('window:maximize', () => {
   else mainWindow?.maximize()
 })
 
-ipcMain.on('print:silent', (event, htmlContent) => {
-  const printWindow = new BrowserWindow({ show: false, webPreferences: { offscreen: true } })
-  printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`)
-  printWindow.webContents.on('did-finish-load', () => {
-    printWindow.webContents.print({ silent: true, printBackground: true }, () => {
-      printWindow.close()
-    })
-  })
-})
+setupPrinting(() => mainWindow)
 
 // Ventana de progreso de actualización (arranque y botón "Actualización pendiente")
 async function openSplash() {

@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Gamepad2, LayoutDashboard, LogOut, Monitor } from 'lucide-react'
+import { Gamepad2, LayoutDashboard, LogOut, Monitor, Printer } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/store/authStore'
@@ -87,6 +87,14 @@ export function TerminalShell({ children, activeSection }: TerminalShellProps) {
  label="Juegos"
  items={[
  { label: 'Tiempos', to: '/playzone', active: effectiveSection === 'playzone' },
+ ]}
+ />
+
+ <SectionGroup
+ icon={<Printer className="h-5 w-5 text-destructive" />}
+ label="Configuración"
+ items={[
+ { label: 'Impresora', to: '/impresora', active: location.pathname === '/impresora' },
  ]}
  />
  </div>
