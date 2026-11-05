@@ -1,2 +1,2 @@
-Cambio mediano · 3 archivos, 454 líneas, 1 cambios
-- Impresión: modo imagen para térmicas (203 dpi) como predeterminado y selector de modo
+Cambio pequeño · 1 archivos, 13 líneas, 1 cambios
+- Impresión: página del ancho imprimible y alto del ticket (el driver recibía A4 y encogía todo)
