@@ -105,12 +105,17 @@ function setupPrinting(getWindow) {
         await win.loadURL(DATA(html))
         await win.webContents.insertCSS(`@page{margin:0}${paper.css}`)
       }
-      // Rollo: sin tamaño de página (usa el papel del driver, como antes: un tamaño personalizado sale en blanco en muchas térmicas);
-      // solo el ancho del contenido cambia con 80/58 mm. Hoja: A4/A5.
-      const opts = { silent: true, printBackground: true, deviceName: cfg.printer, ...(paper.page ? { pageSize: paper.page, margins: { marginType: 'none' } } : {}) }
+      // Rollo: página del ANCHO IMPRIMIBLE (48 mm en 58 mm, 72 mm en 80 mm: es el ancho de las formas del driver, p. ej. "Printer 58 (48mmx...)")
+      // y alto = el del ticket. Sin tamaño, Chromium manda A4 y el driver encoge la página al ancho del rollo (sale una línea diminuta).
+      let size = paper.page
+      if (paper.width) {
+        const h = await win.webContents.executeJavaScript('Math.ceil(document.body.getBoundingClientRect().height)')
+        size = { width: paper.print * 1000, height: Math.max(20000, Math.ceil(h * 264.583) + 5000) } // µm; 1 px CSS = 264,583 µm
+      }
+      const opts = { silent: true, printBackground: true, deviceName: cfg.printer, pageSize: size, margins: { marginType: 'none' } }
       return await new Promise((resolve) => {
         win.webContents.print(opts, (ok, reason) => {
-          log(`imprimir ${JSON.stringify(opts)} → ${ok ? 'ok' : reason}`)
+          log(`imprimir ${cfg.paper}/${cfg.mode} ${JSON.stringify(size)} → ${ok ? 'ok' : reason}`)
           resolve(ok ? { ok: true } : { ok: false, error: `No se pudo imprimir (${reason || 'error desconocido'}).` })
         })
       })
