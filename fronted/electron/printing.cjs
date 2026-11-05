@@ -19,6 +19,8 @@ const OFFLINE = 0x80 | 0x1000
 const PROBLEMS = [[0x1, 'En pausa'], [0x2, 'Con error'], [0x8, 'Papel atascado'], [0x10, 'Sin papel'], [0x40, 'Problema de papel'], [0x400000, 'Tapa abierta']]
 
 const configFile = () => path.join(app.getPath('userData'), 'printer.json')
+const log = (m) => { try { fs.appendFileSync(path.join(app.getPath('userData'), 'printer.log'), `${new Date().toISOString()} ${m}
+`) } catch { /* sin log */ } }
 const readConfig = () => {
   try { return { ...DEFAULT, ...JSON.parse(fs.readFileSync(configFile(), 'utf8')) } } catch { return { ...DEFAULT } }
 }
@@ -73,17 +75,14 @@ function setupPrinting(getWindow) {
     try {
       await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
       await win.webContents.insertCSS(`@page{margin:0}${paper.css}`)
-      // Rollo: el alto se ajusta al contenido (1 px CSS = 264,583 µm) para que la impresora corte donde termina el ticket
-      let pageSize = paper.page
-      if (paper.width) {
-        const px = await win.webContents.executeJavaScript('document.documentElement.scrollHeight')
-        pageSize = { width: paper.width * 1000, height: Math.ceil(px * 264.583) + 4000 }
-      }
+      // Rollo: sin tamaño de página (usa el papel del driver, como antes: un tamaño personalizado sale en blanco en muchas térmicas);
+      // solo el ancho del contenido cambia con 80/58 mm. Hoja: A4/A5.
+      const opts = { silent: true, printBackground: true, deviceName: cfg.printer, ...(paper.page ? { pageSize: paper.page, margins: { marginType: 'none' } } : {}) }
       return await new Promise((resolve) => {
-        win.webContents.print(
-          { silent: true, printBackground: true, deviceName: cfg.printer, margins: { marginType: 'none' }, pageSize },
-          (ok, reason) => resolve(ok ? { ok: true } : { ok: false, error: `No se pudo imprimir (${reason || 'error desconocido'}).` }),
-        )
+        win.webContents.print(opts, (ok, reason) => {
+          log(`imprimir ${JSON.stringify(opts)} → ${ok ? 'ok' : reason}`)
+          resolve(ok ? { ok: true } : { ok: false, error: `No se pudo imprimir (${reason || 'error desconocido'}).` })
+        })
       })
     } catch (e) {
       return { ok: false, error: `No se pudo imprimir: ${e?.message ?? e}` }
