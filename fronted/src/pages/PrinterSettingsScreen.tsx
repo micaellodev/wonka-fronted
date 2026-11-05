@@ -16,7 +16,7 @@ const PAPERS: Array<{ value: PrintConfig['paper']; label: string; hint: string }
 export function PrinterSettingsScreen() {
   const api = window.electronAPI
   const [printers, setPrinters] = useState<PrinterInfo[]>([])
-  const [config, setConfig] = useState<PrintConfig>({ printer: '', paper: '80mm' })
+  const [config, setConfig] = useState<PrintConfig>({ printer: '', paper: '80mm', mode: 'image' })
   const [loading, setLoading] = useState(true)
   const [testing, setTesting] = useState(false)
 
@@ -104,6 +104,29 @@ export function PrinterSettingsScreen() {
                 ))}
               </div>
               <p className="mt-3 text-xs text-muted-foreground">Los tickets, boletas y facturas se ajustan solos al papel elegido. Se guarda en este equipo.</p>
+              {(config.paper === '80mm' || config.paper === '58mm') && (
+                <div className="mt-4">
+                  <h3 className="mb-2 text-xs font-bold">Modo de impresión (ticket)</h3>
+                  <div role="radiogroup" aria-label="Modo de impresión" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {([
+                      ['image', 'Imagen', 'Recomendado: sale bien en casi todas las térmicas.'],
+                      ['text', 'Texto', 'Más nítido si el driver lo soporta; si sale en blanco, usa Imagen.'],
+                    ] as const).map(([value, label, hint]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        role="radio"
+                        aria-checked={config.mode === value}
+                        onClick={() => void update({ mode: value })}
+                        className={cn('rounded-lg border px-3 py-3 text-left transition-colors', config.mode === value ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted')}
+                      >
+                        <span className="block text-sm font-bold">{label}</span>
+                        <span className="block text-xs text-muted-foreground">{hint}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </Card>
 
             <Card className="flex flex-wrap items-center justify-between gap-3 p-5">

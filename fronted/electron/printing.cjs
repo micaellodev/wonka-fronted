@@ -9,10 +9,10 @@ const path = require('path')
 const PAPERS = {
   A4: { page: 'A4', css: 'body{width:150mm!important;margin:12mm auto!important;padding:0!important}' },
   A5: { page: 'A5', css: 'body{width:110mm!important;margin:8mm auto!important;padding:0!important}' },
-  '80mm': { width: 80, css: 'body{width:72mm!important;margin:0 auto!important;padding:0!important}img{max-width:100%!important}' },
-  '58mm': { width: 58, css: 'body{width:48mm!important;margin:0 auto!important;padding:0!important}img{max-width:100%!important}' },
+  '80mm': { width: 80, print: 72, css: 'body{width:72mm!important;margin:0 auto!important;padding:0!important}img{max-width:100%!important}' },
+  '58mm': { width: 58, print: 48, css: 'body{width:48mm!important;margin:0 auto!important;padding:0!important}img{max-width:100%!important}' },
 }
-const DEFAULT = { printer: '', paper: '80mm' }
+const DEFAULT = { printer: '', paper: '80mm', mode: 'image' }
 
 // Bits de PRINTER_INFO.Status de Windows
 const OFFLINE = 0x80 | 0x1000
@@ -37,6 +37,30 @@ const windowsOffline = () => new Promise((resolve) => {
     } catch { resolve({}) }
   })
 })
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+const DATA = (html) => `data:text/html;charset=utf-8,${encodeURIComponent(html)}`
+
+// Modo imagen (rollos): el ticket se dibuja a 203 dpi (la resolución de las térmicas) y se imprime como imagen del ancho exacto;
+// los drivers térmicos la procesan mejor que texto vectorial. Devuelve un data URL PNG.
+async function rasterize(html, paper) {
+  const zoom = 203 / 96 // 1 px CSS = 1 punto de la impresora a 203 dpi
+  const w = Math.round((paper.print * 203) / 25.4)
+  const win = new BrowserWindow({ show: false, width: w, height: 200, useContentSize: true, webPreferences: { offscreen: true } })
+  try {
+    await win.loadURL(DATA(html))
+    // ancho exacto en px CSS (si no, sobra una fracción de punto: aparece barra de desplazamiento y se corta el borde)
+    await win.webContents.insertCSS(`@page{margin:0}${paper.css}html{overflow:hidden!important}body{width:${w / zoom}px!important}`)
+    win.webContents.setZoomFactor(zoom)
+    await sleep(150)
+    const cssH = await win.webContents.executeJavaScript('document.body.scrollHeight')
+    win.setContentSize(w, Math.ceil(cssH * zoom) + 8)
+    await sleep(400) // que se pinte con el nuevo tamaño
+    return (await win.webContents.capturePage()).toDataURL()
+  } finally {
+    if (!win.isDestroyed()) win.destroy()
+  }
+}
 
 function setupPrinting(getWindow) {
   const anyWindow = () => getWindow() ?? BrowserWindow.getAllWindows()[0]
@@ -71,10 +95,16 @@ function setupPrinting(getWindow) {
     const problem = await printerProblem(cfg)
     if (problem) return { ok: false, error: problem }
     const paper = PAPERS[cfg.paper] ?? PAPERS['80mm']
+    const asImage = paper.width && cfg.mode !== 'text'
     const win = new BrowserWindow({ show: false, webPreferences: { offscreen: true } })
     try {
-      await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
-      await win.webContents.insertCSS(`@page{margin:0}${paper.css}`)
+      if (asImage) {
+        const png = await rasterize(html, paper)
+        await win.loadURL(DATA(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>@page{margin:0}html,body{margin:0;padding:0}img{display:block;width:${paper.print}mm}</style></head><body><img src="${png}"></body></html>`))
+      } else {
+        await win.loadURL(DATA(html))
+        await win.webContents.insertCSS(`@page{margin:0}${paper.css}`)
+      }
       // Rollo: sin tamaño de página (usa el papel del driver, como antes: un tamaño personalizado sale en blanco en muchas térmicas);
       // solo el ancho del contenido cambia con 80/58 mm. Hoja: A4/A5.
       const opts = { silent: true, printBackground: true, deviceName: cfg.printer, ...(paper.page ? { pageSize: paper.page, margins: { marginType: 'none' } } : {}) }
@@ -111,6 +141,7 @@ function setupPrinting(getWindow) {
     const cfg = {
       printer: typeof next?.printer === 'string' ? next.printer : '',
       paper: PAPERS[next?.paper] ? next.paper : DEFAULT.paper,
+      mode: next?.mode === 'text' ? 'text' : 'image',
     }
     fs.writeFileSync(configFile(), JSON.stringify(cfg, null, 2))
     return cfg
@@ -123,4 +154,4 @@ function setupPrinting(getWindow) {
   })
 }
 
-module.exports = { setupPrinting }
+module.exports = { setupPrinting, rasterize, PAPERS }

@@ -21,7 +21,7 @@ interface UpdateStatus {
 
 interface PrintResult { ok: boolean; error?: string }
 interface PrinterInfo { name: string; displayName: string; isDefault: boolean; online: boolean; problem: string | null }
-interface PrintConfig { printer: string; paper: 'A4' | 'A5' | '80mm' | '58mm' }
+interface PrintConfig { printer: string; paper: 'A4' | 'A5' | '80mm' | '58mm'; mode: 'image' | 'text' }
 
 interface ElectronAPI {
  minimize: () => void
