@@ -1,2 +1,2 @@
-Cambio pequeño · 1 archivos, 13 líneas, 1 cambios
-- Impresión: página del ancho imprimible y alto del ticket (el driver recibía A4 y encogía todo)
+Cambio mediano · 6 archivos, 1164 líneas, 1 cambios
+- Cierre de caja: reporte completo impreso (ventas por medio de pago, cuadre y detalle de cada venta); Impresora dentro del admin
