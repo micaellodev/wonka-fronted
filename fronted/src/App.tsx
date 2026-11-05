@@ -120,6 +120,7 @@ export default function App() {
  <Route path="/admin/cashier" element={<AdminGuard><CashCloseHistoryScreen /></AdminGuard>} />
  <Route path="/admin/cash-history" element={<Navigate to="/admin/cashier" replace />} />
  <Route path="/admin/playzone" element={<AdminGuard><PlayZoneScreen /></AdminGuard>} />
+ <Route path="/admin/printer" element={<AdminGuard><PrinterSettingsScreen /></AdminGuard>} />
  <Route path="/admin/clients" element={<AdminGuard><ClientsScreen /></AdminGuard>} />
  <Route path="/admin/billing-notes" element={<AdminGuard><BillingNotesScreen /></AdminGuard>} />
 

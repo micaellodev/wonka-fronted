@@ -34,7 +34,7 @@ const groups = [
  ] },
  { label: 'Operación', items: [
  { label: 'Punto de venta', to: '/pos', icon: ShoppingCart },
- { label: 'Impresora', to: '/impresora', icon: Printer },
+ { label: 'Impresora', to: '/admin/printer', icon: Printer },
  ] },
 ]
 

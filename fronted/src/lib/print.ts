@@ -22,7 +22,7 @@ export async function printHtml(html: string): Promise<boolean> {
   return true
 }
 
-export type VoucherRow = { label: string; value: string; bold?: boolean } | 'line'
+export type VoucherRow = { label: string; value: string; bold?: boolean; small?: boolean } | { section: string } | 'line'
 
 const esc = (v: string) => v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 
@@ -31,10 +31,13 @@ export function printVoucher(head: string[], rows: VoucherRow[]): Promise<boolea
   const body = rows.map((r) =>
     r === 'line'
       ? '<div class="line"></div>'
-      : `<div class="row${r.bold ? ' b' : ''}"><span>${esc(r.label)}</span><span>${esc(r.value)}</span></div>`).join('')
+      : 'section' in r
+        ? `<div class="sec">${esc(r.section)}</div>`
+        : `<div class="row${r.bold ? ' b' : ''}${r.small ? ' s' : ''}"><span>${esc(r.label)}</span><span>${esc(r.value)}</span></div>`).join('')
   return printHtml(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><style>
-    *{box-sizing:border-box}body{font-family:'Courier New',monospace;font-size:11px;color:#000;margin:0;padding:10px;width:80mm}
+    *{box-sizing:border-box}body{font-family:'Courier New',monospace;font-size:10px;color:#000;margin:0;padding:10px;width:80mm}
     .c{text-align:center;text-transform:uppercase}.c p{margin:2px 0}.c p:first-child{font-size:13px;font-weight:bold}
-    .row{display:flex;justify-content:space-between;gap:8px;padding:2px 0}.b{font-weight:bold}.line{border-bottom:1px dashed #000;margin:6px 0}
-  </style></head><body><div class="c">${head.map((h) => `<p>${esc(h)}</p>`).join('')}</div><div class="line"></div>${body}</body></html>`)
+    .row{display:flex;justify-content:space-between;gap:8px;padding:2px 0;white-space:pre}.row span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis}.s{font-size:9px;padding:1px 0}.b{font-weight:bold}.line{border-bottom:1px dashed #000;margin:6px 0}
+    .sec{font-weight:bold;text-align:center;text-transform:uppercase;border-top:1px dashed #000;border-bottom:1px dashed #000;margin:8px 0 4px;padding:2px 0}
+  </style></head><body><div class="c">${head.map((h) => `<p>${esc(h)}</p>`).join('')}</div>${typeof rows[0] === 'object' && 'section' in rows[0] ? '' : '<div class="line"></div>'}${body}</body></html>`)
 }

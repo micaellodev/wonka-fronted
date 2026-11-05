@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { formatPEN } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { printVoucher } from '@/lib/print'
 
 interface Props {
   open: boolean
@@ -20,6 +19,8 @@ interface Props {
   expected: number
   counted: number
   diff: number
+  /** Imprime el reporte completo (ventas, medios de pago, cuadre y detalle) */
+  onPrint: () => void
 }
 
 export function PrintVoucherDialog(p: Props) {
@@ -60,20 +61,7 @@ export function PrintVoucherDialog(p: Props) {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={p.onClose}>Cerrar</Button>
-          <Button className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => void printVoucher(
-            [p.companyTitle, p.companyLegal, `APERTURA: ${p.openingTime}`, `CAJERO: ${p.cashier}`],
-            [
-              { label: 'Apertura Inicial:', value: formatPEN(p.opening) },
-              { label: 'Ventas Efectivo:', value: formatPEN(p.salesEfectivo) },
-              { label: 'Ventas Yape:', value: formatPEN(p.salesYape) },
-              { label: 'Ventas Tarjeta:', value: formatPEN(p.salesTarjeta) },
-              'line',
-              { label: 'Total Ventas Neto:', value: formatPEN(p.totalNet), bold: true },
-              { label: 'Total Esperado Efectivo:', value: formatPEN(p.expected), bold: true },
-              { label: 'Efectivo Contado:', value: formatPEN(p.counted) },
-              { label: 'Diferencia Efectivo:', value: formatPEN(p.diff), bold: true },
-            ],
-          )}>
+          <Button className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90" onClick={p.onPrint}>
             <Printer className="h-4 w-4" aria-hidden /> Imprimir
           </Button>
         </DialogFooter>

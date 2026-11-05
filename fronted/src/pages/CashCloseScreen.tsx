@@ -16,6 +16,8 @@ import { CountRow } from './cash-close/CountRow'
 import { PrintVoucherDialog } from './cash-close/PrintVoucherDialog'
 import { ApprovalDialog, CloseSuccessDialog } from './cash-close/ApprovalDialogs'
 import { formatSpanishDate, type CashCloseRecord } from './cash-close/helpers'
+import { printCashCloseReport } from './cash-close/report'
+import type { Sale } from './sales-history/helpers'
 
 // ============================================================
 // CashCloseScreen — Open Cash Register Dashboard & Close Flow
@@ -189,6 +191,30 @@ export function CashCloseScreen() {
     }
   }
 
+  // Reporte completo del turno (ventas por medio de pago, cuadre y cada venta). Se llama con los datos de la pantalla de ANTES de refrescar.
+  const printFullReport = async () => {
+    if (!tenantId || !summary) return
+    try {
+      // Una página de 500 ventas del día Lima; el reporte se queda con las del turno
+      const { data, error } = await api.pos.sales.get({ query: { tenantId, limit: 500, page: 1, dateFrom: summary.date, dateTo: summary.date } })
+      if (error) throw error
+      const sales = ((data.data as Sale[]) || []).map((x) => ({ ...x, total: Number(x.total) }))
+      await printCashCloseReport({
+        companyTitle: `Caja ${tenantSettings?.nombreComercial || tenantSettings?.name || ''}`.trim(),
+        companyLegal: tenantSettings?.razonSocial ?? '',
+        openingTime: summary.opening ? formatSpanishDate(summary.opening.at) : 'Sin apertura registrada',
+        closingTime: formatSpanishDate(null),
+        cashier: activeWorker?.name || 'Administrador',
+        summary,
+        sales,
+        counted: { efectivo: valCountedEfectivo, yape: valCountedYape, tarjeta: valCountedTarjeta },
+        expectedEfectivo,
+      })
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'No se pudo imprimir el reporte de cierre'))
+    }
+  }
+
   const handleApprovePin = async (pin: string) => {
     if (!pendingClose || !tenantId) return
     setApproving(true)
@@ -204,6 +230,7 @@ export function CashCloseScreen() {
         return
       }
       setSuccessClose(true)
+      void printFullReport()
       void refresh(tenantId)
       setTimeout(() => {
         logout()
@@ -448,6 +475,7 @@ export function CashCloseScreen() {
           expected={expectedEfectivo}
           counted={valCountedEfectivo}
           diff={diffEfectivo}
+          onPrint={() => void printFullReport()}
         />
         <ApprovalDialog
           open={showCloseModal && !!pendingClose && !successClose}
