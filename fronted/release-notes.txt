@@ -1,2 +1,2 @@
-Cambio mediano · 5 archivos, 358 líneas, 1 cambios
-- Horas de comprobantes, cierre y turnos siempre en hora de Perú (UTC-5), sin depender de la zona de la PC
+Cambio pequeño · 2 archivos, 128 líneas, 1 cambios
+- Cierre de caja: ya no cierra la sesión al aprobar; el aviso de éxito se cierra con Aceptar
