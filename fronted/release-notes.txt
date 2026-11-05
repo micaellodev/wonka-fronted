@@ -1,3 +1,2 @@
-Cambio mediano · 17 archivos, 749 líneas, 2 cambios
-- Electron: subida de versión automática por tamaño, novedades y peso real en el actualizador, guía de reutilización
-- Clientes: listado admin con búsqueda por DNI/nombre/celular, exportar a Excel y detalle con niños
+Cambio mediano · 2 archivos, 1140 líneas, 1 cambios
+- Registro de cliente: nombre sin comas (RENIEC y escritura manual)
