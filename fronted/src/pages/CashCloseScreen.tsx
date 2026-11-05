@@ -61,7 +61,7 @@ function SimpleTable({ rows }: { rows: { label: string; qty: number | string; am
 
 export function CashCloseScreen() {
   const navigate = useNavigate()
-  const { tenantId, activeWorker, logout } = useAuthStore()
+  const { tenantId, activeWorker } = useAuthStore()
   const { summary, error: summaryError, refresh } = useCashStatusStore()
 
   const [currencyTab, setCurrencyTab] = useState<'soles' | 'dolares'>('soles')
@@ -235,10 +235,6 @@ export function CashCloseScreen() {
       setSuccessClose(true)
       void printFullReport()
       void refresh(tenantId)
-      setTimeout(() => {
-        logout()
-        navigate('/')
-      }, 2000)
     } catch (err) {
       setPinError(apiErrorMessage(err, 'Error de conexión'))
     } finally {
@@ -488,7 +484,14 @@ export function CashCloseScreen() {
           pinError={pinError}
           totalDifference={totalDifference}
         />
-        <CloseSuccessDialog open={successClose} />
+        <CloseSuccessDialog
+          open={successClose}
+          onClose={() => {
+            setSuccessClose(false)
+            setShowCloseModal(false)
+            setPendingClose(null)
+          }}
+        />
       </div>
       {showOpenModal && (
         <CashOpeningModal onConfirm={handleOpening} isLoading={opening} serverError={openError} onCancel={() => setShowOpenModal(false)} />

@@ -41,15 +41,16 @@ export function ApprovalDialog({ open, onClose, onPin, approving, pinError, tota
   )
 }
 
-export function CloseSuccessDialog({ open }: { open: boolean }) {
+export function CloseSuccessDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent size="sm" showCloseButton={false} className="items-center text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success-soft text-success">
           <CheckCircle2 className="h-7 w-7" aria-hidden />
         </div>
         <DialogTitle>Cierre de Caja Aprobado</DialogTitle>
-        <DialogDescription>El turno ha finalizado exitosamente. Redirigiendo...</DialogDescription>
+        <DialogDescription>El turno ha finalizado exitosamente.</DialogDescription>
+        <Button onClick={onClose}>Aceptar</Button>
       </DialogContent>
     </Dialog>
   )
