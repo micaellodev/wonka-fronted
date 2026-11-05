@@ -13,6 +13,9 @@ interface KidForm { key: number; dni: string; name: string; age: string; gender:
 const newKid = (key: number): KidForm => ({ key, dni: '', name: '', age: '', gender: '', looking: false })
 const field = 'w-full bg-background border border-border focus:border-brand-500 rounded-sm px-3 py-2 text-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none'
 
+// RENIEC devuelve "APELLIDOS, NOMBRES": sin la coma
+const noCommas = (s: string) => s.replace(/,/g, '').replace(/ {2,}/g, ' ')
+
 export function RegisterModal({ open, initialDni, tenantId, onClose, onDone }: {
   open: boolean
   initialDni: string
@@ -39,7 +42,7 @@ export function RegisterModal({ open, initialDni, tenantId, onClose, onDone }: {
       const { data, error } = await api.apisperu.dni({ dni: value }).get({ query: { tenantId } })
       if (error) throw error
       const full = (data?.data as { nombre_completo?: string } | undefined)?.nombre_completo
-      if (full) set(full)
+      if (full) set(noCommas(full))
       else toast.error('RENIEC no devolvió el nombre. Escríbelo a mano.')
     } catch (err) {
       toast.error(apiErrorMessage(err, 'No se pudo consultar RENIEC. Escribe el nombre a mano.'))
@@ -126,7 +129,7 @@ export function RegisterModal({ open, initialDni, tenantId, onClose, onDone }: {
               placeholder="Celular (9 dígitos) *" className={`${field} font-mono${red(phoneBad)}`} />
           </div>
           <div className="relative">
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre completo (se completa con el DNI) *" className={`${field}${red(nameBad)}`} />
+            <Input value={name} onChange={(e) => setName(noCommas(e.target.value))} placeholder="Nombre completo (se completa con el DNI) *" className={`${field}${red(nameBad)}`} />
             {looking && <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" aria-label="Consultando RENIEC" />}
           </div>
         </section>
@@ -146,7 +149,7 @@ export function RegisterModal({ open, initialDni, tenantId, onClose, onDone }: {
                 <Input value={k.dni} onChange={(e) => onKidDni(k.key, e.target.value)} inputMode="numeric" maxLength={8}
                   placeholder="DNI (opcional)" className={`${field} font-mono`} />
                 <div className="relative">
-                  <Input value={k.name} onChange={(e) => patchKid(k.key, { name: e.target.value })} placeholder="Nombre completo *" className={field} />
+                  <Input value={k.name} onChange={(e) => patchKid(k.key, { name: noCommas(e.target.value) })} placeholder="Nombre completo *" className={field} />
                   {k.looking && <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" aria-label="Consultando RENIEC" />}
                 </div>
               </div>

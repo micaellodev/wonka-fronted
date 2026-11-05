@@ -482,7 +482,8 @@ export async function consultaDNI(dni: string, token: string, baseUrl?: string):
     }
 
     const d = resJson.data || {};
-    const nombreCompleto = d.nombre_completo || [d.nombres, d.apellido_paterno, d.apellido_materno].filter(Boolean).join(" ");
+    // RENIEC puede devolver "APELLIDOS, NOMBRES": se quita la coma
+    const nombreCompleto = (d.nombre_completo || [d.nombres, d.apellido_paterno, d.apellido_materno].filter(Boolean).join(" ")).replace(/,/g, "").replace(/ {2,}/g, " ").trim();
 
     return {
         numero: d.numero || dni,
