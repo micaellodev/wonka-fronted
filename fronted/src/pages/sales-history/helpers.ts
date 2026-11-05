@@ -1,5 +1,10 @@
-import { formatPEN } from '@/lib/format'
 import { printHtml } from '@/lib/print'
+import { api } from '@/lib/api'
+import { apiErrorMessage } from '@/lib/api-error'
+import { toast } from '@/components/ui/toast'
+import { useAuthStore } from '@/store/authStore'
+import { renderReceipt } from '@/components/checkout/receipt'
+import { resolveRegime, type IgvRegime, type TenantFiscalConfig } from '@/components/checkout/fiscal'
 
 export interface Sale {
   id: string
@@ -15,8 +20,9 @@ export interface Sale {
   worker: { name: string }
   items?: Array<{
     qty: number
-    product: { name: string; sku?: string }
+    product: { name: string; sku?: string; igvRegime?: string | null }
     unitPrice: number
+    isVirtual?: boolean
   }>
 }
 
@@ -58,26 +64,45 @@ export function getDocumentTypeLabel(tipo: string): string {
   return 'Boleta'
 }
 
-/** Prints a standalone receipt (direct to the configured printer in the desktop app) (the colours here are for paper, not the app theme). */
-export function printReceipt(s: Sale) {
-  const receiptHtml = `
-<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Comprobante Wonka</title>
-<style>
-  body{font-family:monospace;max-width:320px;margin:20px auto;color:#1a1a1a;font-size:12px}
-  .center{text-align:center;border-bottom:1px dashed #ccc;padding-bottom:8px;margin-bottom:8px}
-  .row{display:flex;justify-content:space-between;padding:2px 0}
-  .total{border-top:1px dashed #ccc;margin-top:8px;padding-top:8px;font-weight:800;font-size:14px;text-align:right}
-</style></head><body>
-  <div class="center">
-    <strong>WONKA POS</strong><br>
-    ${getDocumentTypeLabel(s.tipoComprobante)} ${getCorrelativo(s)}<br>
-    <small>${formatTableDateTime(s.createdAt)}</small>
-  </div>
-  <div class="row"><span>Cliente:</span><span>${escapeHtml(s.clientName || 'CLIENTE VARIOS')}</span></div>
-  <div class="row"><span>Pago:</span><span>${getPaymentMethodLabel(s.paymentMethod)}</span></div>
-  <div class="row"><span>Estado:</span><span>${s.status === 'CANCELLED' ? 'ANULADO' : 'EMITIDO'}</span></div>
-  <div class="total">TOTAL: ${formatPEN(s.total)}</div>
-</body></html>`
-  void printHtml(receiptHtml)
+/** Reimprime una venta con la misma maqueta que al cobrar (ticket, boleta o factura): trae el detalle y los datos del negocio si faltan. */
+export async function printReceipt(sale: Sale) {
+  const tenantId = useAuthStore.getState().tenantId
+  if (!tenantId) return
+  try {
+    let full = sale
+    if (!full.items) {
+      const { data, error } = await api.pos.sales({ id: sale.id }).get({ query: { tenantId } })
+      if (error) throw error
+      full = { ...(data?.data as Sale), total: Number(sale.total) }
+    }
+    const { data, error } = await api.dashboard.settings.get({ query: { tenantId } })
+    if (error) throw error
+    const t = data?.data as TenantFiscalConfig
+    const config: TenantFiscalConfig = { ...t, igvRate: Number(t.igvRate ?? 18), defaultIgvRegime: (t.defaultIgvRegime as IgvRegime) ?? 'EXONERADO', pricesIncludeIgv: t.pricesIncludeIgv ?? false }
+
+    let sumExonerado = 0, sumGravado = 0, sumIgv = 0
+    const items = (full.items ?? []).map((it) => {
+      const price = Number(it.unitPrice)
+      const virtual = it.isVirtual || /^(pz-|free-sale-)/.test(it.product.sku ?? '')
+      // Juegos y venta libre siempre exonerados (igual que al cobrar); el resto, según el producto o el régimen por defecto
+      const regime = virtual ? 'EXONERADO' : resolveRegime(it.product.igvRegime, config.defaultIgvRegime)
+      if (regime === 'EXONERADO' || regime === 'INAFECTO') sumExonerado += price * it.qty
+      else {
+        const rate = (regime === 'GRAVADO_10_5' ? 10.5 : config.igvRate) / 100
+        const valor = (config.pricesIncludeIgv ? price / (1 + rate) : price) * it.qty
+        sumGravado += valor
+        sumIgv += valor * rate
+      }
+      return { productName: it.product.name, qty: it.qty, unitPrice: String(price), lineTotal: String(price * it.qty) }
+    })
+    const method = (full.paymentMethod || '').toLowerCase()
+    void printHtml(renderReceipt({
+      tipo: full.tipoComprobante, serie: full.serie, correlativo: full.correlativo, ticketId: full.id.slice(-8),
+      date: new Date(full.createdAt), cashier: full.worker?.name || 'Cajero', clientName: full.clientName || '',
+      method: method === 'yape' || method === 'tarjeta' ? method : 'efectivo', total: Number(full.total), config, items,
+      sumExonerado, sumGravado, sumIgv,
+    }))
+  } catch (err) {
+    toast.error(apiErrorMessage(err, 'No se pudo preparar el comprobante'))
+  }
 }

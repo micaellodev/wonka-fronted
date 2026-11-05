@@ -1,5 +1,7 @@
 import type { PlayzoneChargeLine } from '@/store/playzoneTicketStore'
 import { RECEIPT_LOGO } from '../receipt-logo'
+// Incrustado: el comprobante se imprime desde un documento data: y una ruta relativa no carga (salía imagen rota)
+import RECEIPT_QR from '../../../public/qr-code.png?inline'
 import { printHtml } from '@/lib/print'
 import { numberToWords, type CheckoutLine, type PaymentMethod, type SaleResultItem, type TenantFiscalConfig } from './fiscal'
 
@@ -9,7 +11,26 @@ export function escapeHtml(v: string): string {
  return v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 }
 
-/** Builds the 80mm receipt from tenant settings (name/RUC/address) and prints it (Electron silent print or hidden iframe). */
+/** Todo lo que necesita la maqueta del comprobante: es la misma para ticket, boleta y factura, al cobrar y al reimprimir. */
+export interface ReceiptInput {
+ tipo: string
+ serie: string | null
+ correlativo: string | null
+ /** Si no hay serie/correlativo (ticket): se muestra TICKET-<ticketId> */
+ ticketId: string
+ date: Date
+ cashier: string
+ clientName: string
+ method: PaymentMethod
+ total: number
+ config: TenantFiscalConfig
+ items: SaleResultItem[]
+ sumExonerado: number
+ sumGravado: number
+ sumIgv: number
+}
+
+/** Builds the 80mm receipt from tenant settings (name/RUC/address) and prints it (direct to the configured printer in the desktop app). */
 export function printReceipt(p: {
  saleData: { tipoComprobante: string; serie: string | null; correlativo: string | null }
  saleItems: SaleResultItem[]
@@ -23,10 +44,25 @@ export function printReceipt(p: {
  activeWorker: { name: string } | null
 }) {
  const { saleData, saleItems, clientNameStr, method, total, config, lines, summary, playzoneCharges, activeWorker } = p
-  const tipo = (saleData.tipoComprobante || 'TICKET').toUpperCase()
+  // Playzone lines are always EXONERADO (same as backend)
+  const sumExonerado = lines.filter(l => l.regime === 'EXONERADO' || l.regime === 'INAFECTO').reduce((s, l) => s + l.mtoImpItem, 0)
+   + playzoneCharges.reduce((s, c) => s + c.total, 0)
+  const sumGravado = lines.filter(l => l.regime === 'GRAVADO' || l.regime === 'GRAVADO_10_5').reduce((s, l) => s + l.mtoValorVenta, 0)
+  const sumIgv = summary.mtoIGV
+  void printHtml(renderReceipt({
+   tipo: saleData.tipoComprobante, serie: saleData.serie, correlativo: saleData.correlativo, ticketId: Date.now().toString().slice(-8),
+   date: new Date(), cashier: activeWorker?.name || 'Cajero', clientName: clientNameStr, method, total, config, items: saleItems,
+   sumExonerado, sumGravado, sumIgv,
+  }))
+}
+
+/** Comprobante como HTML de 80 mm (sin imprimirlo). */
+export function renderReceipt(i: ReceiptInput): string {
+  const { serie, correlativo: corr, clientName: clientNameStr, method, total, config, items: saleItems, sumExonerado, sumGravado, sumIgv } = i
+  const tipo = (i.tipo || 'TICKET').toUpperCase()
   const tipoLabel = tipo === 'BOLETA' ? 'BOLETA DE VENTA ELECTRONICA' : tipo === 'FACTURA' ? 'FACTURA DE VENTA ELECTRONICA' : 'BOLETA DE VENTA ELECTRONICA'
-  const correlativo = saleData.serie && saleData.correlativo ? `${saleData.serie}-${saleData.correlativo}` : `TICKET-${Date.now().toString().slice(-8)}`
-  const now = new Date()
+  const correlativo = serie && corr ? `${serie}-${corr}` : `TICKET-${i.ticketId}`
+  const now = i.date
   const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
 
@@ -44,11 +80,6 @@ export function printReceipt(p: {
     <td class="text-right" style="padding-bottom: 6px;">S/${Number(item.lineTotal).toFixed(2)}</td>
    </tr>`).join('')
 
-  // Playzone lines are always EXONERADO (same as backend)
-  const sumExonerado = lines.filter(l => l.regime === 'EXONERADO' || l.regime === 'INAFECTO').reduce((s, l) => s + l.mtoImpItem, 0)
-   + playzoneCharges.reduce((s, c) => s + c.total, 0)
-  const sumGravado = lines.filter(l => l.regime === 'GRAVADO' || l.regime === 'GRAVADO_10_5').reduce((s, l) => s + l.mtoValorVenta, 0)
-  const sumIgv = summary.mtoIGV
 
   const paymentLabel = method === 'efectivo' ? 'EFECTIVO' : method === 'yape' ? 'YAPE' : method === 'tarjeta' ? 'TARJETA' : 'EFECTIVO'
 
@@ -92,7 +123,7 @@ export function printReceipt(p: {
   <p>${tipoLabel}: ${correlativo}</p>
   <p>Cuenta: Mesa: ${escapeHtml(clientNameStr || '-')}</p>
   <p>Fecha: ${dateStr} Hora: ${timeStr}</p>
-  <p>Cajero: ${escapeHtml(activeWorker?.name || 'Cajero')}</p>
+  <p>Cajero: ${escapeHtml(i.cashier)}</p>
  </div>
 
  <div class="text-center">
@@ -120,7 +151,7 @@ export function printReceipt(p: {
  </table>
 
  <div class="qr-container">
- <img src="qr-code.png" alt="QR Code" width="100" height="100">
+ <img src="${RECEIPT_QR}" alt="QR Code" width="100" height="100">
  </div>
 
  <p class="disclaimer">${escapeHtml(config.receiptFooter || DEFAULT_RECEIPT_FOOTER)}</p>
@@ -130,5 +161,5 @@ export function printReceipt(p: {
  </div>
 </body>
 </html>`
-  void printHtml(receiptHtml)
- }
+  return receiptHtml
+}

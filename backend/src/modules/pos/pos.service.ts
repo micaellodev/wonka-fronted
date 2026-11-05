@@ -594,7 +594,7 @@ export async function getSaleById(tenantId: string, saleId: string) {
             worker: { select: { name: true } },
             items: {
                 include: {
-                    product: { select: { name: true, sku: true } },
+                    product: { select: { name: true, sku: true, igvRegime: true } },
                 },
             },
             voidRequests: {
