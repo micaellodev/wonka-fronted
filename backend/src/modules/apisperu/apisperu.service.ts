@@ -440,127 +440,53 @@ export interface RucQueryResult {
     condicion?: string | undefined;
 }
 
-export async function consultaDNI(dni: string, token: string, baseUrl?: string): Promise<DniQueryResult> {
-    // According to https://docs.apiperu.dev/referencia/consultar-dni/
-    // Endpoint: POST https://api.apiperu.dev/dni
-    // Headers: Accept: application/json, Content-Type: application/json, Authorization: Bearer <token>
-    // Body: { "dni": "44556677" }
-    const cleanBaseUrl = baseUrl && !baseUrl.includes("facturacion.apisperu.com")
-        ? baseUrl.replace(/\/$/, "")
-        : "https://api.apiperu.dev";
-    const url = cleanBaseUrl.endsWith("/dni") ? cleanBaseUrl : `${cleanBaseUrl}/dni`;
+const DNIRUC_URL = (process.env["APISPERU_DNIRUC_URL"] ?? "https://dniruc.apisperu.com/api/v1").replace(/\/$/, "");
 
-    const response = await fetch(url, {
-        method: "POST",
-        headers: {
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({ dni: dni.trim() }),
+// dniruc.apisperu.com: GET /dni|ruc/{numero}?token=… ; errors come as {success:false,message}.
+async function dnirucGet(kind: "dni" | "ruc", numero: string, token: string): Promise<Record<string, any>> {
+    const response = await fetch(`${DNIRUC_URL}/${kind}/${encodeURIComponent(numero.trim())}?token=${encodeURIComponent(token)}`, {
+        headers: { Accept: "application/json" },
         signal: AbortSignal.timeout(Number(process.env["APISPERU_TIMEOUT_MS"] ?? 15000)),
     });
-
-    const resJson = (await response.json().catch(() => null)) as {
-        success?: boolean;
-        code?: string;
-        message?: string;
-        data?: {
-            numero?: string;
-            nombre_completo?: string;
-            nombres?: string;
-            apellido_paterno?: string;
-            apellido_materno?: string;
-            codigo_verificacion?: number;
-            [key: string]: unknown;
-        };
-    } | null;
-
-    if (!response.ok || !resJson || resJson.success === false) {
-        const errorMsg = resJson?.message || `No se pudo consultar el DNI ${dni} (${response.statusText || response.status})`;
-        throw new Error(errorMsg);
+    const body = (await response.json().catch(() => null)) as Record<string, any> | null;
+    if (!response.ok || !body || body["success"] === false) {
+        throw new Error(body?.["message"] || `No se pudo consultar el ${kind.toUpperCase()} ${numero} (${response.statusText || response.status})`);
     }
+    return body;
+}
 
-    const d = resJson.data || {};
-    // RENIEC puede devolver "APELLIDOS, NOMBRES": se quita la coma
-    const nombreCompleto = (d.nombre_completo || [d.nombres, d.apellido_paterno, d.apellido_materno].filter(Boolean).join(" ")).replace(/,/g, "").replace(/ {2,}/g, " ").trim();
-
+export async function consultaDNI(dni: string, token: string): Promise<DniQueryResult> {
+    const d = await dnirucGet("dni", dni, token);
+    const nombres = String(d["nombres"] ?? "").trim();
+    const paterno = String(d["apellidoPaterno"] ?? "").trim();
+    const materno = String(d["apellidoMaterno"] ?? "").trim();
+    const completo = [nombres, paterno, materno].filter(Boolean).join(" ");
     return {
-        numero: d.numero || dni,
-        nombre_completo: nombreCompleto || "",
-        nombres: d.nombres || "",
-        apellido_paterno: d.apellido_paterno || "",
-        apellido_materno: d.apellido_materno || "",
-        nombre: nombreCompleto || d.nombres || "",
-        codigo_verificacion: d.codigo_verificacion,
+        numero: String(d["dni"] ?? dni),
+        nombre_completo: completo,
+        nombres,
+        apellido_paterno: paterno,
+        apellido_materno: materno,
+        nombre: completo,
+        codigo_verificacion: d["codVerifica"] === undefined ? undefined : Number(d["codVerifica"]),
     };
 }
 
-export async function consultaRUC(ruc: string, token: string, baseUrl?: string): Promise<RucQueryResult> {
-    // According to https://docs.apiperu.dev/referencia/consultar-ruc/
-    const cleanBaseUrl = baseUrl && !baseUrl.includes("facturacion.apisperu.com")
-        ? baseUrl.replace(/\/$/, "")
-        : "https://api.apiperu.dev";
-    const url = cleanBaseUrl.endsWith("/ruc") ? cleanBaseUrl : `${cleanBaseUrl}/ruc`;
-
-    const response = await fetch(url, {
-        method: "POST",
-        headers: {
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({ ruc: ruc.trim() }),
-        signal: AbortSignal.timeout(Number(process.env["APISPERU_TIMEOUT_MS"] ?? 15000)),
-    });
-
-    const resJson = (await response.json().catch(() => null)) as {
-        success?: boolean;
-        message?: string;
-        data?: {
-            ruc?: string;
-            nombre_o_razon_social?: string;
-            razon_social?: string;
-            nombre_comercial?: string;
-            direccion_completa?: string;
-            direccion?: string;
-            ubigeo?: string;
-            estado?: string;
-            condicion?: string;
-            [key: string]: unknown;
-        };
-    } | null;
-
-    if (!response.ok || !resJson || resJson.success === false) {
-        const errorMsg = resJson?.message || `No se pudo consultar el RUC ${ruc} (${response.statusText || response.status})`;
-        throw new Error(errorMsg);
-    }
-
-    const d = resJson.data || {};
-
-    // Parse ubigeo: API returns either string "150101" or array ["15","1501","150101"]
-    const rawUbigeo = (d as Record<string, unknown>).ubigeo;
-    let ubigeoStr = "";
-    if (typeof rawUbigeo === "string") {
-        ubigeoStr = rawUbigeo;
-    } else if (Array.isArray(rawUbigeo) && rawUbigeo.length > 0) {
-        ubigeoStr = String(rawUbigeo[rawUbigeo.length - 1]);
-    } else if (typeof (d as Record<string, unknown>).ubigeo_sunat === "string") {
-        ubigeoStr = String((d as Record<string, unknown>).ubigeo_sunat);
-    }
-
-    const result: RucQueryResult = {
-        ruc: String(d.ruc || ruc),
-        razonSocial: String(d.nombre_o_razon_social || d.razon_social || ""),
-        nombreComercial: String(d.nombre_comercial || ""),
-        direccion: String(d.direccion_completa || d.direccion || ""),
-        departamento: String(d.departamento || ""),
-        provincia: String(d.provincia || ""),
-        distrito: String(d.distrito || ""),
-        ubigeo: ubigeoStr,
-        estado: String(d.estado || ""),
-        condicion: String(d.condicion || ""),
+export async function consultaRUC(ruc: string, token: string): Promise<RucQueryResult> {
+    const d = await dnirucGet("ruc", ruc, token);
+    // ubigeo comes as string or [dep, prov, dist]; keep the last (district) code.
+    const u = d["ubigeo"];
+    const ubigeo = Array.isArray(u) ? String(u[u.length - 1] ?? "") : String(u ?? "");
+    return {
+        ruc: String(d["ruc"] ?? ruc),
+        razonSocial: String(d["razonSocial"] ?? ""),
+        nombreComercial: String(d["nombreComercial"] ?? ""),
+        direccion: String(d["direccion"] ?? ""),
+        departamento: String(d["departamento"] ?? ""),
+        provincia: String(d["provincia"] ?? ""),
+        distrito: String(d["distrito"] ?? ""),
+        ubigeo,
+        estado: String(d["estado"] ?? ""),
+        condicion: String(d["condicion"] ?? ""),
     };
-
-    return result;
 }

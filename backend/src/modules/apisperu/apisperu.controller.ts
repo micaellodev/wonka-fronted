@@ -1,6 +1,6 @@
 import { Elysia, t } from "elysia";
 import { prisma } from "../../lib/prisma.ts";
-import { consultaDNI, consultaRUC, resolveApisPeruUrl } from "./apisperu.service.ts";
+import { consultaDNI, consultaRUC } from "./apisperu.service.ts";
 
 // ============================================================
 //  APISPeru Controller — DNI/RUC queries only
@@ -20,15 +20,14 @@ export const apisperuController = new Elysia({ prefix: "/apisperu" })
                 where: { id: tenantId },
             });
 
-            const token = tenant?.apisperuToken || process.env["APISPERU_TOKEN"];
+            const token = process.env["APISPERU_TOKEN"] || tenant?.apisperuToken;
             if (!token) {
                 throw new Error("El token de APISPeru no está configurado. Configúralo en Ajustes de Empresa o mediante la variable de entorno APISPERU_TOKEN.");
             }
 
             const result = await consultaDNI(
                 params.dni,
-                token,
-                resolveApisPeruUrl({ apisperuUrl: tenant?.apisperuUrl ?? null })
+                token
             );
 
             return {
@@ -61,15 +60,14 @@ export const apisperuController = new Elysia({ prefix: "/apisperu" })
                 where: { id: tenantId },
             });
 
-            const token = tenant?.apisperuToken || process.env["APISPERU_TOKEN"];
+            const token = process.env["APISPERU_TOKEN"] || tenant?.apisperuToken;
             if (!token) {
                 throw new Error("El token de APISPeru no está configurado. Configúralo en Ajustes de Empresa o mediante la variable de entorno APISPERU_TOKEN.");
             }
 
             const result = await consultaRUC(
                 params.ruc,
-                token,
-                resolveApisPeruUrl({ apisperuUrl: tenant?.apisperuUrl ?? null })
+                token
             );
 
             return {
