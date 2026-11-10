@@ -4,6 +4,7 @@ import {
     listGuardians,
     createGuardian,
     addChild,
+    deleteChild,
     createPlaySession,
     lookupSessionByCode,
     listActiveSessions,
@@ -140,6 +141,26 @@ export const playzoneController = new Elysia({ prefix: "/playzone", tags: ["Play
             params: t.Object({ id: t.String() }),
             body: AddChildBody,
             detail: { summary: "Add a child to an existing guardian" },
+        }
+    )
+
+    // ── DELETE /playzone/children/:id ────────────────────────
+    .delete(
+        "/children/:id",
+        async ({ params, query, set }) => {
+            try {
+                await deleteChild(query.tenantId, params.id);
+                return { meta: { message: "Niño eliminado." } };
+            } catch (err) {
+                const message = err instanceof Error ? err.message : "Error inesperado.";
+                set.status = message.includes("no encontrado") ? 404 : 422;
+                return { message };
+            }
+        },
+        {
+            params: t.Object({ id: t.String() }),
+            query: t.Object({ tenantId: t.String({ minLength: 1 }) }),
+            detail: { summary: "Delete a child that has never played (keeps history otherwise)" },
         }
     )
 

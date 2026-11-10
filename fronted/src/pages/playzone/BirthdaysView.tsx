@@ -157,7 +157,7 @@ export function BirthdaysView() {
  <div className="flex flex-1 flex-col lg:flex-row overflow-y-auto lg:overflow-hidden bg-background">
  {/* List Panel */}
  <div className="w-full lg:w-[320px] lg:shrink-0 border-b lg:border-b-0 lg:border-r border-border bg-background flex flex-col max-h-72 lg:max-h-none">
- <div className="p-3 border-b border-border bg-muted">
+ <div className="p-3 border-b border-brand-500/30 bg-brand-500/10">
  <button onClick={() => { setShowCreate(true); setSelectedResId(null) }}
  className="w-full flex items-center justify-center gap-2 py-3 bg-brand-600 hover:bg-brand-500 text-primary-foreground font-black text-xs uppercase tracking-widest rounded-sm">
  <Plus className="w-4 h-4" /> Nueva Reserva
@@ -168,7 +168,7 @@ export function BirthdaysView() {
  {loading ? <p className="text-muted-foreground text-xs">Cargando...</p> :
  reservations.map(r => (
  <button key={r.id} onClick={() => { setSelectedResId(r.id); fetchDetails(r.id); setShowCreate(false) }}
- className={`flex flex-col text-left p-3 rounded-sm border-2 transition-colors ${selectedResId === r.id ? 'border-brand-500 bg-brand-900/20' : 'border-border bg-muted hover:border-border'}`}>
+ className={`flex flex-col text-left p-3 rounded-sm border-2 transition-colors ${selectedResId === r.id ? 'border-brand-500 bg-brand-500/15' : 'border-brand-500/20 bg-brand-500/5 hover:border-brand-500/50'}`}>
  <div className="flex items-center gap-2 text-foreground font-bold text-sm">
  <PartyPopper className="w-4 h-4 text-brand-500" />
  {new Date(r.date).toLocaleDateString('es-PE', { timeZone: 'UTC' })}
@@ -195,9 +195,9 @@ export function BirthdaysView() {
  <div className="flex-1 overflow-y-auto bg-background">
  {showCreate && (
  <div className="max-w-xl mx-auto p-8 flex flex-col gap-4">
- <h2 className="text-xl font-black text-foreground uppercase tracking-wider mb-2 border-b border-border pb-2">Crear Reserva de Cumpleaños</h2>
+ <h2 className="text-xl font-black text-brand-500 uppercase tracking-wider mb-2 border-b border-brand-500/30 pb-2">Crear Reserva de Cumpleaños</h2>
 
- <div className="bg-muted p-4 rounded-sm border border-border">
+ <div className="bg-brand-500/5 p-4 rounded-sm border border-brand-500/30">
  <SectionLabel>1. Buscar Apoderado</SectionLabel>
  <div className="flex gap-2">
  <Input type="text" value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="DNI apoderado" className="flex-1 bg-background border border-border rounded-sm px-3 py-2 text-foreground" />
@@ -212,7 +212,7 @@ export function BirthdaysView() {
  </div>
 
  {guardian && (
- <div className="bg-muted p-4 rounded-sm border border-border flex flex-col gap-3">
+ <div className="bg-brand-500/5 p-4 rounded-sm border border-brand-500/30 flex flex-col gap-3">
  <SectionLabel>2. Detalles de Reserva</SectionLabel>
  <div>
  <Label className="text-xs font-bold text-muted-foreground uppercase">Fecha</Label>
@@ -234,7 +234,7 @@ export function BirthdaysView() {
 
  {!showCreate && !selectedResId && (
  <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
- <PartyPopper className="w-16 h-16 opacity-20 mb-4" />
+ <PartyPopper className="w-16 h-16 text-brand-500 opacity-60 mb-4" />
  <p className="font-bold uppercase tracking-widest">Selecciona una reserva para ver detalles</p>
  </div>
  )}
@@ -242,7 +242,7 @@ export function BirthdaysView() {
  {!showCreate && selectedResId && details && (
  <div className="p-8 max-w-4xl mx-auto flex flex-col gap-6">
  {/* Header Details */}
- <div className="bg-muted border-2 border-brand-800 rounded-sm p-5 flex items-start justify-between">
+ <div className="bg-brand-500/10 border-2 border-brand-500/40 rounded-sm p-5 flex items-start justify-between">
  <div>
  <h2 className="text-2xl font-black text-foreground uppercase tracking-wider mb-1 flex items-center gap-2">
  <Calendar className="w-6 h-6 text-brand-500" />
@@ -268,7 +268,7 @@ export function BirthdaysView() {
 
  {/* Plan, precio y cobro */}
  {details.planName && (
- <div className="bg-muted border border-border rounded-sm p-5 flex flex-col gap-3">
+ <div className="bg-brand-500/5 border border-brand-500/30 rounded-sm p-5 flex flex-col gap-3">
  <div className="flex flex-wrap items-center justify-between gap-3">
  <div>
  <SectionLabel className="text-brand-500">Plan: {details.planName}</SectionLabel>

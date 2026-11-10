@@ -61,7 +61,7 @@ export function renderNoteReceipt(n: PrintableNote, config: TenantFiscalConfig):
   return `<!DOCTYPE html>
 <html lang="es"><head><meta charset="UTF-8"><style>
   * { box-sizing: border-box; }
-  body { width: 80mm; margin: 0 auto; padding: 10px; font-family: 'Courier New', Courier, monospace; font-size: 11px; color: #000; line-height: 1.2; text-transform: uppercase; }
+  body { width: 80mm; margin: 0 auto; padding: 10px; font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #000; line-height: 1.2; text-transform: uppercase; }
   p { margin: 2px 0; }
   .c { text-align: center; }
   .line { border-bottom: 1px dashed #000; margin: 6px 0; }

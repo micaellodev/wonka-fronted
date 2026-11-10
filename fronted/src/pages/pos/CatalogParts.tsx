@@ -197,10 +197,12 @@ export function CatalogTabs({
 export function CategoryCard({
   category,
   productCount,
+  unit = 'Producto',
   onClick,
 }: {
   category: Category
   productCount: number
+  unit?: string
   onClick: () => void
 }) {
   return (
@@ -219,7 +221,7 @@ export function CategoryCard({
   {category.name}
   </p>
   <p className="mt-1 text-[11px] text-muted-foreground">
-  {productCount === 1 ? '1 Producto' : `${productCount} Productos`}
+  {productCount === 1 ? `1 ${unit}` : `${productCount} ${unit}s`}
   </p>
   </div>
   </button>

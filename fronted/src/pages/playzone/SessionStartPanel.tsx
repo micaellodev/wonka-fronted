@@ -5,7 +5,11 @@ import { Timer, Clock, XCircle, Minus, Plus, Infinity as InfinityIcon } from 'lu
 import { formatPEN } from '@/lib/format'
 import { type Child, type DurationOpt, fmtPrice, SectionLabel } from './shared'
 
-export function SessionStartPanel({ companionPrice, selectedChild, setSelectedChild, durationOptions, selectedDuration, setSelectedDuration, companions, setCompanions, notes, setNotes, starting, onStart, lastCode }: {
+export function SessionStartPanel({ kids, groupName, setGroupName, onRemoveKid, companionPrice, selectedChild, setSelectedChild, durationOptions, selectedDuration, setSelectedDuration, companions, setCompanions, notes, setNotes, starting, onStart, lastCode }: {
+ kids: (Child & { guardianName: string })[]
+ groupName: string
+ setGroupName: (s: string) => void
+ onRemoveKid: (id: string) => void
  companionPrice: number
  notes: string
  setNotes: (s: string) => void
@@ -76,6 +80,20 @@ export function SessionStartPanel({ companionPrice, selectedChild, setSelectedCh
  <XCircle className="w-4 h-4" />
  </button>
  </div>
+ {kids.length > 1 && (
+ <div className="mt-3 flex flex-col gap-2 border-t border-brand-800 pt-3">
+ <SectionLabel className="text-brand-500">Grupo ({kids.length} niños)</SectionLabel>
+ <input value={groupName} onChange={(e) => setGroupName(e.target.value)} maxLength={40} aria-label="Nombre del grupo" placeholder="Nombre del grupo"
+ className="w-full rounded-sm border-2 border-border bg-muted px-2 py-1.5 text-xs font-bold text-foreground" />
+ {kids.slice(1).map((k) => (
+ <div key={k.id} className="flex items-center justify-between text-xs font-bold text-foreground">
+ <span className="truncate">{k.fullName}</span>
+ <button onClick={() => onRemoveKid(k.id)} aria-label={`Quitar a ${k.fullName}`} className="p-1 text-muted-foreground hover:text-foreground"><XCircle className="h-3.5 w-3.5" /></button>
+ </div>
+ ))}
+ <p className="text-[11px] text-muted-foreground">El grupo vale solo para esta venta. Se cobra el tiempo de cada niño.</p>
+ </div>
+ )}
  </div>
 
  {/* Duration picker */}

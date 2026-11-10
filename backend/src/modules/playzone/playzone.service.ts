@@ -391,6 +391,15 @@ export async function addChild(input: AddChildInput) {
     });
 }
 
+// ── CRM: borrar un niño de su apoderado (solo si nunca jugó: el historial se conserva) ──
+
+export async function deleteChild(tenantId: string, childId: string) {
+    const child = await prisma.child.findFirst({ where: { id: childId, tenantId }, select: { id: true, _count: { select: { playSessions: true } } } });
+    if (!child) throw new Error("Niño no encontrado.");
+    if (child._count.playSessions > 0) throw new Error("Este niño ya tiene sesiones de juego en el historial y no se puede borrar.");
+    await prisma.child.delete({ where: { id: childId } });
+}
+
 // ── Session: code generation ─────────────────────────────────
 
 async function generateUniqueCode(tenantId: string): Promise<string> {

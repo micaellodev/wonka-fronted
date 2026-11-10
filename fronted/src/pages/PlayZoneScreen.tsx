@@ -4,7 +4,7 @@ import {
  UserPlus, RefreshCw,
  Baby, CheckCircle2,
  ChevronRight, Plus,
- Shield, Phone, FileText, PartyPopper
+ Shield, Phone, FileText, PartyPopper, Trash2
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
@@ -65,7 +65,23 @@ export function PlayZoneScreen() {
  const [addingChild, setAddingChild] = useState(false)
 
  // ── selected child + session start ──
- const [selectedChild, setSelectedChild] = useState<(Child & { guardianName: string }) | null>(null)
+ // Varios niños con Ctrl+clic: forman un grupo solo por esta sesión de caja; el primero es el "niño elegido"
+ const [kids, setKids] = useState<(Child & { guardianName: string })[]>([])
+ const [groupName, setGroupName] = useState('')
+ const selectedChild = kids[0] ?? null
+ const setSelectedChild = (c: (Child & { guardianName: string }) | null) => { setKids(c ? [c] : []); setGroupName(c ? c.guardianName : '') }
+ const toggleKid = (c: Child & { guardianName: string }) => setKids((prev) => {
+ const next = prev.some((k) => k.id === c.id) ? prev.filter((k) => k.id !== c.id) : [...prev, c]
+ setGroupName((g) => g || next[0]?.guardianName || '')
+ return next
+ })
+ const handleDeleteChild = async (child: Child) => {
+ if (!window.confirm(`¿Eliminar a ${child.fullName}? Solo se puede si nunca jugó.`)) return
+ const res = await (api.playzone.children as Loose)({ id: child.id }).delete(undefined, { query: { tenantId } })
+ if (res.error) { toast.error(getApiErrorMessage(res.error, 'No se pudo eliminar al niño.')); return }
+ setMode((m) => m.type === 'FOUND' ? { type: 'FOUND', guardian: { ...m.guardian, children: m.guardian.children.filter((c) => c.id !== child.id) } } : m)
+ setKids((prev) => prev.filter((k) => k.id !== child.id))
+ }
  const [selectedDuration, setSelectedDuration] = useState<DurationOpt>(FREE_OPTION)
  const [companions, setCompanions] = useState(0)
  const [notes, setNotes] = useState('')
@@ -213,12 +229,25 @@ export function PlayZoneScreen() {
  setStarting(true)
  setLastCode(null)
  try {
- const body: Record<string, unknown> = { tenantId, childId: selectedChild.id }
+ // Un grupo inicia una sesión por niño; los acompañantes se cobran una sola vez (con el primero)
+ const extraKids = kids.slice(1)
+ const label = kids.length > 1 && groupName.trim() ? `${groupName.trim()} · ` : ''
+ const startOne = (kid: Child, withCompanions: boolean) => {
+ const body: Record<string, unknown> = { tenantId, childId: kid.id }
  if (selectedDuration.minutes !== null) body.durationMinutes = selectedDuration.minutes
  if (selectedDuration.ally) body.allyDiscount = true
- if (companions > 0) body.companions = companions
- if (notes.trim()) body.notes = notes.trim()
- const res = await (api.playzone.sessions as Loose).post(body)
+ if (withCompanions && companions > 0) body.companions = companions
+ const text = `${label}${notes.trim()}`.slice(0, 120)
+ if (text) body.notes = text
+ return (api.playzone.sessions as Loose).post(body)
+ }
+ for (const kid of extraKids) {
+ const r = await startOne(kid, false)
+ if (r.error) { toast.error(`${kid.fullName}: ${getApiErrorMessage(r.error, 'No se pudo iniciar.')}`); continue }
+ const s = (r.data as Loose).data
+ queueCharge(s.charge); queueCharge(s.discountCharge)
+ }
+ const res = await startOne(selectedChild, true)
  if (!res.error) {
  const session = (res.data as Loose).data
  const note = session.charge || session.companionsCharge
@@ -390,12 +419,15 @@ export function PlayZoneScreen() {
  <div className="flex flex-col gap-2">
  {mode.guardian.children.map(child => {
  const isActive = sessions.some(s => s.childId === child.id)
- const isSel = selectedChild?.id === child.id
+ const isSel = kids.some((k) => k.id === child.id)
  return (
- <button key={child.id}
- onClick={() => {
+ <div key={child.id} className="relative">
+ <button
+ onClick={(e) => {
  if (isActive) return
- setSelectedChild({ ...child, guardianName: mode.guardian.fullName })
+ const kid = { ...child, guardianName: mode.guardian.fullName }
+ if (e.ctrlKey || e.metaKey) toggleKid(kid)
+ else setSelectedChild(kid)
  setLastCode(null)
  }}
  disabled={isActive}
@@ -420,8 +452,16 @@ export function PlayZoneScreen() {
  : isSel ? <CheckCircle2 className="w-4 h-4 shrink-0" />
  : <ChevronRight className="w-4 h-4 shrink-0 opacity-50" />}
  </button>
+ {!isActive && (
+ <button type="button" onClick={() => void handleDeleteChild(child)} aria-label={`Eliminar a ${child.fullName}`} title="Eliminar niño"
+ className="absolute right-9 top-1/2 -translate-y-1/2 rounded-sm p-1 text-muted-foreground hover:bg-red-500/20 hover:text-red-500">
+ <Trash2 className="w-3.5 h-3.5" />
+ </button>
+ )}
+ </div>
  )
  })}
+ <p className="text-[11px] text-muted-foreground">Ctrl + clic para elegir varios niños a la vez.</p>
  </div>
 
  {/* Add child inline */}
@@ -511,7 +551,7 @@ export function PlayZoneScreen() {
  ═══════════════════════════════════════════ */}
  {/* Solo aparece cuando hay un niño elegido o un código recién generado: así las sesiones activas usan todo el ancho */}
  {(selectedChild || shownCode) && (
- <SessionStartPanel companionPrice={companionPrice} selectedChild={selectedChild} setSelectedChild={setSelectedChild} durationOptions={durationOptions} selectedDuration={selectedDuration} setSelectedDuration={setSelectedDuration} companions={companions} setCompanions={setCompanions} notes={notes} setNotes={setNotes} starting={starting} onStart={handleStart} lastCode={shownCode} />
+ <SessionStartPanel kids={kids} groupName={groupName} setGroupName={setGroupName} onRemoveKid={(id) => setKids((p) => p.filter((k) => k.id !== id))} companionPrice={companionPrice} selectedChild={selectedChild} setSelectedChild={setSelectedChild} durationOptions={durationOptions} selectedDuration={selectedDuration} setSelectedDuration={setSelectedDuration} companions={companions} setCompanions={setCompanions} notes={notes} setNotes={setNotes} starting={starting} onStart={handleStart} lastCode={shownCode} />
  )}
 
  {/* ═══════════════════════════════════════════

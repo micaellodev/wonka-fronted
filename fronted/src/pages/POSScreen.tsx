@@ -17,6 +17,8 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { formatPEN } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { ProductCard, CatalogTabs, CategoryCard, type CatalogTab } from './pos/CatalogParts'
+import { ComboGrid } from './pos/ComboCatalog'
+import { useComboStore } from '@/store/comboStore'
 import { FreeSaleForm } from './pos/FreeSaleForm'
 import { VariantCard, VariantPicker } from './pos/Variants'
 import { groupVariants, splitCategory, splitVariant, topCategory } from '@/lib/catalog'
@@ -35,6 +37,9 @@ interface ProductsResponse {
 // Valor de filtro para los productos que están en la categoría principal misma (sin subcategoría)
 const OTHERS = '\u0000otros'
 
+// Categoría especial: los combos se eligen desde Categorías
+const COMBOS = String.fromCharCode(0) + 'combos'
+
 export function POSScreen() {
  const { tenantId, activeWorker } = useAuthStore()
  const { items, addItem } = useCartStore()
@@ -49,6 +54,8 @@ export function POSScreen() {
   const [picker, setPicker] = useState<{ base: string; categoryId: string } | null>(null)
   const [activeTab, setActiveTab] = useState<CatalogTab>('products')
   const [loading, setLoading] = useState(true)
+  const comboCount = useComboStore((s) => s.combos.filter((c) => c.isActive).length)
+  useEffect(() => { if (tenantId) void useComboStore.getState().load(tenantId) }, [tenantId])
  const [todaySalesOpen, setTodaySalesOpen] = useState(false)
  const [isAttendanceOpen, setIsAttendanceOpen] = useState(false)
  const [voidTarget, setVoidTarget] = useState<SaleToday | null>(null)
@@ -174,7 +181,7 @@ export function POSScreen() {
   )}
   <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
   {activeTab === 'categories' && !selectedCategory && 'Selecciona una categoría'}
-  {activeTab === 'categories' && selectedCategory && categories.find((c) => c.id === selectedCategory)?.name}
+  {activeTab === 'categories' && selectedCategory && (selectedCategory === COMBOS ? 'Combos' : categories.find((c) => c.id === selectedCategory)?.name)}
   {activeTab === 'products' && 'Todos los productos'}
   {activeTab === 'favorites' && 'Productos favoritos'}
   {activeTab === 'search' && 'Buscar producto'}
@@ -194,8 +201,15 @@ export function POSScreen() {
   </div>
   )}
 
+  {!loading && activeTab === 'categories' && selectedCategory === COMBOS && (
+  <div className="grid min-h-0 flex-1 auto-rows-max content-start grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto pr-1">
+  <ComboGrid products={products} />
+  </div>
+  )}
+
   {!loading && activeTab === 'categories' && selectedCategory === null && (
   <div className="grid min-h-0 flex-1 auto-rows-max content-start grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 overflow-y-auto pr-1">
+  {comboCount > 0 && <CategoryCard category={{ id: COMBOS, name: 'Combos' } as Category} productCount={comboCount} unit="Combo" onClick={() => setSelectedCategory(COMBOS)} />}
   {categories.map((cat) => (
   <CategoryCard
   key={cat.id}
@@ -207,7 +221,7 @@ export function POSScreen() {
   </div>
   )}
 
- {!loading && (activeTab === 'products' || (activeTab === 'categories' && selectedCategory !== null)) && visibleProducts.length === 0 && (
+ {!loading && (activeTab === 'products' || (activeTab === 'categories' && selectedCategory !== null && selectedCategory !== COMBOS)) && visibleProducts.length === 0 && (
   <div className="flex flex-col items-center justify-center h-64 gap-4 text-muted-foreground">
   <Package className="w-12 h-12 opacity-50" />
   <p className="text-sm font-bold uppercase tracking-widest">Sin productos</p>
@@ -223,7 +237,7 @@ export function POSScreen() {
   </div>
   )}
 
-  {!loading && (activeTab === 'products' || (activeTab === 'categories' && selectedCategory !== null)) && visibleProducts.length > 0 && (
+  {!loading && (activeTab === 'products' || (activeTab === 'categories' && selectedCategory !== null && selectedCategory !== COMBOS)) && visibleProducts.length > 0 && (
   <div className="grid min-h-0 flex-1 auto-rows-max content-start grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 overflow-y-auto pr-1">
   {renderCatalog(visibleProducts)}
   </div>
