@@ -67,6 +67,9 @@ async function rasterize(html, paper, info = {}) {
 
 // Logo del ticket: 'none' lo quita; 'light' lo achica (la trama se aplica en el modo directo)
 function applyLogoMode(html, mode) {
+  // Todo el ticket en negrita y con contorno, para que el texto salga tan oscuro como el QR
+  const BOLD = '<style>body,body *{font-weight:700!important;-webkit-text-stroke:.4px #000}</style></head>'
+  html = html.replace('</head>', BOLD)
   if (mode === 'none') return html.replace(/<div class="logo-container">[\s\S]*?<\/div>/, '')
   if (mode === 'light') return html.replace('</head>', '<style>.logo-container img{max-width:44mm!important}</style></head>')
   return html
@@ -117,7 +120,7 @@ function setupPrinting(getWindow) {
         // Logo liviano: trama de puntitos en la zona del logo (la mancha negra sólida es lo que hace fallar a algunas térmicas)
         const k = info.logo ? dots / info.logo.innerW : 0
         const dither = cfg.logo === 'light' && info.logo ? { x: Math.floor(info.logo.x * k), y: Math.floor(info.logo.y * k), w: Math.ceil(info.logo.w * k), h: Math.ceil(info.logo.h * k) } : null
-        const bands = toEscPosBands(img.toBitmap(), width, height, { dither, lighten: 40 })
+        const bands = toEscPosBands(img.toBitmap(), width, height, { dither, lighten: 40, threshold: 200 })
         const res = await rawSendMany(name, bands)
         log(`imprimir ${cfg.paper}/raw ${width}x${height} ${bands.length} bandas logo=${cfg.logo} → ${res.ok ? 'ok' : res.error}`)
         return res
