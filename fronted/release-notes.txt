@@ -1,5 +1,2 @@
-Cambio muy grande · 69 archivos, 3399 líneas, 4 cambios
-- Esquema: conserva approvalCodeHash (obsoleto) para compatibilidad entre versiones del backend
-- Juegos: tiempo extra por bloques, tarifas con beneficios, combos y planes de cumpleaños
-- Facturación, notas y descuentos: config de empresa, descuento por producto, notas de crédito/débito, PIN único y recibo
-- APISPeru: consulta DNI/RUC por variables de entorno (URL y tokens)
+Cambio pequeño · 4 archivos, 117 líneas, 1 cambios
+- Impresión: modo Directo (ESC/POS) para térmicas cuyo driver de Windows deja caracteres raros
