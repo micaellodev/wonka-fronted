@@ -113,6 +113,8 @@ model Worker {
   name             String
   /// SHA256-hashed 6-digit numeric PIN used for login and to approve notes, voids and cash closes
   pinHash          String
+  /// OBSOLETO (ya no se usa: el PIN de 6 dígitos aprueba todo). Se conserva para que versiones anteriores del backend sigan funcionando; quitar después de desplegar.
+  approvalCodeHash String?
   dni              String?
   avatarUrl        String?
   isActive         Boolean  @default(true)
