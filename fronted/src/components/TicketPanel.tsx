@@ -12,7 +12,6 @@ import { RightCheckoutDrawer } from '@/components/RightCheckoutDrawer'
 import { CartRow } from '@/pages/pos/CatalogParts'
 import { formatPEN } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { useCan } from '@/lib/permissions'
 
 // ============================================================
 // TicketPanel — carrito + cobro, compartido por POS y Juegos
@@ -32,8 +31,6 @@ export function TicketPanel({ onSaleComplete, className }: { onSaleComplete?: ()
  const { items, total, addItem, decrementItem, removeItem, setDiscount, clearCart } = useCartStore()
  const { charges: playzoneCharges, total: playzoneTotal, clearAllCharges, removeCharge } = usePlayzoneTicketStore()
  const [checkoutOpen, setCheckoutOpen] = useState(false)
- // Quitar tiempo de juego del ticket anula la sesión: solo quien puede aprobar anulaciones (el cajero primero debe cobrar)
- const canUndoPlay = useCan().can('approvals.resolve')
  const timeStr = useClock().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
  const hasCart = items.length > 0 || playzoneCharges.length > 0
  const comboResult = useComboDiscount()
@@ -79,7 +76,6 @@ export function TicketPanel({ onSaleComplete, className }: { onSaleComplete?: ()
  const handleCancel = () => {
  if (!hasCart) return
  clearCart()
- if (!canUndoPlay && playzoneCharges.length) { toast.error('Los juegos sin cobrar no se pueden cancelar: cóbralos o pide a un administrador.'); return }
  clearAllCharges()
  toast.info('Orden cancelada')
  }
@@ -136,14 +132,14 @@ export function TicketPanel({ onSaleComplete, className }: { onSaleComplete?: ()
  {formatPEN(charge.total)}
  </span>
  </div>
- {canUndoPlay && <button
+ <button
  onClick={() => handleRemoveCharge(charge)}
  aria-label="Quitar del ticket"
  title="Quitar del ticket"
  className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-danger-soft hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring focus:outline-none"
  >
  <Trash2 className="w-4 h-4" />
- </button>}
+ </button>
  </div>
  ))}
  {items.map((item) => (

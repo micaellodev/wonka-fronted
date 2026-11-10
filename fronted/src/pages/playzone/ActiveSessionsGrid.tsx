@@ -1,5 +1,5 @@
 // Niños jugando: tarjetas con cuenta regresiva en vivo, ordenadas por quién termina primero.
-import { Baby, RefreshCw, Timer, Users } from 'lucide-react'
+import { Baby, RefreshCw, Timer } from 'lucide-react'
 import { useNow } from '@/hooks/useNow'
 import { type ActiveSession, type DurationOpt, SessionCard } from './shared'
 
@@ -78,13 +78,9 @@ export function ActiveSessionsGrid({ sessions, loadingSessions, onCheckout, chec
  {!loadingSessions && sessions.length > 0 && (
  <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,220px),1fr))] items-start gap-3">
  {blocks.map((b) => b.group ? (
- <section key={b.key} className="col-span-full rounded-xl border-2 border-brand-500/40 bg-brand-500/5 p-3">
- <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
- <p className="flex items-center gap-2 text-sm font-black uppercase tracking-wider text-brand-500"><Users className="h-4 w-4" aria-hidden />{b.list[0]!.notes!.split(' · ')[0]} · {b.list.length} niños</p>
- <button onClick={() => void finishAll(b.list)} disabled={checkingOut !== null} className="rounded-sm bg-brand-600 px-3 py-1.5 text-xs font-black uppercase tracking-widest text-primary-foreground disabled:opacity-50">Finalizar todos</button>
- </div>
- <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,220px),1fr))] items-start gap-3">{b.list.map(card)}</div>
- </section>
+ <SessionCard key={b.key} session={b.list[0]!} group={b.list} onFinishGroup={() => void finishAll(b.list)}
+ checking={checkingOut !== null} onCheckout={onCheckout} durationOptions={durationOptions} showCode={showCode}
+ onExtend={(_, m) => b.list.forEach((x) => onExtend(x.id, m))} />
  ) : card(b.list[0]!))}
  </div>
  )}

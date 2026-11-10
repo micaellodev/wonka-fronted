@@ -376,7 +376,7 @@ function PlanFields({ plans, planId, setPlanId, guestCount, setGuestCount, extra
  )}
  <div>
  <Label className="text-xs font-bold text-muted-foreground uppercase">Cantidad de Niños (Invitados){plan ? ` · ${plan.includedGuests} incluidos, extra ${formatPEN(plan.extraGuestPrice)} c/u` : ''}</Label>
- <Input type="number" min="1" value={guestCount} onChange={e => setGuestCount(Number(e.target.value))} className="w-full bg-background border border-border rounded-sm px-3 py-2 text-foreground" />
+ <Input type="number" min="1" value={guestCount || ''} onChange={e => setGuestCount(Number(e.target.value))} className="w-full bg-background border border-border rounded-sm px-3 py-2 text-foreground" />
  </div>
  {plan && plan.extras.length > 0 && (
  <div>

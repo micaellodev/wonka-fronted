@@ -17,7 +17,6 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { apiErrorMessage as getApiErrorMessage } from '@/lib/api-error'
 import { toast } from '@/components/ui/toast'
 import { Input } from '@/components/ui/input'
-import { formatPEN } from '@/lib/format'
 import {
  type Loose, type PlayzoneRates, DEFAULT_COMPANION_PRICE, type DurationOpt, FREE_OPTION, type Child, type Guardian, type ActiveSession, type PanelMode,
  SectionLabel, overtimeRules
@@ -161,7 +160,6 @@ export function PlayZoneScreen() {
  const queueCharge = (charge: PlayzoneCharge | null | undefined) => {
  if (!charge) return
  addCharge(charge)
- setNotice(`Agregado a caja: ${charge.label} — ${formatPEN(charge.amount)}`)
  }
  useEffect(() => {
  // Las sesiones son del local (las ven todos los usuarios): se refrescan seguido y al volver a la ventana
@@ -421,7 +419,7 @@ export function PlayZoneScreen() {
  const isActive = sessions.some(s => s.childId === child.id)
  const isSel = kids.some((k) => k.id === child.id)
  return (
- <div key={child.id} className="relative">
+ <div key={child.id} className="flex w-full items-stretch gap-1.5">
  <button
  onClick={(e) => {
  if (isActive) return
@@ -431,15 +429,15 @@ export function PlayZoneScreen() {
  setLastCode(null)
  }}
  disabled={isActive}
- className={`flex items-center justify-between px-3 py-2.5 rounded-sm border-2 text-left transition-none ${isSel ? 'bg-brand-600 border-brand-500 text-primary-foreground'
+ className={`flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-2.5 rounded-sm border-2 text-left transition-none ${isSel ? 'bg-brand-600 border-brand-500 text-primary-foreground'
  : isActive ? 'bg-muted border-border text-muted-foreground cursor-not-allowed'
  : 'bg-muted border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground'
  }`}
  >
- <div className="flex items-center gap-2">
+ <div className="flex min-w-0 items-center gap-2">
  <Baby className="w-4 h-4 shrink-0" />
- <div>
- <p className="text-sm font-bold truncate pr-2">{child.fullName}</p>
+ <div className="min-w-0">
+ <p className="text-sm font-bold truncate" title={child.fullName}>{child.fullName}</p>
  <div className="flex gap-2 opacity-70 mt-0.5 font-mono text-[11px] uppercase tracking-widest">
  {child.age && <span>{child.age}A</span>}
  {child.gender && <span>{child.gender}</span>}
@@ -454,7 +452,7 @@ export function PlayZoneScreen() {
  </button>
  {!isActive && (
  <button type="button" onClick={() => void handleDeleteChild(child)} aria-label={`Eliminar a ${child.fullName}`} title="Eliminar niño"
- className="absolute right-9 top-1/2 -translate-y-1/2 rounded-sm p-1 text-muted-foreground hover:bg-red-500/20 hover:text-red-500">
+ className="flex w-9 shrink-0 items-center justify-center rounded-sm border-2 border-border bg-muted text-muted-foreground hover:bg-red-500/20 hover:text-red-500">
  <Trash2 className="w-3.5 h-3.5" />
  </button>
  )}

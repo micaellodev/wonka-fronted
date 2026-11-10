@@ -21,7 +21,7 @@ type Draft = {
   id?: string; name: string; description: string; benefits: string; includedGuests: number; extraGuestPrice: string
   priceWeekday: string; priceSaturday: string; priceSunday: string; isActive: boolean; extras: Array<{ name: string; price: string }>
 }
-type Holiday = { id: string; date: string; label: string }
+type Holiday = { id: string; date: string | Date; label: string }
 
 const emptyDraft: Draft = { name: '', description: '', benefits: '', includedGuests: 10, extraGuestPrice: '0', priceWeekday: '', priceSaturday: '', priceSunday: '', isActive: true, extras: [] }
 
@@ -189,7 +189,8 @@ export function BirthdayPlansScreen() {
             {holidays.length === 0 && <p className="text-sm text-muted-foreground">Sin feriados cargados.</p>}
             {holidays.map((h) => (
               <span key={h.id} className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs">
-                {h.date.split('-').reverse().join('/')} · {h.label}
+                {/* Eden convierte "YYYY-MM-DD" en Date; se normaliza a texto */}
+                {new Date(h.date).toISOString().slice(0, 10).split('-').reverse().join('/')} · {h.label}
                 <button onClick={() => void removeHoliday(h.id)} aria-label="Quitar feriado" className="text-muted-foreground hover:text-destructive"><X className="h-3 w-3" /></button>
               </span>
             ))}

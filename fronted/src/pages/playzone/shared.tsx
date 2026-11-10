@@ -98,8 +98,11 @@ function fmtClock(totalSec: number) {
 }
 
 export function SessionCard({
- session, onCheckout, checking, durationOptions, showCode = true, onExtend,
+ session, onCheckout, checking, durationOptions, showCode = true, onExtend, group, onFinishGroup,
 }: {
+ /** Niños iniciados juntos: se muestran en un solo recuadro (comparten tiempo y hora) */
+ group?: ActiveSession[]
+ onFinishGroup?: () => void
  showCode?: boolean
  onExtend?: (sessionId: string, minutes: number) => void
  session: ActiveSession
@@ -182,11 +185,13 @@ export function SessionCard({
  </div>
 
  <div className="flex flex-col gap-1">
- <div className="flex items-center gap-2">
+ {(group ?? [session]).map((k) => (
+ <div key={k.id} className="flex items-center gap-2">
  <Baby className="h-4 w-4 shrink-0 text-brand-500" aria-hidden />
- <span className="min-w-0 flex-1 truncate text-sm font-bold text-foreground" title={session.childName}>{session.childName}</span>
- {session.childAge ? <span className="shrink-0 text-xs text-muted-foreground">{session.childAge} años</span> : null}
+ <span className="min-w-0 flex-1 truncate text-sm font-bold text-foreground" title={k.childName}>{k.childName}</span>
+ {k.childAge ? <span className="shrink-0 text-xs text-muted-foreground">{k.childAge} años</span> : null}
  </div>
+ ))}
  <div className="flex items-center gap-2">
  <Shield className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
  <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={session.guardianName}>{session.guardianName}</span>
@@ -194,16 +199,16 @@ export function SessionCard({
  {session.isUnlimited ? 'Libre' : session.durationMinutes ? `${session.durationMinutes} min` : ''}{price !== null ? ` · ${formatPEN(price)}` : ''}
  </span>
  </div>
- {blocks > 0 && blockPrice !== null && <p className="rounded-md bg-danger-soft px-2 py-1 text-xs font-bold text-destructive">Tiempo extra: {blocks} × {block} min · a cobrar {formatPEN(blocks * blockPrice)} al terminar</p>}
+ {blocks > 0 && blockPrice !== null && <p className="rounded-md bg-danger-soft px-2 py-1 text-xs font-bold text-destructive">Tiempo extra: {blocks} × {block} min · a cobrar {formatPEN(blocks * blockPrice * (group?.length ?? 1))} al terminar</p>}
  {session.notes && <p className="break-words rounded-md bg-muted px-2 py-1 text-xs font-medium text-foreground">📝 {session.notes}</p>}
  </div>
 
  <button
- onClick={() => onCheckout(session.id)}
+ onClick={() => (group && onFinishGroup ? onFinishGroup() : onCheckout(session.id))}
  disabled={checking}
  className={`flex h-11 w-full items-center justify-center gap-2 rounded-lg text-sm font-bold transition-colors disabled:opacity-40 ${isOverdue ? 'bg-brand-600 text-white hover:bg-brand-700' : 'border border-border bg-muted text-foreground hover:bg-border'}`}
  >
- <LogOut className="h-4 w-4" aria-hidden /> {checking ? 'Terminando...' : 'Terminar juego'}
+ <LogOut className="h-4 w-4" aria-hidden /> {checking ? 'Terminando...' : group ? `Terminar juego (${group.length})` : 'Terminar juego'}
  </button>
  </div>
  </div>

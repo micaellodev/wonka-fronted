@@ -58,44 +58,59 @@ export function renderNoteReceipt(n: PrintableNote, config: TenantFiscalConfig):
   const qr = noteQrSvg(n, config, total, igv, d)
   const status = n.sunatStatus === 'ACEPTADA' ? 'ACEPTADA POR SUNAT' : n.sunatStatus === 'RECHAZADA' ? 'RECHAZADA POR SUNAT' : 'PENDIENTE DE ENVÍO A SUNAT'
 
+  const motivo = `${n.reasonCode ?? ''}${n.reasonDescription ? ' - ' + n.reasonDescription : ''}`.trim()
+  const dash = (t: string) => `<div style="display: flex; align-items: center; gap: 6px; margin: 6px 0;"><span style="flex: 1; border-top: 1px dashed #000;"></span>${t}<span style="flex: 1; border-top: 1px dashed #000;"></span></div>`
+
   return `<!DOCTYPE html>
 <html lang="es"><head><meta charset="UTF-8"><style>
   * { box-sizing: border-box; }
   body { width: 80mm; margin: 0 auto; padding: 10px; font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #000; line-height: 1.2; text-transform: uppercase; }
+  .text-center { text-align: center; }
+  .text-left { text-align: left; }
+  .text-right { text-align: right; }
+  .dashed-line { border-bottom: 1px dashed #000; margin: 6px 0; width: 100%; }
   p { margin: 2px 0; }
-  .c { text-align: center; }
-  .line { border-bottom: 1px dashed #000; margin: 6px 0; }
   table { width: 100%; border-collapse: collapse; margin: 4px 0; }
   td { vertical-align: top; padding: 2px 0; }
-  .r { text-align: right; }
+  .logo-container { text-align: center; margin-bottom: 8px; }
+  .logo-container img { max-width: 60mm; height: auto; }
+  .qr-container { text-align: center; margin-top: 15px; margin-bottom: 10px; }
+  .disclaimer { text-align: center; font-size: 10px; font-weight: bold; margin-top: 10px; padding: 0 5px; }
   @media print { body { width: 100%; padding: 0; margin: 0; } @page { margin: 0; } }
 </style></head>
 <body>
- <div class="c" style="margin-bottom:8px"><img src="${RECEIPT_LOGO}" alt="Logo" style="max-width:60mm;height:auto"></div>
- <div class="c">
+ <div class="logo-container"><img src="${RECEIPT_LOGO}" alt="Logo"></div>
+ <div class="text-center">
   <p>${escapeHtml(config.razonSocial || config.name || '')}</p>
   <p>${escapeHtml(config.direccion || '')}</p>
   ${ubicacion ? `<p>${escapeHtml(ubicacion)}</p>` : ''}
   <p>RUC: ${escapeHtml(config.ruc || '')}</p>
+  ${config.nombreComercial ? `<p>${escapeHtml(config.nombreComercial)}</p>` : ''}
  </div>
- <div class="line"></div>
- <p><b>${title}</b></p>
- <p>${escapeHtml(n.serie)}-${escapeHtml(n.correlative)}</p>
- <p>Fecha: ${date} Hora: ${time}</p>
- <div class="line"></div>
- <p>Documento que modifica: ${escapeHtml(n.modifiedDocumentSerie ?? '')}-${escapeHtml(n.modifiedDocumentCorrelative ?? '')}</p>
- <p>Motivo: ${escapeHtml(n.reasonCode ?? '')} ${n.reasonDescription ? '- ' + escapeHtml(n.reasonDescription) : ''}</p>
- <p>Cliente: ${escapeHtml(n.clientName || 'CLIENTE VARIOS')}</p>
- ${docLabel && doc && doc !== '0' ? `<p>${docLabel}: ${escapeHtml(doc)}</p>` : ''}
- <div class="line"></div>
+ <div class="dashed-line"></div>
+ <div>
+  <p>${title}: ${escapeHtml(n.serie)}-${escapeHtml(n.correlative)}</p>
+  <p>Cliente: ${escapeHtml(n.clientName || 'CLIENTE VARIOS')}</p>
+  ${docLabel && doc && doc !== '0' ? `<p>${docLabel}: ${escapeHtml(doc)}</p>` : ''}
+  <p>Fecha: ${date} Hora: ${time}</p>
+  <p>Cajero: ${escapeHtml(useAuthStore.getState().activeWorker?.name || 'Cajero')}</p>
+ </div>
+ <div class="text-center">${dash('DOCUMENTO QUE MODIFICA')}</div>
  <table>
-  <tr><td>I.G.V</td><td class="r">S/${igv.toFixed(2)}</td></tr>
-  <tr><td>IMPORTE TOTAL</td><td class="r">S/${total.toFixed(2)}</td></tr>
+  <tr><td colspan="2">${escapeHtml(n.modifiedDocumentSerie ?? '')}-${escapeHtml(n.modifiedDocumentCorrelative ?? '')}</td></tr>
+  <tr><td colspan="2" style="padding-bottom: 6px;">MOTIVO: ${escapeHtml(motivo)}</td></tr>
+ </table>
+ <div class="dashed-line"></div>
+ <table>
+  ${gravado ? `<tr><td class="text-left">OP. GRAVADAS</td><td class="text-right">S/${(total - igv).toFixed(2)}</td></tr>` : `<tr><td class="text-left">OP. EXONERADAS</td><td class="text-right">S/${total.toFixed(2)}</td></tr>`}
+  <tr><td class="text-left">I.G.V</td><td class="text-right">S/${igv.toFixed(2)}</td></tr>
+  <tr><td class="text-left">IMPORTE TOTAL</td><td class="text-right">S/${total.toFixed(2)}</td></tr>
  </table>
  <p>SON: ${numberToWords(total)} SOLES</p>
  <p>Estado: ${status}</p>
- ${qr ? `<div class="c" style="margin:12px 0 6px">${qr}</div>` : ''}
- <div style="margin-top:40px;text-align:center"><p style="border-top:1px solid #000;width:60%;margin:0 auto;padding-top:20px">Firma y DNI</p></div>
+ ${qr ? `<div class="qr-container">${qr}</div>` : ''}
+ ${config.receiptFooter ? `<p class="disclaimer">${escapeHtml(config.receiptFooter)}</p>` : ''}
+ <div style="margin-top: 40px; text-align: center;"><p style="border-top: 1px solid #000; width: 60%; margin: 0 auto; padding-top: 20px;">Firma y DNI</p></div>
 </body></html>`
 }
 

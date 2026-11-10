@@ -49,7 +49,11 @@ export function RegisterModal({ open, initialDni, tenantId, onClose, onDone }: {
     } finally { busy(false) }
   }
 
+  // DNI es lo principal; con carnet de extranjería (CE) no hay consulta RENIEC y el nombre se escribe a mano
+  const [isCe, setIsCe] = useState(false)
+  const switchDocType = (ce: boolean) => { setIsCe(ce); setDni(''); setName('') }
   const onGuardianDni = (v: string) => {
+    if (isCe) { setDni(v.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12).toUpperCase()); return }
     const d = v.replace(/\D/g, '').slice(0, 8)
     setDni(d)
     if (d.length === 8) void lookup(d, setName, setLooking)
@@ -60,7 +64,7 @@ export function RegisterModal({ open, initialDni, tenantId, onClose, onDone }: {
     if (d.length === 8) void lookup(d, (n) => patchKid(key, { name: n }), (b) => patchKid(key, { looking: b }))
   }
 
-  const dniBad = dni.length !== 8
+  const dniBad = isCe ? dni.length < 7 : dni.length !== 8
   const nameBad = name.trim().length < 2
   const phoneBad = phone.length !== 9
   // Tras intentar guardar, los datos obligatorios del apoderado que faltan se marcan en rojo
@@ -70,7 +74,7 @@ export function RegisterModal({ open, initialDni, tenantId, onClose, onDone }: {
     if (saving) return
     setSubmitted(true)
     if (dniBad || nameBad || phoneBad) {
-      toast.error('Completa los datos obligatorios del apoderado: DNI (8 dígitos), nombre y celular (9 dígitos).')
+      toast.error('Completa los datos obligatorios del apoderado: documento (' + (isCe ? 'CE, mínimo 7 caracteres' : 'DNI, 8 dígitos') + '), nombre y celular (9 dígitos).')
       return
     }
     if (kids.some((k) => !k.name.trim())) {
@@ -122,14 +126,20 @@ export function RegisterModal({ open, initialDni, tenantId, onClose, onDone }: {
 
         <section className="flex flex-col gap-2 rounded-sm border-2 border-border bg-muted p-3">
           <SectionLabel className="mb-0">1. Apoderado</SectionLabel>
+          <div className="flex gap-1.5" role="group" aria-label="Tipo de documento">
+            {([['DNI', false], ['Carnet de extranjería', true]] as const).map(([label, ce]) => (
+              <button key={label} type="button" onClick={() => switchDocType(ce)} aria-pressed={isCe === ce}
+                className={`rounded-sm border-2 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${isCe === ce ? 'border-brand-500 bg-brand-600 text-primary-foreground' : 'border-border bg-background text-muted-foreground hover:text-foreground'}`}>{label}</button>
+            ))}
+          </div>
           <div className="grid gap-2 sm:grid-cols-2">
-            <Input value={dni} onChange={(e) => onGuardianDni(e.target.value)} inputMode="numeric" maxLength={8}
-              placeholder="DNI (8 dígitos) *" className={`${field} font-mono${red(dniBad)}`} />
+            <Input value={dni} onChange={(e) => onGuardianDni(e.target.value)} inputMode={isCe ? 'text' : 'numeric'} maxLength={isCe ? 12 : 8}
+              placeholder={isCe ? 'Carnet de extranjería (mín. 7) *' : 'DNI (8 dígitos) *'} className={`${field} font-mono${red(dniBad)}`} />
             <Input value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 9))} inputMode="numeric" maxLength={9}
               placeholder="Celular (9 dígitos) *" className={`${field} font-mono${red(phoneBad)}`} />
           </div>
           <div className="relative">
-            <Input value={name} onChange={(e) => setName(noCommas(e.target.value))} placeholder="Nombre completo (se completa con el DNI) *" className={`${field}${red(nameBad)}`} />
+            <Input value={name} onChange={(e) => setName(noCommas(e.target.value))} placeholder={isCe ? 'Nombre completo *' : 'Nombre completo (se completa con el DNI) *'} className={`${field}${red(nameBad)}`} />
             {looking && <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" aria-label="Consultando RENIEC" />}
           </div>
         </section>
