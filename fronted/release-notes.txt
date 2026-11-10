@@ -1,2 +1,5 @@
-Cambio pequeño · 2 archivos, 128 líneas, 1 cambios
-- Cierre de caja: ya no cierra la sesión al aprobar; el aviso de éxito se cierra con Aceptar
+Cambio muy grande · 69 archivos, 3399 líneas, 4 cambios
+- Esquema: conserva approvalCodeHash (obsoleto) para compatibilidad entre versiones del backend
+- Juegos: tiempo extra por bloques, tarifas con beneficios, combos y planes de cumpleaños
+- Facturación, notas y descuentos: config de empresa, descuento por producto, notas de crédito/débito, PIN único y recibo
+- APISPeru: consulta DNI/RUC por variables de entorno (URL y tokens)
