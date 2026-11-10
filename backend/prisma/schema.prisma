@@ -77,6 +77,9 @@ model Tenant {
   billingNotes   BillingNote[]
   voidRequests   VoidRequest[]
   auditLogs      AuditLog[]
+  combos         Combo[]
+  birthdayPlans  BirthdayPlan[]
+  birthdayHolidays BirthdayHoliday[]
 
   birthdayReservations BirthdayReservation[]
   birthdayGuests       BirthdayGuest[]
@@ -468,6 +471,15 @@ model BirthdayReservation {
   date       DateTime @db.Date()
   guestCount Int
   notes      String?  @db.Text
+  /// Plan elegido (opcional: reservas antiguas no tienen). El precio se recalcula al cambiar fecha, niños, plan o extras
+  planId         String?
+  plan           BirthdayPlan? @relation(fields: [planId], references: [id])
+  planName       String?
+  /// Extras elegidos: [{ name, price, qty, amount }]
+  extras         Json     @default("[]")
+  /// Total a cobrar (plan según la fecha + niños adicionales + extras). Se cobra con la línea bd-<id>
+  totalPrice     Decimal? @db.Decimal(10, 2)
+  priceBreakdown Json?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -482,6 +494,45 @@ model BirthdayReservation {
   @@index([tenantId])
   @@index([tenantId, date])
   @@map("birthday_reservations")
+}
+
+/// Plan de cumpleaños: precio según el día de la reserva (lun–vie / sábado / domingo y feriados), niños incluidos y extras
+model BirthdayPlan {
+  id              String  @id @default(cuid())
+  name            String
+  description     String?
+  /// Beneficios del plan, uno por línea
+  benefits        String? @db.Text
+  includedGuests  Int     @default(10)
+  extraGuestPrice Decimal @default(0) @db.Decimal(10, 2)
+  priceWeekday    Decimal @db.Decimal(10, 2)
+  priceSaturday   Decimal @db.Decimal(10, 2)
+  priceSunday     Decimal @db.Decimal(10, 2)
+  /// Extras opcionales: [{ name, price }]
+  extras          Json    @default("[]")
+  isActive        Boolean @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenantId     String
+  tenant       Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reservations BirthdayReservation[]
+
+  @@index([tenantId])
+  @@map("birthday_plans")
+}
+
+/// Feriados: la reserva en esta fecha se cobra con el precio de domingo
+model BirthdayHoliday {
+  id    String   @id @default(cuid())
+  date  DateTime @db.Date()
+  label String
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, date])
+  @@map("birthday_holidays")
 }
 
 model BirthdayGuest {
@@ -624,6 +675,24 @@ model BillingNote {
 
   @@index([tenantId])
   @@map("billing_notes")
+}
+
+/// Combo / promoción: "2 galletas a S/3" o "1 hora + 1 galleta a S/X". El descuento = precio normal de los componentes - price.
+model Combo {
+  id        String   @id @default(cuid())
+  name      String
+  price     Decimal  @db.Decimal(10, 2)
+  isActive  Boolean  @default(true)
+  /// [{ productId?: string, minutes?: number, qty: number }] — un producto del catálogo o un tiempo de juego
+  items     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("combos")
 }
 
 /// Registro de auditoría de acciones sensibles (config fiscal, etc.). `changes` = {campo: [antes, después]}; secretos enmascarados.

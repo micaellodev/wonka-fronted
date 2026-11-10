@@ -5,7 +5,7 @@ import { persist } from 'zustand/middleware'
 // etiqueta vienen del backend (tarifas del tenant); al vender, el backend
 // los recalcula desde la sesión y rechaza un cargo ya cobrado.
 
-export type PlayzoneChargeKind = 'base' | 'extra' | 'free' | 'comp' | 'disc' | 'ext'
+export type PlayzoneChargeKind = 'base' | 'extra' | 'free' | 'comp' | 'disc' | 'ext' | 'bday'
 
 /** Shape returned by the backend (`charge` on session start/complete). */
 export interface PlayzoneCharge {
@@ -14,6 +14,8 @@ export interface PlayzoneCharge {
  sessionId: string
  label: string
  amount: number
+ /** Minutos del tiempo cobrado (solo cargo base) */
+ minutes?: number
 }
 
 export interface PlayzoneChargeLine {
@@ -25,6 +27,7 @@ export interface PlayzoneChargeLine {
  qty: number
  unitPrice: number
  total: number
+ minutes?: number
 }
 
 interface PlayzoneTicketState {
@@ -57,6 +60,7 @@ export const usePlayzoneTicketStore = create<PlayzoneTicketState>()(
  qty,
  unitPrice: charge.amount / qty,
  total: charge.amount,
+ ...(charge.minutes ? { minutes: charge.minutes } : {}),
  }
  // Same sku replaces (never duplicates) the line
  const next = [...get().charges.filter((c) => c.id !== line.id), line]

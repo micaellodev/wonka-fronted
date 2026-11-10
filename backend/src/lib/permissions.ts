@@ -43,7 +43,7 @@ const ROUTE_PERMISSIONS: Record<string, Permission> = {
 
 /** Escrituras (no-GET) bajo estos prefijos exigen permiso por defecto, para no dejar abiertas rutas nuevas. */
 const WRITE_PREFIX_PERMISSIONS: Array<[string, Permission]> = [
-    ["/inventory", "inventory.edit"], ["/upload", "inventory.edit"], ["/hr", "employees.manage"],
+    ["/inventory", "inventory.edit"], ["/combos", "inventory.edit"], ["/birthdays/plans", "playzone.rates"], ["/birthdays/holidays", "playzone.rates"], ["/upload", "inventory.edit"], ["/hr", "employees.manage"],
     ["/dashboard/settings", "company.settings"], ["/billing", "billing.notes"],
 ];
 /** Escrituras que cualquier trabajador puede hacer (login por PIN, asistencia). Aprobar un cierre usa código de admin en la ruta. */

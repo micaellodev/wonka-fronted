@@ -10,6 +10,7 @@ import { billingController } from "./modules/billing/billing.controller.ts";
 import { apisperuController } from "./modules/apisperu/apisperu.controller.ts";
 import { dashboardController } from "./modules/dashboard/dashboard.controller.ts";
 import { birthdayController } from "./modules/birthday/birthday.controller.ts";
+import { comboController } from "./modules/combo/combo.controller.ts";
 import { cors } from "@elysiajs/cors";
 import { authGuard } from "./lib/auth.ts";
 
@@ -86,6 +87,7 @@ export function buildApp() {
         .use(apisperuController)
         .use(dashboardController)
         .use(birthdayController)
+        .use(comboController)
 
         // ── Global error handler ─────────────────────────────────
         .onError(({ code, error }) => {

@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
  LayoutDashboard, Package, Users, Calculator, BarChart3, FileText, History, ClipboardList,
- Wallet, Receipt, LineChart, ShoppingCart, Building2, LogOut, Menu, Gamepad2, X, Contact, Printer,
+ Wallet, Receipt, LineChart, ShoppingCart, Building2, LogOut, Menu, Gamepad2, X, Contact, Printer, Timer, Tags, PartyPopper,
 } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,9 @@ const groups = [
  { label: 'Empleados', to: '/admin/employees', icon: Users },
  { label: 'Notas C/D', to: '/admin/billing-notes', icon: FileText },
  { label: 'Juegos', to: '/admin/playzone', icon: Gamepad2 },
+ { label: 'Tarifas de juegos', to: '/admin/tarifas', icon: Timer },
+ { label: 'Combos', to: '/admin/combos', icon: Tags },
+ { label: 'Planes de cumpleaños', to: '/admin/cumpleanos', icon: PartyPopper },
  { label: 'Clientes', to: '/admin/clients', icon: Contact },
  ] },
  { label: 'Caja y reportes', items: [

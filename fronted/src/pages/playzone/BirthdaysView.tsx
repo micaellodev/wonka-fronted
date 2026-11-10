@@ -5,6 +5,8 @@ import { useAuthStore } from '@/store/authStore'
 import { apiErrorMessage as getApiErrorMessage } from '@/lib/api-error'
 import { toast } from '@/components/ui/toast'
 import { Input } from '@/components/ui/input'
+import { formatPEN } from '@/lib/format'
+import { usePlayzoneTicketStore, type PlayzoneCharge } from '@/store/playzoneTicketStore'
 import { Label } from '@/components/ui/label'
 import { type Loose, SectionLabel } from './shared'
 
@@ -25,6 +27,69 @@ export function BirthdaysView() {
  const [guestCount, setGuestCount] = useState(10)
  const [notes, setNotes] = useState('')
  const [creating, setCreating] = useState(false)
+ const addCharge = usePlayzoneTicketStore((s) => s.addCharge)
+
+ // Plan, extras y precio (el precio cambia según la fecha de la reserva)
+ const [plans, setPlans] = useState<Plan[]>([])
+ const [planId, setPlanId] = useState('')
+ const [extras, setExtras] = useState<Record<string, number>>({})
+ const [quote, setQuote] = useState<Quote | null>(null)
+ // Modificar una reserva existente
+ const [editing, setEditing] = useState(false)
+ const [editDate, setEditDate] = useState('')
+ const [editGuests, setEditGuests] = useState(10)
+ const [editExtras, setEditExtras] = useState<Record<string, number>>({})
+ const [editQuote, setEditQuote] = useState<Quote | null>(null)
+ const [saving, setSaving] = useState(false)
+
+ useEffect(() => {
+ (async () => {
+ try {
+ const res = await (api.birthdays as Loose).plans.get({ query: { tenantId, active: 'true' } })
+ if (!res.error) setPlans((res.data as Loose).data ?? [])
+ } catch { /* sin planes: la reserva funciona como antes */ }
+ })()
+ }, [tenantId])
+
+ const toList = (m: Record<string, number>) => Object.entries(m).filter(([, q]) => q > 0).map(([name, qty]) => ({ name, qty }))
+ const fetchQuote = useCallback(async (pid: string, d: string, guests: number, ex: Record<string, number>, set: (q: Quote | null) => void) => {
+ if (!pid || !d || !(guests >= 1)) return set(null)
+ try {
+ const res = await (api.birthdays as Loose).quote.post({ tenantId, planId: pid, date: d, guestCount: guests, extras: toList(ex) })
+ set(res.error ? null : (res.data as Loose).data)
+ } catch { set(null) }
+ }, [tenantId])
+ useEffect(() => { const t = setTimeout(() => void fetchQuote(planId, date, guestCount, extras, setQuote), 250); return () => clearTimeout(t) }, [planId, date, guestCount, extras, fetchQuote])
+ useEffect(() => {
+ if (!editing || !details?.planId) { setEditQuote(null); return }
+ const t = setTimeout(() => void fetchQuote(details.planId, editDate, editGuests, editExtras, setEditQuote), 250)
+ return () => clearTimeout(t)
+ }, [editing, details?.planId, editDate, editGuests, editExtras, fetchQuote])
+
+ const pushCharge = (charge: PlayzoneCharge | null | undefined) => {
+ if (!charge) return
+ addCharge(charge)
+ toast.success(`Agregado al carrito: ${formatPEN(charge.amount)}`)
+ }
+ const startEdit = () => {
+ setEditing(true)
+ setEditDate(String(details.date).slice(0, 10))
+ setEditGuests(details.guestCount)
+ setEditExtras(Object.fromEntries(((details.extras ?? []) as Array<{ name: string; qty: number }>).map((e) => [e.name, e.qty])))
+ }
+ const saveEdit = async () => {
+ setSaving(true)
+ try {
+ const res = await (api.birthdays as Loose)({ id: selectedResId }).patch({ tenantId, date: new Date(editDate).toISOString(), guestCount: editGuests, ...(details.planId ? { planId: details.planId, extras: toList(editExtras) } : {}) })
+ if (res.error) { toast.error(getApiErrorMessage(res.error, 'No se pudo modificar la reserva')); return }
+ const charge = (res.data as Loose).data?.charge as PlayzoneCharge | null
+ // Si la reserva ya estaba en el carrito, se actualiza con el precio nuevo
+ if (charge && usePlayzoneTicketStore.getState().charges.some((c) => c.id === charge.sku)) addCharge(charge)
+ setEditing(false)
+ fetchDetails(selectedResId!)
+ fetchReservations()
+ } catch { toast.error('Error de conexión') } finally { setSaving(false) }
+ }
 
  const fetchReservations = useCallback(async () => {
  setLoading(true)
@@ -66,12 +131,14 @@ export function BirthdaysView() {
  guardianId: guardian.id,
  date: new Date(date).toISOString(),
  guestCount,
- notes
+ notes,
+ ...(planId ? { planId, extras: toList(extras) } : {})
  })
  if (!res.error) {
+ pushCharge((res.data as Loose).data?.charge as PlayzoneCharge | null)
  setShowCreate(false)
  fetchReservations()
- setGuardian(null); setDate(''); setGuestCount(10); setNotes(''); setSearchQ('')
+ setGuardian(null); setDate(''); setGuestCount(10); setNotes(''); setSearchQ(''); setPlanId(''); setExtras({}); setQuote(null)
  } else toast.error(getApiErrorMessage(res.error, 'Error al crear reserva'))
  } catch { toast.error('Error de conexión') }
  finally { setCreating(false) }
@@ -112,6 +179,12 @@ export function BirthdaysView() {
  <Users className="w-3 h-3" /> {r.guestCount}
  </span>
  </div>
+ {r.totalPrice > 0 && (
+ <div className="mt-1 flex items-center justify-between text-xs">
+ <span className="truncate text-muted-foreground">{r.planName}</span>
+ <span className={`font-mono font-bold ${r.paid ? 'text-success' : 'text-warning'}`}>{formatPEN(r.totalPrice)} · {r.paid ? 'Pagado' : 'Por cobrar'}</span>
+ </div>
+ )}
  </button>
  ))
  }
@@ -145,16 +218,14 @@ export function BirthdaysView() {
  <Label className="text-xs font-bold text-muted-foreground uppercase">Fecha</Label>
  <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-background border border-border rounded-sm px-3 py-2 text-foreground scheme-dark" />
  </div>
- <div>
- <Label className="text-xs font-bold text-muted-foreground uppercase">Cantidad de Niños (Invitados)</Label>
- <Input type="number" min="1" value={guestCount} onChange={e => setGuestCount(Number(e.target.value))} className="w-full bg-background border border-border rounded-sm px-3 py-2 text-foreground" />
- </div>
+ <PlanFields plans={plans} planId={planId} setPlanId={(id) => { setPlanId(id); const p = plans.find((x) => x.id === id); if (p) setGuestCount(p.includedGuests); setExtras({}) }}
+ guestCount={guestCount} setGuestCount={setGuestCount} extras={extras} setExtras={setExtras} quote={quote} />
  <div>
  <Label className="text-xs font-bold text-muted-foreground uppercase">Notas Adicionales</Label>
  <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} className="w-full bg-background border border-border rounded-sm px-3 py-2 text-foreground" />
  </div>
  <button onClick={handleCreate} disabled={!date || creating} className="w-full mt-2 py-3 bg-brand-600 hover:bg-brand-500 text-primary-foreground font-black text-sm uppercase tracking-widest rounded-sm disabled:opacity-50">
- {creating ? 'Guardando...' : 'Confirmar Reserva'}
+ {creating ? 'Guardando...' : planId && quote ? `Reservar y agregar al carrito · ${formatPEN(quote.total)}` : 'Confirmar Reserva'}
  </button>
  </div>
  )}
@@ -194,6 +265,48 @@ export function BirthdaysView() {
  </span>
  </div>
  </div>
+
+ {/* Plan, precio y cobro */}
+ {details.planName && (
+ <div className="bg-muted border border-border rounded-sm p-5 flex flex-col gap-3">
+ <div className="flex flex-wrap items-center justify-between gap-3">
+ <div>
+ <SectionLabel className="text-brand-500">Plan: {details.planName}</SectionLabel>
+ <p className="text-xs text-muted-foreground">{details.priceBreakdown?.dayKind === 'saturday' ? 'Precio de sábado' : details.priceBreakdown?.dayKind === 'sunday' ? 'Precio de domingo / feriado' : 'Precio de lunes a viernes'}{details.priceBreakdown?.extraGuests > 0 ? ` · ${details.priceBreakdown.extraGuests} niño(s) adicional(es)` : ''}</p>
+ </div>
+ <div className="text-right">
+ <span className="block text-2xl font-black font-mono text-foreground">{formatPEN(details.totalPrice ?? 0)}</span>
+ <span className={`text-xs font-bold ${details.paid ? 'text-success' : 'text-warning'}`}>{details.paid ? 'Pagado' : 'Por cobrar'}</span>
+ </div>
+ </div>
+ {details.priceBreakdown && (
+ <ul className="text-xs text-muted-foreground space-y-0.5">
+ <li>Plan base: {formatPEN(details.priceBreakdown.basePrice)}</li>
+ {details.priceBreakdown.extraGuests > 0 && <li>Niños adicionales ({details.priceBreakdown.extraGuests}): {formatPEN(details.priceBreakdown.extraGuestsAmount)}</li>}
+ {(details.priceBreakdown.extras ?? []).map((e: Loose) => <li key={e.name}>{e.name} × {e.qty}: {formatPEN(e.amount)}</li>)}
+ </ul>
+ )}
+ {!details.paid && !editing && (
+ <div className="flex flex-wrap gap-2">
+ {details.charge && <button onClick={() => pushCharge(details.charge)} className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-primary-foreground font-black text-xs uppercase tracking-widest rounded-sm">Agregar al carrito</button>}
+ <button onClick={startEdit} className="px-4 py-2 border border-border bg-background text-foreground font-bold text-xs uppercase tracking-widest rounded-sm">Modificar fecha / niños / extras</button>
+ </div>
+ )}
+ {editing && (
+ <div className="flex flex-col gap-3 border-t border-border pt-3">
+ <div>
+ <Label className="text-xs font-bold text-muted-foreground uppercase">Nueva fecha</Label>
+ <Input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} className="w-full bg-background border border-border rounded-sm px-3 py-2 text-foreground scheme-dark" />
+ </div>
+ <PlanFields plans={plans.filter((p) => p.id === details.planId)} planId={details.planId} setPlanId={() => {}} guestCount={editGuests} setGuestCount={setEditGuests} extras={editExtras} setExtras={setEditExtras} quote={editQuote} fixedPlan />
+ <div className="flex gap-2">
+ <button onClick={saveEdit} disabled={saving} className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-primary-foreground font-black text-xs uppercase tracking-widest rounded-sm disabled:opacity-50">{saving ? 'Guardando...' : `Guardar${editQuote ? ` · ${formatPEN(editQuote.total)}` : ''}`}</button>
+ <button onClick={() => setEditing(false)} className="px-4 py-2 border border-border bg-background text-foreground font-bold text-xs uppercase tracking-widest rounded-sm">Cancelar</button>
+ </div>
+ </div>
+ )}
+ </div>
+ )}
 
  {/* Guest List */}
  <div>
@@ -235,3 +348,56 @@ export function BirthdaysView() {
  )
 }
 
+// ── Plan, niños y extras con el precio calculado por el servidor ─────────────
+
+export interface Plan { id: string; name: string; description: string | null; benefits: string | null; includedGuests: number; extraGuestPrice: number; priceWeekday: number; priceSaturday: number; priceSunday: number; extras: Array<{ name: string; price: number }> }
+export interface Quote { dayKind: 'weekday' | 'saturday' | 'sunday'; basePrice: number; extraGuests: number; extraGuestsAmount: number; extras: Array<{ name: string; qty: number; amount: number }>; total: number }
+
+function PlanFields({ plans, planId, setPlanId, guestCount, setGuestCount, extras, setExtras, quote, fixedPlan }: {
+ plans: Plan[]; planId: string; setPlanId: (id: string) => void; guestCount: number; setGuestCount: (n: number) => void
+ extras: Record<string, number>; setExtras: (m: Record<string, number>) => void; quote: Quote | null; fixedPlan?: boolean
+}) {
+ const plan = plans.find((p) => p.id === planId)
+ return (
+ <div className="flex flex-col gap-3">
+ {plans.length > 0 && !fixedPlan && (
+ <div>
+ <Label className="text-xs font-bold text-muted-foreground uppercase">Plan</Label>
+ <select value={planId} onChange={(e) => setPlanId(e.target.value)} className="w-full bg-background border border-border rounded-sm px-3 py-2 text-foreground">
+ <option value="">Sin plan (solo reservar la fecha)</option>
+ {plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+ </select>
+ </div>
+ )}
+ {plan?.benefits && (
+ <ul className="list-disc pl-5 text-xs text-muted-foreground">
+ {plan.benefits.split('\n').filter(Boolean).map((b, i) => <li key={i}>{b}</li>)}
+ </ul>
+ )}
+ <div>
+ <Label className="text-xs font-bold text-muted-foreground uppercase">Cantidad de Niños (Invitados){plan ? ` · ${plan.includedGuests} incluidos, extra ${formatPEN(plan.extraGuestPrice)} c/u` : ''}</Label>
+ <Input type="number" min="1" value={guestCount} onChange={e => setGuestCount(Number(e.target.value))} className="w-full bg-background border border-border rounded-sm px-3 py-2 text-foreground" />
+ </div>
+ {plan && plan.extras.length > 0 && (
+ <div>
+ <Label className="text-xs font-bold text-muted-foreground uppercase">Extras</Label>
+ <div className="mt-1 flex flex-col gap-1.5">
+ {plan.extras.map((x) => (
+ <label key={x.name} className="flex items-center justify-between gap-3 rounded-sm border border-border bg-background px-3 py-2 text-sm">
+ <span>{x.name} <span className="font-mono text-xs text-muted-foreground">{formatPEN(x.price)}</span></span>
+ <input type="number" min="0" max="50" value={extras[x.name] ?? 0} onChange={(e) => setExtras({ ...extras, [x.name]: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} className="w-16 rounded border border-border bg-muted px-2 py-1 text-right text-foreground" aria-label={`Cantidad de ${x.name}`} />
+ </label>
+ ))}
+ </div>
+ </div>
+ )}
+ {plan && quote && (
+ <div className="rounded-sm border border-brand-500/40 bg-background p-3 text-sm">
+ <p className="font-bold text-foreground">Total: {formatPEN(quote.total)}</p>
+ <p className="text-xs text-muted-foreground">{quote.dayKind === 'saturday' ? 'Sábado' : quote.dayKind === 'sunday' ? 'Domingo / feriado' : 'Lunes a viernes'}: {formatPEN(quote.basePrice)}{quote.extraGuests > 0 ? ` + ${quote.extraGuests} niño(s) adicional(es) ${formatPEN(quote.extraGuestsAmount)}` : ''}{quote.extras.map((e) => ` + ${e.name} ×${e.qty} ${formatPEN(e.amount)}`).join('')}</p>
+ </div>
+ )}
+ {plan && !quote && <p className="text-xs text-muted-foreground">Elige la fecha para ver el precio.</p>}
+ </div>
+ )
+}

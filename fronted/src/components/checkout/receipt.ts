@@ -53,11 +53,13 @@ export function printReceipt(p: {
  clientDocNumber?: string | null
  clientAddress?: string | null
  amountPaid?: number | null
+ /** Descuento de combos aplicado a líneas de tiempo (los productos ya vienen en `lines`) */
+ comboTimeDiscount?: number
 }) {
  const { saleData, saleItems, clientNameStr, method, total, config, lines, summary, playzoneCharges, activeWorker } = p
   // Playzone lines are always EXONERADO (same as backend)
   const sumExonerado = lines.filter(l => l.regime === 'EXONERADO' || l.regime === 'INAFECTO').reduce((s, l) => s + l.mtoImpItem, 0)
-   + playzoneCharges.reduce((s, c) => s + c.total, 0)
+   + playzoneCharges.reduce((s, c) => s + c.total, 0) - (p.comboTimeDiscount ?? 0)
   const sumGravado = lines.filter(l => l.regime === 'GRAVADO' || l.regime === 'GRAVADO_10_5').reduce((s, l) => s + l.mtoValorVenta, 0)
   const sumIgv = summary.mtoIGV
   void printHtml(renderReceipt({

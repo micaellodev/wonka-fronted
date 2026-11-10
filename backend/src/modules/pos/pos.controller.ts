@@ -135,6 +135,7 @@ export const posController = new Elysia({ prefix: "/pos", tags: ["POS"] })
                     clientName: body.clientName,
                     clientAddress: body.clientAddress,
                     amountReceived: body.amountReceived,
+                    ...(body.combos ? { combos: body.combos } : {}),
                 });
                 set.status = 201;
                 return {

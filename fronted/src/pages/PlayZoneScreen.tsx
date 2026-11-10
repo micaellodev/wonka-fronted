@@ -20,7 +20,7 @@ import { Input } from '@/components/ui/input'
 import { formatPEN } from '@/lib/format'
 import {
  type Loose, type PlayzoneRates, DEFAULT_COMPANION_PRICE, type DurationOpt, FREE_OPTION, type Child, type Guardian, type ActiveSession, type PanelMode,
- SectionLabel
+ SectionLabel, overtimeRules
 } from './playzone/shared'
 import { BirthdaysView } from './playzone/BirthdaysView'
 import { SessionStartPanel } from './playzone/SessionStartPanel'
@@ -103,10 +103,12 @@ export function PlayZoneScreen() {
  if (res.error) throw res.error
  const rates = (res.data as { data: PlayzoneRates }).data
  setRates(rates)
- const tarifas: DurationOpt[] = rates.durations.map(d => ({ label: d.label, minutes: d.minutes, price: d.price }))
+ overtimeRules.tolerance = rates.toleranceMinutes ?? 5
+ overtimeRules.block = rates.overtimeBlockMinutes ?? 30
+ const tarifas: DurationOpt[] = rates.durations.map(d => ({ label: d.label, minutes: d.minutes, price: d.price, ...(d.benefits ? { benefits: d.benefits } : {}) }))
  // Aliado: misma tarifa de 30 min, pero el ticket lleva el descuento por el mismo monto
  const t30 = tarifas.find(d => d.minutes === 30)
- const opts: DurationOpt[] = [...tarifas, ...(t30 ? [{ label: '30 Min aliado', minutes: 30, price: t30.price, ally: true }] : []), FREE_OPTION]
+ const opts: DurationOpt[] = [...tarifas, ...(t30 ? [{ label: '30 Min aliado', minutes: 30, price: t30.price, ally: true, ...(t30.benefits ? { benefits: t30.benefits } : {}) }] : []), FREE_OPTION]
  setDurationOptions(opts)
  setCompanionPrice(rates.companionPrice ?? DEFAULT_COMPANION_PRICE)
  setSelectedDuration(opts[0])

@@ -19,6 +19,9 @@ import { ClientsScreen } from '@/pages/ClientsScreen'
 import { PrinterSettingsScreen } from '@/pages/PrinterSettingsScreen'
 import { AdminDashboardScreen } from '@/pages/AdminDashboardScreen'
 import { CompanySettingsScreen } from '@/pages/CompanySettingsScreen'
+import { PlayzoneRatesScreen } from '@/pages/PlayzoneRatesScreen'
+import { CombosScreen } from '@/pages/CombosScreen'
+import { BirthdayPlansScreen } from '@/pages/BirthdayPlansScreen'
 import { ApprovalsScreen } from '@/pages/ApprovalsScreen'
 import { CashCloseScreen } from '@/pages/CashCloseScreen'
 import { SalesHistoryScreen } from '@/pages/SalesHistoryScreen'
@@ -120,6 +123,9 @@ export default function App() {
  <Route path="/admin/cashier" element={<AdminGuard><CashCloseHistoryScreen /></AdminGuard>} />
  <Route path="/admin/cash-history" element={<Navigate to="/admin/cashier" replace />} />
  <Route path="/admin/playzone" element={<AdminGuard><PlayZoneScreen /></AdminGuard>} />
+ <Route path="/admin/cumpleanos" element={<AdminGuard><BirthdayPlansScreen /></AdminGuard>} />
+ <Route path="/admin/combos" element={<AdminGuard><CombosScreen /></AdminGuard>} />
+ <Route path="/admin/tarifas" element={<AdminGuard><PlayzoneRatesScreen /></AdminGuard>} />
  <Route path="/admin/printer" element={<AdminGuard><PrinterSettingsScreen /></AdminGuard>} />
  <Route path="/admin/clients" element={<AdminGuard><ClientsScreen /></AdminGuard>} />
  <Route path="/admin/billing-notes" element={<AdminGuard><BillingNotesScreen /></AdminGuard>} />

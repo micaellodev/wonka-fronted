@@ -140,6 +140,8 @@ export const CreateSaleBody = t.Object({
     clientAddress: t.Optional(t.String()),
     /** Efectivo entregado por el cliente (pago en efectivo). */
     amountReceived: t.Optional(t.Number({ minimum: 0 })),
+    /** Combos que aplican a esta venta; el descuento lo calcula el servidor, el cliente solo indica cuáles y cuántas veces. */
+    combos: t.Optional(t.Array(t.Object({ comboId: t.String({ minLength: 1 }), times: t.Integer({ minimum: 1, maximum: 50 }) }), { maxItems: 10 })),
 });
 
 // ── Play Zone ────────────────────────────────────────────────
@@ -206,6 +208,8 @@ export const UpdatePlayzoneRatesBody = t.Object({
             minutes: t.Integer({ minimum: 1 }),
             price: t.Number({ minimum: 0 }),
             label: t.String({ minLength: 1, maxLength: 30 }),
+            /** Beneficios que incluye este tiempo (texto libre que ve el cajero) */
+            benefits: t.Optional(t.String({ maxLength: 300 })),
         }),
         { minItems: 1 }
     ),
@@ -213,6 +217,10 @@ export const UpdatePlayzoneRatesBody = t.Object({
     freePerMinute: t.Number({ minimum: 0 }),
     companionPrice: t.Optional(t.Number({ minimum: 0 })),
     wristbandEnabled: t.Optional(t.Boolean()),
+    /** Minutos de tolerancia después de terminar el tiempo (sin cobro) */
+    toleranceMinutes: t.Optional(t.Integer({ minimum: 0, maximum: 60 })),
+    /** Duración (min) de cada bloque extra que se cobra pasada la tolerancia; debe existir como tiempo */
+    overtimeBlockMinutes: t.Optional(t.Integer({ minimum: 1 })),
 });
 
 export const PlayzoneReportQuery = t.Object({
@@ -228,6 +236,9 @@ export const CreateBirthdayBody = t.Object({
     date: t.String({ format: "date-time" }), // or date string
     guestCount: t.Integer({ minimum: 1, maximum: 300 }),
     notes: t.Optional(t.String()),
+    /** Plan de cumpleaños; con plan, el precio se calcula con la fecha, los niños y los extras. */
+    planId: t.Optional(t.String({ minLength: 1 })),
+    extras: t.Optional(t.Array(t.Object({ name: t.String({ minLength: 1 }), qty: t.Integer({ minimum: 0, maximum: 50 }) }), { maxItems: 30 })),
 });
 
 export const BirthdayListQuery = t.Object({

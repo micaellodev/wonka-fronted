@@ -1,3 +1,4 @@
+import { useComboDiscount, useComboStore } from '@/store/comboStore'
 import { useEffect, useState } from 'react'
 import { ShoppingCart, CreditCard, XCircle, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -32,6 +33,8 @@ export function TicketPanel({ onSaleComplete, className }: { onSaleComplete?: ()
  const [checkoutOpen, setCheckoutOpen] = useState(false)
  const timeStr = useClock().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
  const hasCart = items.length > 0 || playzoneCharges.length > 0
+ const comboResult = useComboDiscount()
+ useEffect(() => { if (tenantId) void useComboStore.getState().load(tenantId) }, [tenantId])
  const cashStatus = useCashStatusStore((st) => st.summary?.cashStatus)
  const cashBlocked = !!cashStatus && cashStatus !== 'ABIERTA'
 
@@ -154,12 +157,18 @@ export function TicketPanel({ onSaleComplete, className }: { onSaleComplete?: ()
  </div>
 
   <div className="flex shrink-0 flex-col gap-3 border-t border-border bg-background p-4">
+ {comboResult.applied.map((a) => (
+ <div key={a.comboId} className="flex items-center justify-between rounded-md bg-success-soft px-3 py-1.5 text-xs font-bold text-success">
+ <span>Combo: {a.name}{a.times > 1 ? ` ×${a.times}` : ''}</span>
+ <span className="font-mono">-{formatPEN(a.discount)}</span>
+ </div>
+ ))}
  <div className="flex items-center justify-between">
  <span className="text-sm font-black uppercase tracking-widest text-foreground">
  Total a pagar
  </span>
  <span className="text-3xl font-black text-secondary-500 font-mono tracking-tighter">
- {formatPEN(total + playzoneTotal)}
+ {formatPEN(total + playzoneTotal - comboResult.total)}
  </span>
  </div>
 

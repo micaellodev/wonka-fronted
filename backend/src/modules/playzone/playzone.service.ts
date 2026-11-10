@@ -82,9 +82,13 @@ export type PlayzoneReportSummary = {
 // ── Tarifas (configuradas por tenant; nunca confiadas del cliente) ──
 
 export type PlayzoneRates = {
-    durations: Array<{ minutes: number; price: number; label: string }>;
-    /** S/ por minuto pasado del tiempo contratado */
+    durations: Array<{ minutes: number; price: number; label: string; benefits?: string }>;
+    /** Ya no se usa en sesiones con tiempo (el extra se cobra por bloques); se conserva por compatibilidad */
     extraPerMinute: number;
+    /** Minutos de tolerancia tras terminar el tiempo contratado, sin cobro (por defecto 5) */
+    toleranceMinutes?: number;
+    /** Bloque extra que se cobra al pasar la tolerancia, y se repite cada tantos minutos (por defecto 30) */
+    overtimeBlockMinutes?: number;
     /** S/ por minuto jugado en sesiones de tiempo libre (sin duración) */
     freePerMinute: number;
     /** S/ por acompañante adicional; si falta se usa COMPANION_PRICE (tarifas guardadas antes de este campo) */
@@ -101,6 +105,8 @@ export const DEFAULT_PLAYZONE_RATES: PlayzoneRates = {
     extraPerMinute: 1,
     freePerMinute: 0.5,
     companionPrice: 5,
+    toleranceMinutes: 5,
+    overtimeBlockMinutes: 30,
 };
 
 function isPlayzoneRates(v: unknown): v is PlayzoneRates {
@@ -108,7 +114,9 @@ function isPlayzoneRates(v: unknown): v is PlayzoneRates {
     return (
         !!r &&
         Array.isArray(r.durations) &&
-        r.durations.every((d) => Number.isInteger(d.minutes) && d.minutes > 0 && d.price >= 0 && typeof d.label === "string") &&
+        r.durations.every((d) => Number.isInteger(d.minutes) && d.minutes > 0 && d.price >= 0 && typeof d.label === "string" && (d.benefits === undefined || typeof d.benefits === "string")) &&
+        (r.toleranceMinutes === undefined || (Number.isInteger(r.toleranceMinutes) && r.toleranceMinutes >= 0)) &&
+        (r.overtimeBlockMinutes === undefined || (Number.isInteger(r.overtimeBlockMinutes) && r.overtimeBlockMinutes > 0)) &&
         typeof r.extraPerMinute === "number" && r.extraPerMinute >= 0 &&
         typeof r.freePerMinute === "number" && r.freePerMinute >= 0 &&
         (r.companionPrice === undefined || (typeof r.companionPrice === "number" && r.companionPrice >= 0)) &&
@@ -121,13 +129,21 @@ export async function getPlayzoneRates(tenantId: string): Promise<PlayzoneRates>
     if (!tenant) throw new Error("Tenant not found.");
     const rates = isPlayzoneRates(tenant.playzoneRates) ? tenant.playzoneRates : DEFAULT_PLAYZONE_RATES;
     // El cliente siempre recibe el precio del acompañante, aunque las tarifas guardadas sean anteriores a este campo
-    return { ...rates, companionPrice: rates.companionPrice ?? COMPANION_PRICE };
+    return {
+        ...rates,
+        companionPrice: rates.companionPrice ?? COMPANION_PRICE,
+        toleranceMinutes: rates.toleranceMinutes ?? DEFAULT_TOLERANCE_MIN,
+        overtimeBlockMinutes: rates.overtimeBlockMinutes ?? DEFAULT_OVERTIME_BLOCK_MIN,
+    };
 }
 
 export async function updatePlayzoneRates(tenantId: string, rates: PlayzoneRates): Promise<PlayzoneRates> {
     if (!isPlayzoneRates(rates)) throw new Error("Tarifas inválidas.");
     const minutes = rates.durations.map((d) => d.minutes);
     if (new Set(minutes).size !== minutes.length) throw new Error("Hay duraciones repetidas.");
+    // El bloque extra se cobra con la tarifa de ese tiempo: tiene que existir
+    const block = rates.overtimeBlockMinutes ?? DEFAULT_OVERTIME_BLOCK_MIN;
+    if (!minutes.includes(block)) throw new Error(`El bloque extra de ${block} min necesita una tarifa de ${block} min en la lista de tiempos.`);
     await prisma.tenant.update({
         where: { id: tenantId },
         data: { playzoneRates: rates as unknown as Prisma.InputJsonValue },
@@ -136,6 +152,19 @@ export async function updatePlayzoneRates(tenantId: string, rates: PlayzoneRates
 }
 
 export type PlayzoneChargeKind = "base" | "extra" | "free" | "comp" | "disc" | "ext";
+
+export const DEFAULT_TOLERANCE_MIN = 5;
+export const DEFAULT_OVERTIME_BLOCK_MIN = 30;
+
+/**
+ * Bloques extra a cobrar por pasarse del tiempo contratado: hasta la tolerancia no se cobra; pasada la tolerancia
+ * se suma un bloque (30 min) "de frente", y cada vez que se agota el bloque sin finalizar se suma otro.
+ */
+export function overtimeBlocks(overMinutes: number, rates: PlayzoneRates): number {
+    const tolerance = rates.toleranceMinutes ?? DEFAULT_TOLERANCE_MIN;
+    const block = rates.overtimeBlockMinutes ?? DEFAULT_OVERTIME_BLOCK_MIN;
+    return overMinutes <= tolerance ? 0 : Math.ceil(overMinutes / block);
+}
 
 export const MAX_COMPANIONS = 2;
 const COMPANION_PRICE = 5; // valor por defecto de playzoneRates.companionPrice; igual para cualquier edad del niño
@@ -147,6 +176,8 @@ export type PlayzoneCharge = {
     sessionId: string;
     label: string;
     amount: number;
+    /** Minutos del tiempo cobrado (solo cargo base); sirve para aplicar combos con tiempos */
+    minutes?: number;
 };
 
 type ChargeableSession = {
@@ -183,7 +214,7 @@ export function computePlayzoneCharge(
         if (session.durationMinutes === null) throw new Error(`La sesión ${session.wristbandCode} es de tiempo libre; no tiene tarifa base.`);
         const rate = rates.durations.find((d) => d.minutes === session.durationMinutes);
         if (!rate) throw new Error(`No hay tarifa configurada para ${session.durationMinutes} min.`);
-        return { ...base, label: `JUEGOS ${rate.label} ${tag}`, amount: rate.price };
+        return { ...base, label: `JUEGOS ${rate.label} ${tag}`, amount: rate.price, minutes: rate.minutes };
     }
 
     if (kind === "disc") {
@@ -203,9 +234,12 @@ export function computePlayzoneCharge(
 
     if (kind === "extra") {
         if (session.durationMinutes === null) throw new Error(`La sesión ${session.wristbandCode} es de tiempo libre; no tiene tiempo extra.`);
-        const extraMinutes = Math.max(0, elapsed - session.durationMinutes);
-        if (extraMinutes === 0) throw new Error(`La sesión ${session.wristbandCode} no tiene tiempo extra.`);
-        return { ...base, label: `EXTRA JUEGOS ${extraMinutes} MIN ${tag}`, amount: round2(extraMinutes * rates.extraPerMinute) };
+        const blocks = overtimeBlocks(elapsed - session.durationMinutes, rates);
+        if (blocks === 0) throw new Error(`La sesión ${session.wristbandCode} no tiene tiempo extra.`);
+        const blockMinutes = rates.overtimeBlockMinutes ?? DEFAULT_OVERTIME_BLOCK_MIN;
+        const rate = rates.durations.find((d) => d.minutes === blockMinutes);
+        if (!rate) throw new Error(`No hay tarifa configurada para el bloque extra de ${blockMinutes} min.`);
+        return { ...base, label: `EXTRA JUEGOS ${blocks} x ${rate.label} ${tag}`, amount: round2(blocks * rate.price) };
     }
 
     if (session.durationMinutes !== null) throw new Error(`La sesión ${session.wristbandCode} no es de tiempo libre.`);
@@ -518,9 +552,9 @@ export async function completeSession(tenantId: string, sessionId: string) {
     const endedAt = new Date();
     const elapsedMinutes = elapsedMinutesOf(session.startTime, endedAt);
     const includedMinutes = session.durationMinutes ?? null;
-    const extraMinutes = includedMinutes === null
-        ? 0
-        : Math.max(0, elapsedMinutes - includedMinutes);
+    // Minutos extra que se cobran: bloques completos (tolerancia incluida), no los minutos exactos
+    const extraBlocks = includedMinutes === null ? 0 : overtimeBlocks(elapsedMinutes - includedMinutes, rates);
+    const extraMinutes = extraBlocks * (rates.overtimeBlockMinutes ?? DEFAULT_OVERTIME_BLOCK_MIN);
     const ended = { ...session, endTime: endedAt };
     const baseAmount = includedMinutes === null
         ? 0
@@ -528,7 +562,7 @@ export async function completeSession(tenantId: string, sessionId: string) {
     // Cargo pendiente de cobro en caja: tiempo extra o tiempo libre (null si no hay nada que cobrar)
     const charge = includedMinutes === null
         ? computePlayzoneCharge(ended, "free", rates)
-        : extraMinutes > 0 ? computePlayzoneCharge(ended, "extra", rates) : null;
+        : extraBlocks > 0 ? computePlayzoneCharge(ended, "extra", rates) : null;
     const extraAmount = charge?.amount ?? 0;
     const totalAmount = baseAmount + extraAmount;
 

@@ -12,17 +12,25 @@ export type Loose = any
 
 // Tarifas configuradas en backend (GET /playzone/rates); el precio final lo calcula el backend
 export interface PlayzoneRates {
- durations: Array<{ minutes: number; price: number; label: string }>
+ durations: Array<{ minutes: number; price: number; label: string; benefits?: string }>
  extraPerMinute: number
  freePerMinute: number
  companionPrice?: number
  wristbandEnabled?: boolean
+ /** Minutos de tolerancia tras terminar el tiempo, sin cobro (por defecto 5) */
+ toleranceMinutes?: number
+ /** Bloque extra que se cobra pasada la tolerancia (por defecto 30 min) */
+ overtimeBlockMinutes?: number
 }
+
+// Reglas del tiempo extra que usan las tarjetas de sesión; las fija PlayZoneScreen al cargar las tarifas.
+// shortcut: variable de módulo en vez de contexto/props; pasar por contexto si hace falta reaccionar a cambios en vivo.
+export const overtimeRules = { tolerance: 5, block: 30 }
 
 // Precio por acompañante si el backend (más antiguo) no lo envía
 export const DEFAULT_COMPANION_PRICE = 5
 
-export interface DurationOpt { label: string; minutes: number | null; price: number | null; ally?: boolean }
+export interface DurationOpt { label: string; minutes: number | null; price: number | null; ally?: boolean; benefits?: string }
 
 export const FREE_OPTION: DurationOpt = { label: '∞ Libre', minutes: null, price: null }
 
@@ -108,22 +116,32 @@ export function SessionCard({
  window.addEventListener('click', close); window.addEventListener('scroll', close, true); window.addEventListener('resize', close)
  return () => { window.removeEventListener('click', close); window.removeEventListener('scroll', close, true); window.removeEventListener('resize', close) }
  }, [menu])
+ const { tolerance, block } = overtimeRules
  const elapsedSec = Math.max(0, (now - new Date(session.startTime).getTime()) / 1000)
- const totalSec = session.isUnlimited ? null : (session.durationMinutes ?? 0) * 60
+ const contractedMin = session.durationMinutes ?? 0
+ const pastEnd = !session.isUnlimited && elapsedSec > contractedMin * 60
+ // Tolerancia sin cobro; pasada la tolerancia se suma un bloque de 30 min "de frente" y otro cada vez que se agota
+ const overMin = Math.floor(elapsedSec / 60) - contractedMin
+ const blocks = pastEnd && overMin > tolerance ? Math.ceil(overMin / block) : 0
+ const inTolerance = pastEnd && blocks === 0
+ const totalSec = session.isUnlimited ? null : (contractedMin + blocks * block) * 60
  const remainingSec = totalSec === null ? null : totalSec - elapsedSec
- const isOverdue = remainingSec !== null && remainingSec <= 0
- const isWarning = remainingSec !== null && !isOverdue && remainingSec <= 300
+ const isOverdue = pastEnd
+ const isWarning = !pastEnd && remainingSec !== null && remainingSec <= 300
  const pct = totalSec ? Math.min(100, (elapsedSec / totalSec) * 100) : 100
+ const blockPrice = durationOptions.find((o) => !o.ally && o.minutes === block)?.price ?? null
 
- const tone = isOverdue
- ? { border: 'border-primary', banner: 'bg-brand-600', text: 'text-brand-500', bar: 'bg-brand-500', label: '¡TIEMPO TERMINADO!', Icon: XCircle }
+ const tone = inTolerance
+ ? { border: 'border-warning', banner: 'bg-warning', text: 'text-accent-500', bar: 'bg-warning', label: 'TOLERANCIA', Icon: AlertTriangle }
+ : isOverdue
+ ? { border: 'border-primary', banner: 'bg-brand-600', text: 'text-brand-500', bar: 'bg-brand-500', label: `+${blocks * block} MIN EXTRA`, Icon: XCircle }
  : isWarning
  ? { border: 'border-warning', banner: 'bg-warning', text: 'text-accent-500', bar: 'bg-warning', label: 'POR TERMINAR', Icon: AlertTriangle }
  : { border: 'border-success', banner: 'bg-success', text: 'text-success', bar: 'bg-success', label: session.isUnlimited ? 'TIEMPO LIBRE' : 'EN JUEGO', Icon: CheckCircle2 }
 
  const price = durationOptions.find((o) => !o.ally && o.minutes === session.durationMinutes)?.price ?? null
- const mainLabel = session.isUnlimited ? 'Transcurrido' : isOverdue ? 'Tiempo extra' : 'Restante'
- const mainClock = session.isUnlimited ? fmtClock(elapsedSec) : isOverdue ? fmtClock(-(remainingSec ?? 0)) : fmtClock(remainingSec ?? 0)
+ const mainLabel = session.isUnlimited ? 'Transcurrido' : inTolerance ? 'Tolerancia' : blocks > 0 ? `Extra +${blocks * block} min` : 'Restante'
+ const mainClock = session.isUnlimited ? fmtClock(elapsedSec) : inTolerance ? fmtClock(tolerance * 60 - (elapsedSec - contractedMin * 60)) : fmtClock(remainingSec ?? 0)
 
  return (
  <div onContextMenu={onExtend && !session.isUnlimited ? (e) => { e.preventDefault(); setMenu({ x: Math.min(e.clientX, window.innerWidth - 200), y: Math.min(e.clientY, window.innerHeight - 130) }) } : undefined}
@@ -154,7 +172,7 @@ export function SessionCard({
  <div className="text-right">
  <p className="text-xs font-semibold uppercase text-muted-foreground">{mainLabel}</p>
  <p className={`font-mono text-3xl font-black leading-none tabular-nums ${tone.text}`} aria-live="off">
- {isOverdue && '+'}{mainClock}
+ {mainClock}
  </p>
  </div>
  </div>
@@ -176,6 +194,7 @@ export function SessionCard({
  {session.isUnlimited ? 'Libre' : session.durationMinutes ? `${session.durationMinutes} min` : ''}{price !== null ? ` · ${formatPEN(price)}` : ''}
  </span>
  </div>
+ {blocks > 0 && blockPrice !== null && <p className="rounded-md bg-danger-soft px-2 py-1 text-xs font-bold text-destructive">Tiempo extra: {blocks} × {block} min · a cobrar {formatPEN(blocks * blockPrice)} al terminar</p>}
  {session.notes && <p className="break-words rounded-md bg-muted px-2 py-1 text-xs font-medium text-foreground">📝 {session.notes}</p>}
  </div>
 

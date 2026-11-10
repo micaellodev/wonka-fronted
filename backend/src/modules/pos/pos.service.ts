@@ -1,5 +1,6 @@
 import { prisma } from "../../lib/prisma.ts";
 import { Prisma } from "@prisma/client";
+import { allocateCombos } from "../combo/combo.service.ts";
 import { cashDayLockKey, limaDayBounds, limaYmd } from "../cash/cash.service.ts";
 import { getTodayCashStatus } from "../cash/summary.ts";
 import {
@@ -41,6 +42,7 @@ export type ProcessSaleInput = {
     clientName?: string | undefined;
     clientAddress?: string | undefined;
     amountReceived?: number | undefined;
+    combos?: Array<{ comboId: string; times: number }> | undefined;
 };
 
 export type ProcessSaleResult = {
@@ -70,12 +72,12 @@ export type ProcessSaleResult = {
 // `pz-*`     → playzone time charges (session minutes billed at checkout)
 // `free-sale-*` → "Venta libre" free-form lines entered manually in the POS
 function isVirtualLineItem(productId: string): boolean {
-    return productId.startsWith('pz-') || productId.startsWith('free-sale-');
+    return productId.startsWith('pz-') || productId.startsWith('free-sale-') || productId.startsWith('bd-');
 }
 
 const PZ_SKU = /^pz-(base|extra|free|comp|disc|ext)-(.+)$/;
 
-type VirtualLine = { qty: number; unitPrice: number; label: string; sku: string };
+type VirtualLine = { qty: number; unitPrice: number; label: string; sku: string; /** minutos del tiempo base (para combos) */ minutes?: number; /** descuento aplicado por combos (solo lo pone el servidor) */ discount?: number };
 
 /**
  * Resuelve las líneas virtuales. Los cargos de zona de juegos se recalculan
@@ -101,6 +103,22 @@ async function resolveVirtualLines(
                 qty: item.qty,
                 unitPrice: item.unitPrice,
                 label: item.label?.trim() || "Venta libre",
+                sku: item.productId,
+            });
+            continue;
+        }
+
+        // Reserva de cumpleaños: el precio sale de la reserva (calculado con su fecha), nunca del cliente
+        if (item.productId.startsWith("bd-")) {
+            const reservation = await tx.birthdayReservation.findFirst({ where: { id: item.productId.slice(3), tenantId } });
+            if (!reservation || !reservation.totalPrice || Number(reservation.totalPrice) <= 0) throw new Error("Reserva de cumpleaños no encontrada o sin precio.");
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${item.productId}))`;
+            const already = await tx.saleItem.findFirst({ where: { virtualSku: item.productId, sale: { tenantId, status: { not: "CANCELLED" } } }, select: { id: true } });
+            if (already) throw new Error("La reserva de cumpleaños ya fue cobrada en otra venta.");
+            lines.push({
+                qty: 1,
+                unitPrice: Number(reservation.totalPrice),
+                label: `CUMPLEAÑOS ${reservation.planName ?? ""} ${reservation.date.toLocaleDateString("es-PE", { timeZone: "UTC" })}`.replace(/\s+/g, " ").trim(),
                 sku: item.productId,
             });
             continue;
@@ -142,7 +160,7 @@ async function resolveVirtualLines(
         });
         if (alreadyBilled) throw new Error(`El cargo "${charge.label}" ya fue cobrado en otra venta.`);
 
-        lines.push({ qty: 1, unitPrice: charge.amount, label: charge.label, sku: charge.sku });
+        lines.push({ qty: 1, unitPrice: charge.amount, label: charge.label, sku: charge.sku, ...(charge.minutes ? { minutes: charge.minutes } : {}) });
     }
     return lines;
 }
@@ -312,6 +330,31 @@ export async function processSale(
         // Build a lookup map for O(1) access
         const productMap = new Map(products.map((p) => [p.id, p]));
 
+        // ── Step 1b: Combos — el servidor calcula el descuento y lo reparte entre las líneas ──
+        if (input.combos && input.combos.length > 0) {
+            const rows = await tx.combo.findMany({ where: { tenantId: input.tenantId, isActive: true, id: { in: input.combos.map((c) => c.comboId) } } });
+            const allySessions = new Set(pzItems.filter((l) => l.sku.startsWith("pz-disc-")).map((l) => l.sku.slice("pz-disc-".length)));
+            const result = allocateCombos(
+                rows.map((r) => ({ id: r.id, name: r.name, price: Number(r.price), items: r.items as Array<{ productId?: string; minutes?: number; qty: number }> })),
+                input.combos,
+                new Map(realItems.filter((i) => productMap.has(i.productId)).map((i) => [i.productId, { qty: i.qty, price: Number(productMap.get(i.productId)!.price) }])),
+                pzItems
+                    .filter((l) => l.sku.startsWith("pz-base-") && l.minutes && l.unitPrice > 0 && !allySessions.has(l.sku.slice("pz-base-".length)))
+                    .map((l) => ({ sku: l.sku, minutes: l.minutes!, amount: l.unitPrice }))
+            );
+            for (const item of realItems) {
+                const d = result.productDiscount.get(item.productId);
+                if (d) item.discount = Math.round(((item.discount ?? 0) + d) * 100) / 100;
+            }
+            for (const line of pzItems) {
+                const d = result.timeDiscount.get(line.sku);
+                if (d) line.discount = d;
+            }
+        }
+        for (const line of pzItems) {
+            if ((line.discount ?? 0) >= line.unitPrice * line.qty && line.unitPrice > 0) throw new Error(`El descuento de "${line.label}" debe ser menor al total de la línea.`);
+        }
+
         // ── Step 2: Validate every requested item ────────────────
         for (const item of realItems) {
             const product = productMap.get(item.productId);
@@ -381,7 +424,7 @@ export async function processSale(
 
         // Virtual items: EXONERADO (same as apisperu buildFiscalSummary)
         const pzFiscalLines = pzItems.map((item) =>
-            calculateFiscalLine(item.unitPrice, item.qty, 'EXONERADO', igvRate, false)
+            calculateFiscalLine(item.unitPrice, item.qty, 'EXONERADO', igvRate, false, item.discount ?? 0)
         );
 
         const allFiscalLines = [...fiscalLines, ...pzFiscalLines];
@@ -463,6 +506,7 @@ export async function processSale(
                             isVirtual: true,
                             virtualLabel: item.label,
                             virtualSku: item.sku,
+                            discount: item.discount ?? 0,
                         })),
                     ],
                 },
@@ -520,7 +564,7 @@ export async function processSale(
             const product = si.productId ? productMap.get(si.productId) : undefined;
             const line = product
                 ? calculateFiscalLine(Number(product.price), si.qty, resolveIgvRegime(product.igvRegime, tenant.defaultIgvRegime), igvRate, pricesIncludeIgv, Number(si.discount))
-                : calculateFiscalLine(Number(si.unitPrice), si.qty, "EXONERADO", igvRate, false);
+                : calculateFiscalLine(Number(si.unitPrice), si.qty, "EXONERADO", igvRate, false, Number(si.discount));
 
             return {
                 id: si.id,

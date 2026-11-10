@@ -33,7 +33,7 @@ export function aggregateSales(sales: SaleLike[]) {
     if (m === "efectivo" || m === "yape" || m === "tarjeta") by[m] += t; else by.other += t;
     for (const i of s.items) {
       const line = Number(i.unitPrice) * i.qty - Number(i.discount ?? 0);
-      if (i.virtualSku?.startsWith("pz-")) kind.zonaJuegos += line;
+      if (i.virtualSku?.startsWith("pz-") || i.virtualSku?.startsWith("bd-")) kind.zonaJuegos += line; // cumpleaños cuenta dentro de Juegos
       else if (i.virtualSku?.startsWith("free-sale-")) kind.ventaLibre += line;
       else kind.productos += line;
     }

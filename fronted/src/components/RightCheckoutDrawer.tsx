@@ -1,3 +1,4 @@
+import { useComboDiscount } from '@/store/comboStore'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Banknote, Smartphone, CreditCard, Search, Loader2, Ticket, FileText, User, Building2 } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -90,17 +91,18 @@ export function RightCheckoutDrawer({ open, onClose, cart, playzoneCharges, onSa
  if (open) fetchConfig()
  }, [open, tenantId])
 
+ const comboResult = useComboDiscount()
  const lines = useMemo(
-  () => cart.map((item) => calculateLine(item.product, item.quantity, config, item.discount ?? 0)),
-  [cart, config]
+  () => cart.map((item) => calculateLine(item.product, item.quantity, config, (item.discount ?? 0) + (comboResult.productDiscount.get(item.product.id) ?? 0))),
+  [cart, config, comboResult]
  )
 
  const summary = useMemo(() => {
   const mtoIGV = lines.reduce((s, l) => s + l.mtoIGV, 0)
   const mtoImpVenta = lines.reduce((s, l) => s + l.mtoImpItem, 0)
-  const playzoneSum = playzoneCharges.reduce((s, c) => s + c.total, 0)
+  const playzoneSum = playzoneCharges.reduce((s, c) => s + c.total - (comboResult.timeDiscount.get(c.id) ?? 0), 0)
   return { mtoIGV: Number(mtoIGV.toFixed(2)), mtoImpVenta: Number((mtoImpVenta + playzoneSum).toFixed(2)) }
- }, [lines, playzoneCharges])
+ }, [lines, playzoneCharges, comboResult])
 
  const totalToPay = summary.mtoImpVenta
  const cashStatus = useCashStatusStore((st) => st.summary?.cashStatus)
@@ -232,6 +234,7 @@ export function RightCheckoutDrawer({ open, onClose, cart, playzoneCharges, onSa
   clientName: invoiceType === 'TICKET' ? undefined : normalizedName,
   clientAddress: fullClientAddress || undefined,
   amountReceived: paymentMethod === 'efectivo' ? cashGivenValue : undefined,
+  ...(comboResult.requests.length ? { combos: comboResult.requests } : {}),
  })
 
  if (error) {
@@ -244,7 +247,7 @@ export function RightCheckoutDrawer({ open, onClose, cart, playzoneCharges, onSa
  const saleResult = data?.data as { sale: { total: string; tipoComprobante: string; serie: string | null; correlativo: string | null; sunatStatus: string | null }; items: SaleResultItem[] }
  // The backend total is authoritative (playzone lines are re-priced server-side)
  const saleTotal = Number(saleResult.sale.total)
- printReceipt({ saleData: saleResult.sale, saleItems: saleResult.items, clientNameStr: normalizedName, method: paymentMethod, total: saleTotal, config, lines, summary, playzoneCharges, activeWorker, clientDocNumber: invoiceType === 'TICKET' ? undefined : clientDocNumber, clientAddress: fullClientAddress || undefined, amountPaid: paymentMethod === 'efectivo' ? cashGivenValue : undefined })
+ printReceipt({ saleData: saleResult.sale, saleItems: saleResult.items, clientNameStr: normalizedName, method: paymentMethod, total: saleTotal, config, lines, summary, playzoneCharges, activeWorker, clientDocNumber: invoiceType === 'TICKET' ? undefined : clientDocNumber, clientAddress: fullClientAddress || undefined, amountPaid: paymentMethod === 'efectivo' ? cashGivenValue : undefined, comboTimeDiscount: [...comboResult.timeDiscount.values()].reduce((s, v) => s + v, 0) })
 
  const warnings: string[] = []
  if (Math.abs(saleTotal - totalToPay) >= 0.01) warnings.push(`El total cobrado según sistema es ${formatPEN(saleTotal)} (en pantalla ${formatPEN(totalToPay)}).`)
