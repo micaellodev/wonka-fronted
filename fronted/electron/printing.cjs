@@ -1,7 +1,7 @@
 // Gestor de impresión: impresora y papel elegidos por equipo (userData/printer.json). Imprime directo, sin diálogo
 // ni "guardar como PDF". Sin impresora elegida usa la predeterminada de Windows (como antes).
 const { app, ipcMain, BrowserWindow, nativeImage } = require('electron')
-const { toEscPos, rawSend, diagnosticBytes } = require('./escpos.cjs')
+const { toEscPosBands, rawSendMany, diagnosticBytes } = require('./escpos.cjs')
 const { execFile } = require('child_process')
 const fs = require('fs')
 const path = require('path')
@@ -13,7 +13,7 @@ const PAPERS = {
   '80mm': { width: 80, print: 72, css: 'body{width:72mm!important;margin:0 auto!important;padding:0!important}img{max-width:100%!important}' },
   '58mm': { width: 58, print: 48, css: 'body{width:48mm!important;margin:0 auto!important;padding:0!important}img{max-width:100%!important}' },
 }
-const DEFAULT = { printer: '', paper: '80mm', mode: 'image' }
+const DEFAULT = { printer: '', paper: '80mm', mode: 'image', logo: 'normal' }
 
 // Bits de PRINTER_INFO.Status de Windows
 const OFFLINE = 0x80 | 0x1000
@@ -44,7 +44,7 @@ const DATA = (html) => `data:text/html;charset=utf-8,${encodeURIComponent(html)}
 
 // Modo imagen (rollos): el ticket se dibuja a 203 dpi (la resolución de las térmicas) y se imprime como imagen del ancho exacto;
 // los drivers térmicos la procesan mejor que texto vectorial. Devuelve un data URL PNG.
-async function rasterize(html, paper) {
+async function rasterize(html, paper, info = {}) {
   const zoom = 203 / 96 // 1 px CSS = 1 punto de la impresora a 203 dpi
   const w = Math.round((paper.print * 203) / 25.4)
   const win = new BrowserWindow({ show: false, width: w, height: 200, useContentSize: true, webPreferences: { offscreen: true } })
@@ -57,10 +57,19 @@ async function rasterize(html, paper) {
     const cssH = await win.webContents.executeJavaScript('document.body.scrollHeight')
     win.setContentSize(w, Math.ceil(cssH * zoom) + 8)
     await sleep(400) // que se pinte con el nuevo tamaño
+    // Posición del logo (px CSS) para poder tramarlo en el modo directo
+    info.logo = await win.webContents.executeJavaScript("(() => { const e = document.querySelector('.logo-container img'); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left, y: r.top + window.scrollY, w: r.width, h: r.height, innerW: window.innerWidth } })()")
     return (await win.webContents.capturePage()).toDataURL()
   } finally {
     if (!win.isDestroyed()) win.destroy()
   }
+}
+
+// Logo del ticket: 'none' lo quita; 'light' lo achica (la trama se aplica en el modo directo)
+function applyLogoMode(html, mode) {
+  if (mode === 'none') return html.replace(/<div class="logo-container">[\s\S]*?<\/div>/, '')
+  if (mode === 'light') return html.replace('</head>', '<style>.logo-container img{max-width:44mm!important}</style></head>')
+  return html
 }
 
 function setupPrinting(getWindow) {
@@ -102,10 +111,15 @@ function setupPrinting(getWindow) {
         const name = cfg.printer || (await listPrinters()).find((p) => p.isDefault)?.name
         if (!name) return { ok: false, error: 'No hay impresora elegida ni predeterminada.' }
         const dots = Math.round((paper.print * 203) / 25.4 / 8) * 8 // ancho imprimible en puntos (576 en 80 mm, 384 en 58 mm)
-        const img = nativeImage.createFromDataURL(await rasterize(html, paper)).resize({ width: dots, quality: 'best' })
+        const info = {}
+        const img = nativeImage.createFromDataURL(await rasterize(applyLogoMode(html, cfg.logo), paper, info)).resize({ width: dots, quality: 'best' })
         const { width, height } = img.getSize()
-        const res = await rawSend(name, toEscPos(img.toBitmap(), width, height))
-        log(`imprimir ${cfg.paper}/raw ${width}x${height} → ${res.ok ? 'ok' : res.error}`)
+        // Logo liviano: trama de puntitos en la zona del logo (la mancha negra sólida es lo que hace fallar a algunas térmicas)
+        const k = info.logo ? dots / info.logo.innerW : 0
+        const dither = cfg.logo === 'light' && info.logo ? { x: Math.floor(info.logo.x * k), y: Math.floor(info.logo.y * k), w: Math.ceil(info.logo.w * k), h: Math.ceil(info.logo.h * k) } : null
+        const bands = toEscPosBands(img.toBitmap(), width, height, { dither, lighten: 40 })
+        const res = await rawSendMany(name, bands)
+        log(`imprimir ${cfg.paper}/raw ${width}x${height} ${bands.length} bandas logo=${cfg.logo} → ${res.ok ? 'ok' : res.error}`)
         return res
       } catch (e) {
         return { ok: false, error: `No se pudo imprimir: ${e?.message ?? e}` }
@@ -115,7 +129,7 @@ function setupPrinting(getWindow) {
     const win = new BrowserWindow({ show: false, webPreferences: { offscreen: true } })
     try {
       if (asImage) {
-        const png = await rasterize(html, paper)
+        const png = await rasterize(applyLogoMode(html, cfg.logo), paper)
         await win.loadURL(DATA(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>@page{margin:0}html,body{margin:0;padding:0}img{display:block;width:${paper.print}mm}</style></head><body><img src="${png}"></body></html>`))
       } else {
         await win.loadURL(DATA(html))
@@ -163,6 +177,7 @@ function setupPrinting(getWindow) {
       printer: typeof next?.printer === 'string' ? next.printer : '',
       paper: PAPERS[next?.paper] ? next.paper : DEFAULT.paper,
       mode: next?.mode === 'text' ? 'text' : next?.mode === 'raw' ? 'raw' : 'image',
+      logo: next?.logo === 'none' ? 'none' : next?.logo === 'light' ? 'light' : 'normal',
     }
     fs.writeFileSync(configFile(), JSON.stringify(cfg, null, 2))
     return cfg

@@ -9,9 +9,11 @@ const path = require('path')
  * Convierte un bitmap BGRA (NativeImage.toBitmap) a comandos ESC/POS de raster (GS v 0) en tiras pequeñas,
  * en blanco y negro puro, más avance de papel y corte.
  */
-function toEscPos(bgra, width, height, { threshold = 170, strip = 96, feed = 4, cut = true } = {}) {
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
+
+function toEscPos(bgra, width, height, { threshold = 170, strip = 96, feed = 4, cut = true, dither = null, lighten = 0, init = true } = {}) {
   const wBytes = Math.ceil(width / 8)
-  const parts = [Buffer.from([0x1b, 0x40])] // ESC @: reinicia la impresora
+  const parts = init ? [Buffer.from([0x1b, 0x40])] : [] // ESC @: reinicia la impresora
   for (let y0 = 0; y0 < height; y0 += strip) {
     const rows = Math.min(strip, height - y0)
     const data = Buffer.alloc(wBytes * rows)
@@ -19,7 +21,11 @@ function toEscPos(bgra, width, height, { threshold = 170, strip = 96, feed = 4, 
       for (let x = 0; x < width; x++) {
         const i = ((y0 + r) * width + x) * 4
         const lum = bgra[i + 3] === 0 ? 255 : 0.114 * bgra[i] + 0.587 * bgra[i + 1] + 0.299 * bgra[i + 2]
-        if (lum < threshold) data[r * wBytes + (x >> 3)] |= 0x80 >> (x & 7)
+        const y = y0 + r
+        // Dentro del logo se usa una trama (puntitos): la misma mancha negra gasta mucho menos energía de la impresora
+        const inLogo = dither && x >= dither.x && x < dither.x + dither.w && y >= dither.y && y < dither.y + dither.h
+        const black = inLogo ? Math.min(255, lum + lighten) < ((BAYER[(y & 3) * 4 + (x & 3)] + 0.5) / 16) * 255 : lum < threshold
+        if (black) data[r * wBytes + (x >> 3)] |= 0x80 >> (x & 7)
       }
     }
     parts.push(Buffer.from([0x1d, 0x76, 0x30, 0x00, wBytes & 255, wBytes >> 8, rows & 255, rows >> 8]), data) // GS v 0 m xL xH yL yH d...
@@ -69,6 +75,21 @@ public class WonkaRaw {
 Add-Type -TypeDefinition $src
 Write-Output ([WonkaRaw]::Send($env:WONKA_PRINTER, [IO.File]::ReadAllBytes($env:WONKA_FILE)))
 `
+
+const PS_SCRIPT_MANY = PS_SCRIPT.replace(
+  'Write-Output ([WonkaRaw]::Send($env:WONKA_PRINTER, [IO.File]::ReadAllBytes($env:WONKA_FILE)))',
+  `foreach ($f in ($env:WONKA_FILES -split '\\|')) {
+  $r = [WonkaRaw]::Send($env:WONKA_PRINTER, [IO.File]::ReadAllBytes($f))
+  if ($r -ne 'OK') { Write-Output $r; exit }
+  for ($i = 0; $i -lt 100; $i++) {
+    try { $j = Get-PrintJob -PrinterName $env:WONKA_PRINTER -ErrorAction Stop } catch { break }
+    if (-not $j) { break }
+    Start-Sleep -Milliseconds 100
+  }
+  Start-Sleep -Milliseconds ([int]$env:WONKA_PAUSE)
+}
+Write-Output 'OK'`
+)
 
 /** Manda los bytes tal cual a la cola de la impresora (datatype RAW). Devuelve { ok, error }. */
 function rawSend(printerName, bytes) {
@@ -121,4 +142,37 @@ function diagnosticBytes() {
   return Buffer.concat(parts)
 }
 
-module.exports = { toEscPos, rawSend, diagnosticBytes }
+/** Divide la imagen en bandas independientes (cada una es un trabajo de impresión) para mandarlas con pausas. */
+function toEscPosBands(bgra, width, height, opts = {}, bandRows = 96) {
+  const out = []
+  for (let y0 = 0; y0 < height; y0 += bandRows) {
+    const rows = Math.min(bandRows, height - y0)
+    const slice = bgra.subarray(y0 * width * 4, (y0 + rows) * width * 4)
+    const last = y0 + rows >= height
+    const d = opts.dither ? { ...opts.dither, y: opts.dither.y - y0 } : null
+    out.push(toEscPos(slice, width, rows, { ...opts, dither: d, strip: 48, init: y0 === 0, feed: last ? 4 : 0, cut: last && opts.cut !== false }))
+  }
+  return out
+}
+
+/** Manda varios trabajos RAW uno tras otro: espera a que la cola se vacíe y hace una pausa antes del siguiente. */
+function rawSendMany(printerName, buffers, pauseMs = 250) {
+  return new Promise((resolve) => {
+    const base = path.join(os.tmpdir(), `wonka-raw-${Date.now()}`)
+    const files = buffers.map((b, i) => `${base}-${i}.bin`)
+    try { buffers.forEach((b, i) => fs.writeFileSync(files[i], b)) } catch (e) { return resolve({ ok: false, error: `No se pudo preparar el ticket: ${e.message}` }) }
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-Command', PS_SCRIPT_MANY],
+      { timeout: 120000, windowsHide: true, env: { ...process.env, WONKA_PRINTER: printerName, WONKA_FILES: files.join('|'), WONKA_PAUSE: String(pauseMs) } },
+      (err, out) => {
+        files.forEach((f) => fs.unlink(f, () => {}))
+        const res = String(out || '').trim().split(/\r?\n/).pop()
+        if (err || res !== 'OK') resolve({ ok: false, error: `Impresión directa falló (${res || err?.message || 'sin respuesta'}).` })
+        else resolve({ ok: true })
+      },
+    )
+  })
+}
+
+module.exports = { toEscPos, toEscPosBands, rawSend, rawSendMany, diagnosticBytes }

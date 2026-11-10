@@ -16,7 +16,7 @@ const PAPERS: Array<{ value: PrintConfig['paper']; label: string; hint: string }
 export function PrinterSettingsScreen() {
   const api = window.electronAPI
   const [printers, setPrinters] = useState<PrinterInfo[]>([])
-  const [config, setConfig] = useState<PrintConfig>({ printer: '', paper: '80mm', mode: 'image' })
+  const [config, setConfig] = useState<PrintConfig>({ printer: '', paper: '80mm', mode: 'image', logo: 'normal' })
   const [loading, setLoading] = useState(true)
   const [testing, setTesting] = useState(false)
 
@@ -137,6 +137,20 @@ export function PrinterSettingsScreen() {
                   </div>
                 </div>
               )}
+            </Card>
+
+            <Card className="p-5">
+              <h2 className="mb-1 text-sm font-bold">Logo del ticket</h2>
+              <p className="mb-3 text-xs text-muted-foreground">Si salen símbolos raros justo después del logo o del QR, prueba "Liviano" o "Sin logo": la mancha negra grande es lo que más cuesta a algunas térmicas.</p>
+              <div role="radiogroup" aria-label="Logo del ticket" className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                {([['normal', 'Normal', 'Logo completo'], ['light', 'Liviano', 'Más chico y con trama (en modo Directo)'], ['none', 'Sin logo', 'No se imprime']] as const).map(([value, label, hint]) => (
+                  <button key={value} type="button" role="radio" aria-checked={config.logo === value} onClick={() => void update({ logo: value })}
+                    className={cn('rounded-lg border px-3 py-3 text-left transition-colors', config.logo === value ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted')}>
+                    <span className="block text-sm font-bold">{label}</span>
+                    <span className="block text-xs text-muted-foreground">{hint}</span>
+                  </button>
+                ))}
+              </div>
             </Card>
 
             <Card className="flex flex-wrap items-center justify-between gap-3 p-5">

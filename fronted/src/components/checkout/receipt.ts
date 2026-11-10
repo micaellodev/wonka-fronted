@@ -81,7 +81,7 @@ function sunatQrSvg(i: ReceiptInput, tipo: string): string | null {
   qr.addData(text)
   qr.make()
   // SVG incrustado (no <img>): una imagen SVG carga async y salía vacía si se imprimía antes de cargar. Margen = zona silenciosa.
-  return qr.createSvgTag({ cellSize: 4, margin: 4, scalable: true }).replace('<svg ', '<svg width="120" height="120" shape-rendering="crispEdges" ')
+  return qr.createSvgTag({ cellSize: 4, margin: 4, scalable: true }).replace('<svg ', '<svg width="104" height="104" shape-rendering="crispEdges" ')
 }
 
 /** Comprobante como HTML de 80 mm (sin imprimirlo). */
