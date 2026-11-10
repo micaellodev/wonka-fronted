@@ -1,2 +1,3 @@
-Cambio mediano · 10 archivos, 715 líneas, 1 cambios
-- Juegos: selección múltiple con Ctrl+clic y grupo, borrar niños; combos en Categorías (con tiempo piden apoderado y niño); ticket en Arial; cumpleaños con color
+Cambio pequeño · 3 archivos, 43 líneas, 2 cambios
+- Juegos: el cajero no puede quitar ni cancelar juegos sin cobrar; solo quien aprueba anulaciones
+- Niños jugando: el grupo se muestra en un solo recuadro con Finalizar todos
