@@ -1,6 +1,7 @@
 // Gestor de impresión: impresora y papel elegidos por equipo (userData/printer.json). Imprime directo, sin diálogo
 // ni "guardar como PDF". Sin impresora elegida usa la predeterminada de Windows (como antes).
-const { app, ipcMain, BrowserWindow } = require('electron')
+const { app, ipcMain, BrowserWindow, nativeImage } = require('electron')
+const { toEscPos, rawSend } = require('./escpos.cjs')
 const { execFile } = require('child_process')
 const fs = require('fs')
 const path = require('path')
@@ -95,6 +96,21 @@ function setupPrinting(getWindow) {
     const problem = await printerProblem(cfg)
     if (problem) return { ok: false, error: problem }
     const paper = PAPERS[cfg.paper] ?? PAPERS['80mm']
+    // Modo directo: ESC/POS crudo a la cola de la impresora (sin el driver de Windows). Solo rollos de 58/80 mm.
+    if (cfg.mode === 'raw' && paper.width) {
+      try {
+        const name = cfg.printer || (await listPrinters()).find((p) => p.isDefault)?.name
+        if (!name) return { ok: false, error: 'No hay impresora elegida ni predeterminada.' }
+        const dots = Math.round((paper.print * 203) / 25.4 / 8) * 8 // ancho imprimible en puntos (576 en 80 mm, 384 en 58 mm)
+        const img = nativeImage.createFromDataURL(await rasterize(html, paper)).resize({ width: dots, quality: 'best' })
+        const { width, height } = img.getSize()
+        const res = await rawSend(name, toEscPos(img.toBitmap(), width, height))
+        log(`imprimir ${cfg.paper}/raw ${width}x${height} → ${res.ok ? 'ok' : res.error}`)
+        return res
+      } catch (e) {
+        return { ok: false, error: `No se pudo imprimir: ${e?.message ?? e}` }
+      }
+    }
     const asImage = paper.width && cfg.mode !== 'text'
     const win = new BrowserWindow({ show: false, webPreferences: { offscreen: true } })
     try {
@@ -146,7 +162,7 @@ function setupPrinting(getWindow) {
     const cfg = {
       printer: typeof next?.printer === 'string' ? next.printer : '',
       paper: PAPERS[next?.paper] ? next.paper : DEFAULT.paper,
-      mode: next?.mode === 'text' ? 'text' : 'image',
+      mode: next?.mode === 'text' ? 'text' : next?.mode === 'raw' ? 'raw' : 'image',
     }
     fs.writeFileSync(configFile(), JSON.stringify(cfg, null, 2))
     return cfg

@@ -107,10 +107,11 @@ export function PrinterSettingsScreen() {
               {(config.paper === '80mm' || config.paper === '58mm') && (
                 <div className="mt-4">
                   <h3 className="mb-2 text-xs font-bold">Modo de impresión (ticket)</h3>
-                  <div role="radiogroup" aria-label="Modo de impresión" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div role="radiogroup" aria-label="Modo de impresión" className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                     {([
                       ['image', 'Imagen', 'Recomendado: sale bien en casi todas las térmicas.'],
                       ['text', 'Texto', 'Más nítido si el driver lo soporta; si sale en blanco, usa Imagen.'],
+                      ['raw', 'Directo (ESC/POS)', 'Si sale texto con símbolos raros: envía el ticket directo a la térmica, sin el driver de Windows.'],
                     ] as const).map(([value, label, hint]) => (
                       <button
                         key={value}
