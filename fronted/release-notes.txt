@@ -1,3 +1,2 @@
-Cambio pequeño · 3 archivos, 43 líneas, 2 cambios
-- Juegos: el cajero no puede quitar ni cancelar juegos sin cobrar; solo quien aprueba anulaciones
-- Niños jugando: el grupo se muestra en un solo recuadro con Finalizar todos
+Cambio pequeño · 8 archivos, 133 líneas, 1 cambios
+- Playzone: grupo en un solo recuadro, lista de niños ordenada, carnet de extranjería, cajero puede quitar juegos del ticket; nota de crédito/débito con maqueta de boleta; fixes feriados y cantidad de niños
