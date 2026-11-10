@@ -48,6 +48,15 @@ export function PrinterSettingsScreen() {
     else toast.error(r.error ?? 'No se pudo imprimir.')
   }
 
+  const diagnose = async () => {
+    if (!api) return
+    setTesting(true)
+    const r = await api.printDiagnostic()
+    setTesting(false)
+    if (r.ok) toast.success('Diagnóstico enviado: mira el papel.')
+    else toast.error(r.error ?? 'No se pudo imprimir.')
+  }
+
   const selected = printers.find((p) => p.name === config.printer)
   const stored = config.printer && !selected && !loading
 
@@ -138,6 +147,16 @@ export function PrinterSettingsScreen() {
               <Button onClick={() => void test()} disabled={testing}>
                 {testing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : <Printer className="mr-2 h-4 w-4" aria-hidden />}
                 Imprimir prueba
+              </Button>
+            </Card>
+
+            <Card className="flex flex-wrap items-center justify-between gap-3 p-5">
+              <div>
+                <h2 className="text-sm font-bold">Diagnóstico directo (si salen símbolos raros)</h2>
+                <p className="text-xs text-muted-foreground">Imprime 4 pruebas con comandos distintos (texto, imagen, imagen alterna y QR). Sirve para saber qué entiende tu impresora; tómale foto al papel.</p>
+              </div>
+              <Button variant="outline" onClick={() => void diagnose()} disabled={testing}>
+                Imprimir diagnóstico
               </Button>
             </Card>
           </>

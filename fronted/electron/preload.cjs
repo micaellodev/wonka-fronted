@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPrintConfig: () => ipcRenderer.invoke('printer:get-config'),
   setPrintConfig: (cfg) => ipcRenderer.invoke('printer:set-config', cfg),
   printTest: () => ipcRenderer.invoke('print:test'),
+  printDiagnostic: () => ipcRenderer.invoke('print:diagnostic'),
   getVersion: () => ipcRenderer.invoke('app:version'),
   onUpdateStatus: (cb) => {
     const h = (_e, s) => cb(s)

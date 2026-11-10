@@ -89,4 +89,36 @@ function rawSend(printerName, bytes) {
   })
 }
 
-module.exports = { toEscPos, rawSend }
+/**
+ * Prueba de diagnóstico: cada sección usa un comando distinto, con su letrero en texto simple, para ver cuál entiende la impresora.
+ * Se lee el papel: la sección que sale como dibujo (barras) y no como símbolos es la que sirve.
+ */
+function diagnosticBytes() {
+  const text = (s) => Buffer.from(s + '\n', 'latin1')
+  const parts = [Buffer.from([0x1b, 0x40]), text('=== DIAGNOSTICO WONKA ==='), text('A) Texto simple: ABC abc 123')]
+  // Imagen de 64x24 puntos: barras verticales anchas
+  const w = 64, h = 24, wBytes = w / 8
+  const rows = Buffer.alloc(wBytes * h)
+  for (let r = 0; r < h; r++) for (let b = 0; b < wBytes; b++) rows[r * wBytes + b] = b % 2 === 0 ? 0xff : 0x00
+  parts.push(text('B) Imagen GS v 0 (raster):'), Buffer.from([0x1d, 0x76, 0x30, 0x00, wBytes, 0, h, 0]), rows)
+  // ESC * 33: imagen en columnas de 24 puntos
+  const cols = 64, colBuf = Buffer.alloc(cols * 3)
+  for (let c = 0; c < cols; c++) if (Math.floor(c / 8) % 2 === 0) colBuf.fill(0xff, c * 3, c * 3 + 3)
+  parts.push(text('C) Imagen ESC * (24 puntos):'), Buffer.from([0x1b, 0x2a, 33, cols & 255, cols >> 8]), colBuf, Buffer.from('\n'))
+  // QR nativo: GS ( k
+  const qr = Buffer.from('WONKA', 'latin1')
+  const pl = qr.length + 3
+  parts.push(
+    text('D) QR nativo:'),
+    Buffer.from([0x1d, 0x28, 0x6b, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00]),
+    Buffer.from([0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x43, 0x06]),
+    Buffer.from([0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x45, 0x31]),
+    Buffer.from([0x1d, 0x28, 0x6b, pl & 255, pl >> 8, 0x31, 0x50, 0x30]), qr,
+    Buffer.from([0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x51, 0x30]),
+    Buffer.from('\n'),
+    text('=== FIN ==='), Buffer.from([0x1b, 0x64, 4]), Buffer.from([0x1d, 0x56, 0x42, 0x00]),
+  )
+  return Buffer.concat(parts)
+}
+
+module.exports = { toEscPos, rawSend, diagnosticBytes }

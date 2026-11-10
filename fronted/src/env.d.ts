@@ -32,6 +32,7 @@ interface ElectronAPI {
  getPrintConfig: () => Promise<PrintConfig>
  setPrintConfig: (cfg: PrintConfig) => Promise<PrintConfig>
  printTest: () => Promise<PrintResult>
+ printDiagnostic: () => Promise<PrintResult>
  getVersion: () => Promise<string>
  onUpdateStatus: (cb: (s: UpdateStatus) => void) => () => void
  getUpdateStatus: () => Promise<UpdateStatus | null>

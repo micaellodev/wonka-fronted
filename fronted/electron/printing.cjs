@@ -1,7 +1,7 @@
 // Gestor de impresión: impresora y papel elegidos por equipo (userData/printer.json). Imprime directo, sin diálogo
 // ni "guardar como PDF". Sin impresora elegida usa la predeterminada de Windows (como antes).
 const { app, ipcMain, BrowserWindow, nativeImage } = require('electron')
-const { toEscPos, rawSend } = require('./escpos.cjs')
+const { toEscPos, rawSend, diagnosticBytes } = require('./escpos.cjs')
 const { execFile } = require('child_process')
 const fs = require('fs')
 const path = require('path')
@@ -168,6 +168,17 @@ function setupPrinting(getWindow) {
     return cfg
   })
   ipcMain.handle('print:silent', (_e, html) => printHtml(String(html)))
+  // Diagnóstico: manda comandos ESC/POS de distintos tipos con letreros, directo a la cola (sin driver gráfico)
+  ipcMain.handle('print:diagnostic', async () => {
+    const cfg = readConfig()
+    const problem = await printerProblem(cfg)
+    if (problem) return { ok: false, error: problem }
+    const name = cfg.printer || (await listPrinters()).find((p) => p.isDefault)?.name
+    if (!name) return { ok: false, error: 'No hay impresora elegida ni predeterminada.' }
+    const res = await rawSend(name, diagnosticBytes())
+    log(`diagnostico ${name} → ${res.ok ? 'ok' : res.error}`)
+    return res
+  })
   ipcMain.handle('print:test', async () => {
     const cfg = readConfig()
     const name = cfg.printer || (await listPrinters()).find((p) => p.isDefault)?.name || 'Predeterminada'
