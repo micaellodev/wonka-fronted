@@ -1,4 +1,2 @@
-Cambio pequeño · 6 archivos, 178 líneas, 3 cambios
-- Impresión: ticket en negrita para que el texto salga tan oscuro como el QR
-- Impresión: logo liviano/sin logo, QR más chico y envío por bandas con pausa en modo Directo
-- Impresión: botón de diagnóstico directo (texto, GS v 0, ESC *, QR nativo)
+Cambio mediano · 10 archivos, 715 líneas, 1 cambios
+- Juegos: selección múltiple con Ctrl+clic y grupo, borrar niños; combos en Categorías (con tiempo piden apoderado y niño); ticket en Arial; cumpleaños con color
