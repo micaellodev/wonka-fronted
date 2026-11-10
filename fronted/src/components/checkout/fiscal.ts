@@ -12,6 +12,9 @@ export interface TenantFiscalConfig {
  razonSocial?: string | null
  nombreComercial?: string | null
  direccion?: string | null
+ departamento?: string | null
+ provincia?: string | null
+ distrito?: string | null
  receiptFooter?: string | null
  name?: string | null
 }
@@ -86,7 +89,7 @@ export function numberToWords(n: number): string {
  return result
 }
 
-export interface SaleResultItem { productName: string; qty: number; unitPrice: string; lineTotal: string }
+export interface SaleResultItem { productName: string; qty: number; unitPrice: string; lineTotal: string; discount?: string }
 
 export function resolveRegime(productRegime: string | null | undefined, tenantDefault: IgvRegime): IgvRegime {
  const r = (productRegime ?? tenantDefault).toUpperCase()
@@ -97,18 +100,18 @@ export function resolveRegime(productRegime: string | null | undefined, tenantDe
  return 'EXONERADO'
 }
 
-export function calculateLine(product: Product, qty: number, config: TenantFiscalConfig): CheckoutLine {
+export function calculateLine(product: Product, qty: number, config: TenantFiscalConfig, discount = 0): CheckoutLine {
  const regime = resolveRegime(product.igvRegime, config.defaultIgvRegime)
  const unitPrice = product.price
 
  if (regime === 'EXONERADO' || regime === 'INAFECTO') {
- const mtoValorVenta = unitPrice * qty
+ const mtoValorVenta = Number((unitPrice * qty - discount).toFixed(2))
  return { product, qty, mtoValorVenta, mtoIGV: 0, mtoImpItem: mtoValorVenta, regime }
  }
 
  const rate = regime === 'GRAVADO_10_5' ? 10.5 / 100 : (regime === 'ICBPER' ? config.igvRate / 100 : config.igvRate / 100)
  const mtoValorUnitario = config.pricesIncludeIgv ? unitPrice / (1 + rate) : unitPrice
- const mtoValorVenta = mtoValorUnitario * qty
+ const mtoValorVenta = mtoValorUnitario * qty - (config.pricesIncludeIgv ? discount / (1 + rate) : discount)
  const mtoIGV = mtoValorVenta * rate
  const mtoImpItem = mtoValorVenta + mtoIGV
 

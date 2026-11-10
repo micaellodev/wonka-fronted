@@ -90,6 +90,8 @@ export interface InventoryStats {
 export interface CartItem {
  product: Product
  quantity: number
+ /** Descuento en soles sobre el total de la línea (0/undefined = sin descuento) */
+ discount?: number
 }
 
 export interface SalePayload {

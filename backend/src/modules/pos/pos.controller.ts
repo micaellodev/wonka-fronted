@@ -3,6 +3,7 @@ import {
     processSale,
     listSales,
     getSaleById,
+    getSunatFile,
     listSalesToday,
     createVoidRequest,
     resolveVoidRequest,
@@ -86,6 +87,28 @@ export const posController = new Elysia({ prefix: "/pos", tags: ["POS"] })
         }
     )
 
+    // ── GET /pos/sales/:id/sunat/:kind (xml | cdr) ───────────────
+    .get(
+        "/sales/:id/sunat/:kind",
+        async ({ params, query, set }) => {
+            try {
+                const f = await getSunatFile(query.tenantId, params.id, params.kind as "xml" | "cdr");
+                return new Response(f.bytes, {
+                    headers: { "Content-Type": f.type, "Content-Disposition": `attachment; filename="${f.filename}"` },
+                });
+            } catch (err) {
+                const message = err instanceof Error ? err.message : "Unexpected error.";
+                set.status = /not found/i.test(message) ? 404 : 500;
+                return { message };
+            }
+        },
+        {
+            params: t.Object({ id: t.String({ minLength: 1 }), kind: t.Union([t.Literal("xml"), t.Literal("cdr")]) }),
+            query: t.Object({ tenantId: t.String({ minLength: 1 }) }),
+            detail: { summary: "Download the signed XML or the SUNAT CDR of a sale" },
+        }
+    )
+
     // ── POST /pos/sales ───────────────────────────────────────
     /**
      * Process a new sale:
@@ -111,6 +134,7 @@ export const posController = new Elysia({ prefix: "/pos", tags: ["POS"] })
                     clientDocNumber: body.clientDocNumber,
                     clientName: body.clientName,
                     clientAddress: body.clientAddress,
+                    amountReceived: body.amountReceived,
                 });
                 set.status = 201;
                 return {

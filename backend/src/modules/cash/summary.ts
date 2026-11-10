@@ -16,7 +16,7 @@ interface SaleLike {
   total: unknown;
   paymentMethod: string | null;
   status: string;
-  items: { productId: string | null; isVirtual: boolean; virtualSku: string | null; unitPrice: unknown; qty: number }[];
+  items: { productId: string | null; isVirtual: boolean; virtualSku: string | null; unitPrice: unknown; discount?: unknown; qty: number }[];
 }
 
 /** Aggregates any set of sales (a day or a range). The only place that adds up sales. */
@@ -32,7 +32,7 @@ export function aggregateSales(sales: SaleLike[]) {
     const m = (s.paymentMethod || "").toLowerCase();
     if (m === "efectivo" || m === "yape" || m === "tarjeta") by[m] += t; else by.other += t;
     for (const i of s.items) {
-      const line = Number(i.unitPrice) * i.qty;
+      const line = Number(i.unitPrice) * i.qty - Number(i.discount ?? 0);
       if (i.virtualSku?.startsWith("pz-")) kind.zonaJuegos += line;
       else if (i.virtualSku?.startsWith("free-sale-")) kind.ventaLibre += line;
       else kind.productos += line;
@@ -90,7 +90,7 @@ export async function getDaySummary(tenantId: string, date: string = limaYmd()) 
       where: { tenantId, createdAt },
       select: {
         total: true, paymentMethod: true, status: true, createdAt: true,
-        items: { select: { productId: true, isVirtual: true, virtualSku: true, unitPrice: true, qty: true } },
+        items: { select: { productId: true, isVirtual: true, virtualSku: true, unitPrice: true, discount: true, qty: true } },
       },
     }),
     prisma.cashMovement.findMany({

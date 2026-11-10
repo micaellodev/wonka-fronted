@@ -4,14 +4,16 @@
 // documento modificado (deben coincidir con él según SUNAT).
 // ============================================================
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { X, Save, FileText } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { PinPad } from '@/components/PinPad'
+import { formatPEN as formatMoney } from '@/lib/format'
+import { printBillingNote, type PrintableNote } from '@/components/checkout/note-receipt'
 
-export type BillingNoteResult = {
+export type BillingNoteResult = PrintableNote & {
  serie: string
  correlative: string
  sunatStatus: string | null
@@ -74,7 +76,72 @@ export function CreateBillingNoteModal({ isOpen, onClose, onSuccess }: Props) {
  const [approvalError, setApprovalError] = useState(false)
  const [form, setForm] = useState(emptyForm)
 
+ // Descuento por nota de crédito (motivos 04 global / 05 por ítem): se calcula sobre el documento real
+ type DocInfo = { clientName: string | null; total: number; credited: number; available: number; sunatStatus: string | null; items: Array<{ name: string; qty: number; lineTotal: number }> }
+ const [doc, setDoc] = useState<DocInfo | null>(null)
+ const [docError, setDocError] = useState<string | null>(null)
+ const [itemIdx, setItemIdx] = useState(0)
+ const [discMode, setDiscMode] = useState<'pct' | 'amt'>('pct')
+ const [discValue, setDiscValue] = useState('')
+ type Match = { serie: string; tipoComprobante: string; total: number; clientName: string | null; clientDocNumber: string | null; sunatStatus: string | null; status: string }
+ const [matches, setMatches] = useState<Match[] | null>(null)
+ const [searchError, setSearchError] = useState<string | null>(null)
+ const isDiscount = form.type === 'CREDIT_NOTE' && (form.reasonCode === '04' || form.reasonCode === '05')
+
+ // Con solo el correlativo se buscan las boletas/facturas que lo tienen; si hay una sola, se completa la serie
+ useEffect(() => {
+ if (!isOpen || !tenantId || !/^\d{1,8}$/.test(form.modifiedDocumentCorrelative)) { setMatches(null); setSearchError(null); return }
+ let alive = true
+ const timer = setTimeout(() => {
+ api.billing.documents.get({ query: { tenantId, correlativo: form.modifiedDocumentCorrelative } })
+ .then(({ data, error }: { data?: { data?: Match[] }; error?: { value?: { error?: string } } }) => {
+ if (!alive) return
+ if (error || !data?.data) { setMatches(null); setSearchError(error?.value?.error ?? 'No se pudo buscar el documento.'); return }
+ setSearchError(null); setMatches(data.data)
+ if (data.data.length === 1) setForm((f) => (f.modifiedDocumentSerie === data.data![0]!.serie ? f : { ...f, modifiedDocumentSerie: data.data![0]!.serie }))
+ })
+ .catch(() => { if (alive) setSearchError('No se pudo buscar el documento.') })
+ }, 300)
+ return () => { alive = false; clearTimeout(timer) }
+ }, [isOpen, tenantId, form.modifiedDocumentCorrelative])
+
+ useEffect(() => {
+ if (!isOpen || !tenantId || !/^[BF][A-Z0-9]{3}$/.test(form.modifiedDocumentSerie) || !/^\d{1,8}$/.test(form.modifiedDocumentCorrelative)) {
+ setDoc(null); setDocError(null)
+ return
+ }
+ let alive = true
+ api.billing.document.get({ query: { tenantId, serie: form.modifiedDocumentSerie, correlativo: form.modifiedDocumentCorrelative } })
+ .then(({ data, error }: { data?: { data?: DocInfo }; error?: { value?: { error?: string } } }) => {
+ if (!alive) return
+ if (error || !data?.data) { setDoc(null); setDocError(error?.value?.error ?? 'No se pudo consultar el documento.'); return }
+ setDoc(data.data); setDocError(null); setItemIdx(0)
+ })
+ .catch(() => { if (alive) { setDoc(null); setDocError('No se pudo consultar el documento.') } })
+ return () => { alive = false }
+ }, [isOpen, tenantId, form.modifiedDocumentSerie, form.modifiedDocumentCorrelative])
+
+ // Anulación / error de RUC / devolución total: la nota va por todo el saldo del documento
+ useEffect(() => {
+ if (doc && form.type === 'CREDIT_NOTE' && ['01', '02', '06'].includes(form.reasonCode) && doc.available > 0) {
+ setForm((f) => ({ ...f, totalAmount: doc.available.toFixed(2) }))
+ }
+ }, [doc, form.type, form.reasonCode])
+
  if (!isOpen) return null
+
+ // Base del descuento: todo el documento (04) o el producto elegido (05); nunca más que el saldo sin devolver
+ const discBase = !doc ? 0 : form.reasonCode === '05' ? (doc.items[itemIdx]?.lineTotal ?? 0) : doc.total
+ const applyDiscount = (mode: 'pct' | 'amt', value: string, idx = itemIdx) => {
+ setDiscMode(mode); setDiscValue(value)
+ const base = !doc ? 0 : form.reasonCode === '05' ? (doc.items[idx]?.lineTotal ?? 0) : doc.total
+ const raw = mode === 'pct' ? (base * Number(value || 0)) / 100 : Number(value || 0)
+ const amount = Math.max(0, Math.min(Math.round(raw * 100) / 100, doc?.available ?? 0))
+ const label = form.reasonCode === '05'
+ ? `Descuento por ítem: ${doc?.items[idx]?.name ?? ''}${mode === 'pct' && value ? ` (${value}%)` : ''}`
+ : `Descuento global${mode === 'pct' && value ? ` (${value}%)` : ''}`
+ setForm((f) => ({ ...f, totalAmount: amount > 0 ? amount.toFixed(2) : '', reasonDescription: label.slice(0, 250) }))
+ }
 
  const close = () => {
  if (loading) return
@@ -137,6 +204,8 @@ export function CreateBillingNoteModal({ isOpen, onClose, onSuccess }: Props) {
  }
  setForm(emptyForm)
  setShowApprovalModal(false)
+ // La nota se imprime apenas el administrador la verifica
+ void printBillingNote(data as PrintableNote)
  onSuccess(data as BillingNoteResult)
  onClose()
  } catch (err) {
@@ -194,6 +263,7 @@ export function CreateBillingNoteModal({ isOpen, onClose, onSuccess }: Props) {
  <div className="h-px w-full bg-muted my-2"></div>
 
  <h3 className="text-xs font-bold text-primary uppercase tracking-widest">Documento que Modifica (Boleta/Factura aceptada)</h3>
+ <p className="text-xs text-muted-foreground -mt-2">Escribe solo el correlativo: la serie, el cliente y el monto se completan solos.</p>
  <div className="grid grid-cols-2 gap-4 mt-1">
  <div>
  <label htmlFor="bn-serie" className="block text-sm font-semibold text-muted-foreground mb-1.5">Serie</label>
@@ -213,6 +283,28 @@ export function CreateBillingNoteModal({ isOpen, onClose, onSuccess }: Props) {
  </div>
  </div>
 
+ {searchError && <p className="text-sm text-destructive">{searchError}</p>}
+ {matches && matches.length === 0 && <p className="text-sm text-destructive">No hay ninguna boleta ni factura con ese correlativo.</p>}
+ {matches && matches.length > 1 && (
+ <div className="space-y-2">
+ <p className="text-sm text-muted-foreground">Hay varios documentos con ese número, elige uno:</p>
+ <div className="flex flex-wrap gap-2">
+ {matches.map((m) => (
+ <button type="button" key={m.serie} onClick={() => setForm((f) => ({ ...f, modifiedDocumentSerie: m.serie }))}
+ className={`rounded-lg border px-3 py-1.5 text-sm ${form.modifiedDocumentSerie === m.serie ? 'border-primary bg-primary text-primary-foreground' : 'border-border'}`}>
+ {m.tipoComprobante === 'FACTURA' ? 'Factura' : 'Boleta'} {m.serie} · {m.clientName ?? 'Sin cliente'} · {formatMoney(m.total)}
+ </button>
+ ))}
+ </div>
+ </div>
+ )}
+ {doc && (
+ <div className="rounded-xl border border-border bg-muted p-3 text-sm">
+ <p className="font-semibold text-foreground">{form.modifiedDocumentSerie}-{form.modifiedDocumentCorrelative.padStart(8, '0')} · {doc.clientName ?? 'Sin cliente'}</p>
+ <p className="text-muted-foreground">Total {formatMoney(doc.total)} · ya devuelto {formatMoney(doc.credited)} · saldo {formatMoney(doc.available)}{doc.sunatStatus !== 'ACEPTADA' ? ' · ⚠ aún no aceptado por SUNAT' : ''}</p>
+ </div>
+ )}
+
  <div className="grid grid-cols-3 gap-4">
  <div className="col-span-1">
  <label htmlFor="bn-reason" className="block text-sm font-semibold text-muted-foreground mb-1.5">Motivo</label>
@@ -221,6 +313,34 @@ export function CreateBillingNoteModal({ isOpen, onClose, onSuccess }: Props) {
  <option key={code} value={code}>{code} — {label}</option>
  ))}
  </select>
+ </div>
+ <div className="col-span-3">
+ {isDiscount && (
+ <div className="rounded-xl border border-border bg-muted p-4 space-y-3 text-sm">
+ <p className="text-xs font-bold uppercase tracking-widest text-primary">Calculadora de descuento</p>
+ {docError && <p className="text-destructive">{docError}</p>}
+ {!doc && !docError && <p className="text-muted-foreground">Ingresa la serie y el correlativo del documento para calcular el descuento.</p>}
+ {doc && (
+ <>
+ <p className="text-muted-foreground">
+ Documento: <b>{formatMoney(doc.total)}</b> · Ya devuelto: <b>{formatMoney(doc.credited)}</b> · Saldo para descontar: <b>{formatMoney(doc.available)}</b>
+ </p>
+ {doc.sunatStatus !== 'ACEPTADA' && <p className="text-destructive">Este documento aún no está aceptado por SUNAT: la nota no podrá emitirse.</p>}
+ {form.reasonCode === '05' && (
+ <select className={inputCls} value={itemIdx} onChange={e => { const i = Number(e.target.value); setItemIdx(i); applyDiscount(discMode, discValue, i) }}>
+ {doc.items.map((it, i) => <option key={i} value={i}>{it.name} × {it.qty} — {formatMoney(it.lineTotal)}</option>)}
+ </select>
+ )}
+ <div className="flex items-center gap-2">
+ <button type="button" onClick={() => applyDiscount('pct', discValue)} className={`rounded-lg border px-3 py-1.5 ${discMode === 'pct' ? 'border-primary bg-primary text-primary-foreground' : 'border-border'}`}>%</button>
+ <button type="button" onClick={() => applyDiscount('amt', discValue)} className={`rounded-lg border px-3 py-1.5 ${discMode === 'amt' ? 'border-primary bg-primary text-primary-foreground' : 'border-border'}`}>S/</button>
+ <input type="number" min="0" step="0.01" inputMode="decimal" className={inputCls} placeholder={discMode === 'pct' ? 'Ej. 10 (%)' : 'Ej. 5.00 (S/)'} value={discValue} onChange={e => applyDiscount(discMode, e.target.value)} />
+ </div>
+ <p className="text-muted-foreground">Base: {formatMoney(discBase)} → descuento a emitir: <b>{formatMoney(Number(form.totalAmount || 0))}</b></p>
+ </>
+ )}
+ </div>
+ )}
  </div>
  <div className="col-span-2">
  <label htmlFor="bn-desc" className="block text-sm font-semibold text-muted-foreground mb-1.5">Descripción del Motivo</label>
@@ -248,7 +368,7 @@ export function CreateBillingNoteModal({ isOpen, onClose, onSuccess }: Props) {
  </button>
  </div>
  <p className="text-center text-sm text-muted-foreground">
- {loading ? 'Emitiendo nota a SUNAT…' : 'Ingresa tu código de aprobación de administrador (6 dígitos).'}
+ {loading ? 'Emitiendo nota a SUNAT…' : 'Ingresa tu PIN de administrador (6 dígitos).'}
  </p>
  <PinPad onComplete={handleApprovalCodeComplete} disabled={loading} hasError={approvalError} length={6} />
  {error && (

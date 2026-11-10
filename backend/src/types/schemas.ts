@@ -23,20 +23,13 @@ export const CreateWorkerBody = t.Object({
     avatarUrl: t.Optional(t.String()),
     roleId: t.String({ minLength: 1 }),
     /**
-     * Optional: admin can supply a custom 5-digit PIN.
+     * Optional: admin can supply a custom 6-digit PIN.
      * If omitted, the system auto-generates one.
      */
     pin: t.Optional(
-        t.String({ pattern: "^[0-9]{5,6}$", description: "5 or 6 digit numeric PIN" })
+        t.String({ pattern: "^[0-9]{6}$", description: "6 digit numeric PIN" })
     ),
-    /**
-     * Optional: 6-digit owner/admin approval code.
-     * Required (or auto-generated) when the role is ADMIN/ADMINISTRADOR.
-     */
-    approvalCode: t.Optional(
-        t.String({ pattern: "^[0-9]{6}$", description: "6-digit numeric approval code" })
-    ),
-    /** Admin's own 5-digit PIN, required to authorize this privileged action. */
+    /** Admin's own PIN, required to authorize this privileged action. */
     adminPin: t.String({ minLength: 1 }),
 });
 
@@ -52,13 +45,10 @@ export const UpdateWorkerBody = t.Object({
     avatarUrl: t.Optional(t.String()),
     roleId: t.Optional(t.String({ minLength: 1 })),
     pin: t.Optional(
-        t.String({ pattern: "^[0-9]{5,6}$", description: "5 or 6 digit numeric PIN" })
-    ),
-    approvalCode: t.Optional(
-        t.String({ pattern: "^[0-9]{6}$", description: "6-digit numeric approval code" })
+        t.String({ pattern: "^[0-9]{6}$", description: "6 digit numeric PIN" })
     ),
     isActive: t.Optional(t.Boolean()),
-    /** Admin's own 5-digit PIN, required to authorize this privileged action. */
+    /** Admin's own PIN, required to authorize this privileged action. */
     adminPin: t.String({ minLength: 1 }),
 });
 
@@ -133,6 +123,8 @@ export const SaleItemInput = t.Object({
     unitPrice: t.Optional(t.Number({ minimum: 0 })),
     /** Display name for free-sale lines (stored as SaleItem.virtualLabel). */
     label: t.Optional(t.String({ maxLength: 120 })),
+    /** Descuento en soles sobre el total de la línea (solo productos del catálogo). */
+    discount: t.Optional(t.Number({ minimum: 0 })),
 });
 
 export const CreateSaleBody = t.Object({
@@ -146,6 +138,8 @@ export const CreateSaleBody = t.Object({
     clientDocNumber: t.Optional(t.String()),
     clientName: t.Optional(t.String()),
     clientAddress: t.Optional(t.String()),
+    /** Efectivo entregado por el cliente (pago en efectivo). */
+    amountReceived: t.Optional(t.Number({ minimum: 0 })),
 });
 
 // ── Play Zone ────────────────────────────────────────────────

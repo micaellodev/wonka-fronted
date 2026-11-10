@@ -79,13 +79,16 @@ export function CartRow({
  onDecrement,
  onIncrement,
  onRemove,
+ onDiscount,
 }: {
  item: CartItem
  onDecrement: () => void
  onIncrement: () => void
  onRemove: () => void
+ onDiscount: (d: number) => void
 }) {
- const subtotal = item.product.price * item.quantity
+ const subtotal = item.product.price * item.quantity - (item.discount ?? 0)
+ const canDiscount = !item.product.id.startsWith('free-sale-')
  const isMaxed = item.quantity >= stockLimit(item.product)
 
  return (
@@ -93,6 +96,19 @@ export function CartRow({
  <div className="flex-1 flex flex-col justify-center min-w-0 pr-1">
  <p className="text-xs font-bold text-foreground leading-tight uppercase truncate" title={item.product.name}>{splitVariant(item.product.name).variant ?? item.product.name}</p>
  <p className="text-[11px] font-mono text-muted-foreground truncate">{splitVariant(item.product.name).variant ? `${splitVariant(item.product.name).base} · ` : ''}{formatPEN(item.product.price)} UN.</p>
+ {canDiscount && (
+ <label className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+ Desc. S/
+ <input
+ type="number" min={0} step="0.1" inputMode="decimal"
+ value={item.discount ? item.discount : ''}
+ placeholder="0.00"
+ onChange={(e) => onDiscount(Number(e.target.value))}
+ aria-label="Descuento en soles"
+ className="w-16 rounded border border-border bg-muted px-1 py-0.5 text-right font-mono text-[11px] text-foreground"
+ />
+ </label>
+ )}
  </div>
 
  <div className="w-20 flex flex-col items-center shrink-0">

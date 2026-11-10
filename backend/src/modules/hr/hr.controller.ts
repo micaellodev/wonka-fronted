@@ -110,16 +110,14 @@ export const hrController = new Elysia({ prefix: "/hr", tags: ["HR"] })
                     ...(body.dni ? { dni: body.dni } : {}),
                     ...(body.avatarUrl ? { avatarUrl: body.avatarUrl } : {}),
                     ...(body.pin !== undefined ? { pin: body.pin } : {}),
-                    ...(body.approvalCode !== undefined ? { approvalCode: body.approvalCode } : {}),
                 });
                 set.status = 201;
                 return {
                     data: result.worker,
                     meta: {
                         rawPin: result.rawPin,
-                        rawApprovalCode: result.rawApprovalCode,
                         message:
-                            "Worker created. Store the PIN and approval code securely — they cannot be retrieved again.",
+                            "Worker created. Store the PIN securely — it cannot be retrieved again.",
                     },
                 };
             } catch (err) {
@@ -129,9 +127,9 @@ export const hrController = new Elysia({ prefix: "/hr", tags: ["HR"] })
         {
             body: CreateWorkerBody,
             detail: {
-                summary: "Create a worker and assign a 5 or 6 digit PIN (Admin only)",
+                summary: "Create a worker and assign a 6 digit PIN (Admin only)",
                 description:
-                    "If `pin` is omitted, the system auto-generates a secure random 5-digit PIN. " +
+                    "If `pin` is omitted, the system auto-generates a secure random 6-digit PIN. " +
                     "The raw PIN is returned once and must be communicated to the worker.",
             },
         }
@@ -153,15 +151,12 @@ export const hrController = new Elysia({ prefix: "/hr", tags: ["HR"] })
                     avatarUrl: true,
                     isActive: true,
                     createdAt: true,
-                    approvalCodeHash: true,
                     role: { select: { id: true, name: true } },
                 },
             });
             return {
                 data: workers.map((w) => ({
                     ...w,
-                    hasApprovalCode: !!w.approvalCodeHash,
-                    approvalCodeHash: undefined,
                 })),
             };
         },

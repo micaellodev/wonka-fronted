@@ -1,8 +1,8 @@
-import { Banknote, DollarSign, Calendar as CalendarIcon, FileText, Loader2, Printer, User } from 'lucide-react'
+import { Banknote, DollarSign, Download, RefreshCw, Calendar as CalendarIcon, FileText, Loader2, Printer, User } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { formatPEN } from '@/lib/format'
-import { StatusPill } from './StatusPill'
-import { formatTableDateTime, getCorrelativo, getDocumentTypeLabel, getPaymentMethodLabel, printReceipt, type Sale } from './helpers'
+import { StatusPill, SunatPill } from './StatusPill'
+import { formatTableDateTime, getCorrelativo, getDocumentTypeLabel, downloadSunatFile, getPaymentMethodLabel, printReceipt, retryPendingSunat, type Sale } from './helpers'
 
 function Info({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
@@ -16,11 +16,12 @@ function Info({ icon, label, value }: { icon: React.ReactNode; label: string; va
   )
 }
 
-export function SaleDetailDialog({ sale, loading, onClose, onVoid }: {
+export function SaleDetailDialog({ sale, loading, onClose, onVoid, onRetried }: {
   sale: Sale | null
   loading: boolean
   onClose: () => void
   onVoid: (s: Sale) => void
+  onRetried: (s: Sale) => void
 }) {
   const icon = 'h-4 w-4 stroke-[1.5]'
   return (
@@ -35,6 +36,7 @@ export function SaleDetailDialog({ sale, loading, onClose, onVoid }: {
                 </DialogTitle>
                 <DialogDescription className="sr-only">Detalle de la venta</DialogDescription>
                 <StatusPill cancelled={sale.status === 'CANCELLED'} className="mt-1" />
+                <SunatPill tipo={sale.tipoComprobante} sunatStatus={sale.sunatStatus} className="mt-1 ml-1" />
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -43,6 +45,23 @@ export function SaleDetailDialog({ sale, loading, onClose, onVoid }: {
                 >
                   <Printer className="h-3.5 w-3.5" aria-hidden /> Imprimir boleta
                 </button>
+                {(sale.sunatStatus === 'ACEPTADA' || sale.sunatStatus === 'RECHAZADA') && (['xml', 'cdr'] as const).map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => void downloadSunatFile(sale, k)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium uppercase text-foreground transition-colors hover:bg-muted"
+                  >
+                    <Download className="h-3.5 w-3.5" aria-hidden /> {k}
+                  </button>
+                ))}
+                {sale.tipoComprobante !== 'TICKET' && (sale.sunatStatus === 'PENDING_SUNAT' || sale.sunatStatus === 'ENVIANDO' || !sale.sunatStatus) && (
+                  <button
+                    onClick={async () => { if (await retryPendingSunat()) onRetried(sale) }}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" aria-hidden /> Reintentar envío a SUNAT
+                  </button>
+                )}
                 {sale.status !== 'CANCELLED' && (
                   <button
                     onClick={() => onVoid(sale)}

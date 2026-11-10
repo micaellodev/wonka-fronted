@@ -660,7 +660,7 @@ export async function getPlayzoneReportSummary(
         averageMinutesPerChild,
         totalOvertimeMinutes,
         billed: {
-            count: billedAgg.filter((x) => x.status !== "CANCELLED").reduce((n, x) => n + x.items.filter((i) => i.virtualSku?.startsWith("pz-")).length, 0),
+            count: billedAgg.filter((x) => x.status !== "CANCELLED").reduce((n, x) => n + x.items.filter((i) => i.virtualSku?.startsWith("pz-") && Number(i.unitPrice) >= 0).length, 0),
             total: aggregateSales(billedAgg).sales.byKind.zonaJuegos,
         },
         topChildren,

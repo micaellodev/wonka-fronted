@@ -33,10 +33,10 @@ export const can = (role: string | null | undefined, p: Permission) => permissio
 /** Rutas de back-office fuera de la regla por prefijo, con el permiso que exigen. Clave: "METHOD /ruta" como la reporta Elysia. */
 const ROUTE_PERMISSIONS: Record<string, Permission> = {
     "GET /hr/roles": "employees.view", "GET /hr/workers": "employees.view", "GET /hr/attendance": "employees.view",
-    "GET /dashboard/metrics": "reports.view", "GET /playzone/reports/summary": "reports.view", "GET /playzone/clients": "reports.view",
+    "GET /dashboard/metrics": "reports.view", "GET /dashboard/audit": "company.settings", "GET /playzone/reports/summary": "reports.view", "GET /playzone/clients": "reports.view",
     "GET /inventory/movements": "inventory.view",
     "GET /pos/void": "approvals.resolve", "POST /pos/void/:id/resolve": "approvals.resolve",
-    "GET /billing/notes": "billing.notes",
+    "GET /billing/notes": "billing.notes", "GET /billing/document": "billing.notes", "GET /billing/documents": "billing.notes",
     "DELETE /cash/movements/:id": "cash.manage",
     "PUT /playzone/rates": "playzone.rates",
 };

@@ -15,7 +15,7 @@ import { DateFilters, type DateRange, type FilterType } from './reports/DateFilt
 import { formatDateKey } from './reports/helpers'
 import { MailDialog, PrintDialog, VoidDialog, GuideDialog } from './sales-history/SaleDialogs'
 import { SaleDetailDialog } from './sales-history/SaleDetailDialog'
-import { StatusPill } from './sales-history/StatusPill'
+import { StatusPill, SunatPill } from './sales-history/StatusPill'
 import { formatTableDateTime, getCorrelativo, getDocumentTypeLabel, getPaymentMethodLabel, type Sale } from './sales-history/helpers'
 
 // ============================================================
@@ -363,6 +363,7 @@ export function SalesHistoryScreen() {
                       <td className={td}>{getPaymentMethodLabel(sale.paymentMethod)}</td>
                       <td className="px-6 py-3 text-center">
                         <StatusPill cancelled={sale.status === 'CANCELLED'} onClick={() => openSaleDetail(sale)} />
+                        <SunatPill tipo={sale.tipoComprobante} sunatStatus={sale.sunatStatus} className="ml-1" />
                       </td>
                       <td className="px-6 py-3 text-center">
                         <div className="inline-flex items-center justify-center gap-1">
@@ -455,6 +456,7 @@ export function SalesHistoryScreen() {
             openVoid(s)
             setSelectedSaleDetail(null)
           }}
+          onRetried={(s) => { void fetchSalesData(); void openSaleDetail(s) }}
         />
       </div>
     </TerminalShell>

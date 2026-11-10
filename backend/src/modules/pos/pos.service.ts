@@ -24,6 +24,8 @@ export type SaleItemInput = {
     qty: number;
     unitPrice?: number;
     label?: string;
+    /** Descuento en soles sobre el total de la línea (solo catálogo). */
+    discount?: number;
 };
 
 export type ComprobanteType = "TICKET" | "BOLETA" | "FACTURA";
@@ -38,6 +40,7 @@ export type ProcessSaleInput = {
     clientDocNumber?: string | undefined;
     clientName?: string | undefined;
     clientAddress?: string | undefined;
+    amountReceived?: number | undefined;
 };
 
 export type ProcessSaleResult = {
@@ -58,6 +61,7 @@ export type ProcessSaleResult = {
         productName: string;
         qty: number;
         unitPrice: string;
+        discount: string;
         lineTotal: string;
     }>;
 };
@@ -198,7 +202,8 @@ function normalizeClientData(
 
     if (tipoComprobante === "BOLETA") {
         const dni = clientDocNumber?.trim();
-        if (!dni) {
+        // The POS sends "0" when the customer gives no DNI: that is "sin documento", not a DNI.
+        if (!dni || dni === "0") {
             return { clientDocType: "-", clientDocNumber: "0", clientName: "CLIENTE VARIOS" };
         }
         return {
@@ -269,7 +274,7 @@ export async function processSale(
         const merged = new Map<string, SaleItemInput>();
         for (const i of input.items.filter((i) => !isVirtualLineItem(i.productId))) {
             const prev = merged.get(i.productId);
-            merged.set(i.productId, prev ? { ...prev, qty: prev.qty + i.qty } : { ...i });
+            merged.set(i.productId, prev ? { ...prev, qty: prev.qty + i.qty, discount: (prev.discount ?? 0) + (i.discount ?? 0) } : { ...i });
         }
         const realItems = [...merged.values()];
         const pzItems = await resolveVirtualLines(
@@ -280,6 +285,9 @@ export async function processSale(
         // Una línea negativa no es válida en boleta/factura electrónica: el descuento por aliado va solo en ticket
         if (input.tipoComprobante !== "TICKET" && pzItems.some((l) => l.unitPrice < 0)) {
             throw new Error("El descuento por aliado solo se puede cobrar con ticket (no boleta ni factura).");
+        }
+        if (input.items.some((i) => isVirtualLineItem(i.productId) && (i.discount ?? 0) > 0)) {
+            throw new Error("El descuento por producto no aplica a venta libre ni a zona de juegos.");
         }
         const productIds = realItems.map((i) => i.productId);
 
@@ -311,6 +319,13 @@ export async function processSale(
                 throw new Error(
                     `Product "${item.productId}" not found or not available for this tenant.`
                 );
+            }
+            const discount = item.discount ?? 0;
+            if (!Number.isFinite(discount) || discount < 0 || Number(discount.toFixed(2)) !== discount) {
+                throw new Error(`Descuento inválido para "${product.name}".`);
+            }
+            if (discount >= Number(product.price) * item.qty) {
+                throw new Error(`El descuento de "${product.name}" debe ser menor al total de la línea.`);
             }
             if (product.trackStock && product.stock < item.qty) {
                 throw new Error(
@@ -359,7 +374,8 @@ export async function processSale(
                 item.qty,
                 regime,
                 igvRate,
-                pricesIncludeIgv
+                pricesIncludeIgv,
+                item.discount ?? 0
             );
         });
 
@@ -397,6 +413,15 @@ export async function processSale(
             input.clientName
         );
 
+        // SUNAT: una boleta de S/ 700 o más exige identificar al cliente con DNI.
+        if (input.tipoComprobante === "BOLETA" && mtoImpVenta >= 700 && !/^\d{8}$/.test(client.clientDocNumber)) {
+            throw new Error("Boleta de S/ 700 o más: ingresa el DNI del cliente (8 dígitos).");
+        }
+
+        if (input.paymentMethod === "efectivo" && input.amountReceived !== undefined && input.amountReceived + 0.001 < mtoImpVenta) {
+            throw new Error("El efectivo recibido es menor al total de la venta.");
+        }
+
         // ── Step 7: Create Sale header ───────────────────────────
         const sale = await tx.sale.create({
             data: {
@@ -409,7 +434,8 @@ export async function processSale(
                 clientDocType: client.clientDocType,
                 clientDocNumber: client.clientDocNumber,
                 clientName: client.clientName,
-                clientAddress: input.clientAddress?.trim() || null,
+                clientAddress: input.tipoComprobante === "FACTURA" ? input.clientAddress?.trim() || null : null,
+                amountReceived: input.paymentMethod === "efectivo" ? input.amountReceived ?? null : null,
                 paymentMethod: input.paymentMethod,
                 status: input.tipoComprobante === "TICKET" ? "ACTIVE" : "PENDING_SUNAT",
                 mtoOperGravadas: Number(mtoOperGravadas.toFixed(2)),
@@ -425,6 +451,7 @@ export async function processSale(
                                 productId: item.productId,
                                 qty: item.qty,
                                 unitPrice: product.price,
+                                discount: item.discount ?? 0,
                             };
                         }),
                         // Virtual items (pz-*, free-sale-*) are not real products —
@@ -465,6 +492,7 @@ export async function processSale(
                         productId: true,
                         qty: true,
                         unitPrice: true,
+                        discount: true,
                         isVirtual: true,
                         virtualLabel: true,
                     },
@@ -491,7 +519,7 @@ export async function processSale(
         const enrichedItems = sale.items.map((si) => {
             const product = si.productId ? productMap.get(si.productId) : undefined;
             const line = product
-                ? calculateFiscalLine(Number(product.price), si.qty, resolveIgvRegime(product.igvRegime, tenant.defaultIgvRegime), igvRate, pricesIncludeIgv)
+                ? calculateFiscalLine(Number(product.price), si.qty, resolveIgvRegime(product.igvRegime, tenant.defaultIgvRegime), igvRate, pricesIncludeIgv, Number(si.discount))
                 : calculateFiscalLine(Number(si.unitPrice), si.qty, "EXONERADO", igvRate, false);
 
             return {
@@ -500,6 +528,7 @@ export async function processSale(
                 productName: product?.name ?? si.virtualLabel ?? "Venta libre",
                 qty: si.qty,
                 unitPrice: si.unitPrice.toString(),
+                discount: Number(si.discount).toFixed(2),
                 lineTotal: line.mtoImpItem.toFixed(2),
             };
         });
@@ -552,6 +581,8 @@ export async function listSales(
     const [sales, total] = await Promise.all([
         prisma.sale.findMany({
             where,
+            // XML/CDR pesan cientos de KB por venta: se piden aparte (getSunatFile).
+            omit: { sunatXmlUrl: true, sunatCdrUrl: true },
             include: {
                 worker: { select: { name: true } },
                 items: {
@@ -587,9 +618,25 @@ export async function listSales(
     };
 }
 
+/** XML firmado (texto) o CDR (zip en base64) que APISPeru devolvió al emitir; bytes listos para descargar. */
+export async function getSunatFile(tenantId: string, saleId: string, kind: "xml" | "cdr") {
+    const sale = await prisma.sale.findFirst({
+        where: { id: saleId, tenantId },
+        select: { serie: true, correlativo: true, sunatXmlUrl: true, sunatCdrUrl: true },
+    });
+    if (!sale) throw new Error("Sale not found.");
+    const content = kind === "xml" ? sale.sunatXmlUrl : sale.sunatCdrUrl;
+    if (!content) throw new Error("not found: este comprobante no tiene ese archivo (aún no fue aceptado por SUNAT).");
+    const name = `${sale.serie}-${sale.correlativo}`;
+    return kind === "xml"
+        ? { bytes: new TextEncoder().encode(content), type: "application/xml", filename: `${name}.xml` }
+        : { bytes: Buffer.from(content, "base64"), type: "application/zip", filename: `R-${name}.zip` };
+}
+
 export async function getSaleById(tenantId: string, saleId: string) {
     const sale = await prisma.sale.findFirst({
         where: { id: saleId, tenantId },
+        omit: { sunatXmlUrl: true, sunatCdrUrl: true },
         include: {
             worker: { select: { name: true } },
             items: {
@@ -850,8 +897,9 @@ export async function resolveVoidRequest(input: ResolveVoidInput) {
         return { resolved, noteId: note?.id ?? null };
     });
 
-    if (noteId) await emitBillingNote(noteId);
-    return resolved;
+    const creditNote = noteId ? await emitBillingNote(noteId) : null;
+    // La nota emitida viaja con la respuesta para que el cliente la imprima apenas se aprueba.
+    return Object.assign(resolved, { creditNote });
 }
 
 // ── Send sale receipt by email ────────────────────────────────
@@ -870,7 +918,8 @@ function buildReceiptHtml(sale: {
     status: string;
     total: Prisma.Decimal;
     createdAt: Date;
-    items: Array<{ qty: number; unitPrice: Prisma.Decimal; product: { name: string } | null; virtualLabel: string | null }>;
+    amountReceived?: Prisma.Decimal | null;
+    items: Array<{ qty: number; unitPrice: Prisma.Decimal; discount?: Prisma.Decimal | null; product: { name: string } | null; virtualLabel: string | null }>;
 }): string {
     const docLabel =
         sale.tipoComprobante === "BOLETA" ? "Boleta" :
@@ -885,7 +934,7 @@ function buildReceiptHtml(sale: {
         <tr>
             <td style="padding:6px 8px;border-bottom:1px solid #eee">${i.product?.name ?? i.virtualLabel ?? "Venta libre"}</td>
             <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center">${i.qty}</td>
-            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">${formatPEN(Number(i.unitPrice))}</td>
+            <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">${formatPEN(Number(i.unitPrice))}${Number(i.discount ?? 0) > 0 ? `<br><span style="font-size:11px;color:#c00">Desc. -${formatPEN(Number(i.discount))}</span>` : ""}</td>
         </tr>`
         )
         .join("");
@@ -917,6 +966,7 @@ function buildReceiptHtml(sale: {
     </table>
     <div style="border-top:2px solid #00c569;padding-top:12px;text-align:right">
         <span style="font-size:18px;font-weight:800;color:#1a1a1a">TOTAL: ${formatPEN(Number(sale.total))}</span>
+        ${sale.paymentMethod === "efectivo" && sale.amountReceived != null ? `<p style="margin:6px 0 0;font-size:12px;color:#666">Pagado ${formatPEN(Number(sale.amountReceived))} · Vuelto ${formatPEN(Math.max(0, Number(sale.amountReceived) - Number(sale.total)))}</p>` : ""}
     </div>
     <p style="text-align:center;font-size:11px;color:#999;margin-top:24px">Gracias por su compra — Wonka POS</p>
 </body>

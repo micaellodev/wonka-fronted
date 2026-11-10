@@ -29,7 +29,7 @@ export function EmployeesScreen() {
  const { tenantId } = useAuthStore()
 
  type TabType = 'empleados' | 'asistencia' | 'historial'
-const [creds, setCreds] = useState<{ pin: string; code?: string } | null>(null)
+const [creds, setCreds] = useState<{ pin: string } | null>(null)
  const [activeTab, setActiveTab] = useState<TabType>('empleados')
  const [historyPeriod, setHistoryPeriod] = useState<'semana' | 'mes'>('semana')
 
@@ -43,7 +43,7 @@ const [creds, setCreds] = useState<{ pin: string; code?: string } | null>(null)
  // Modal state
  const [isModalOpen, setIsModalOpen] = useState(false)
  const [editingWorker, setEditingWorker] = useState<Worker | null>(null)
- const [formData, setFormData] = useState({ name: '', dni: '', roleId: '', isActive: true, pin: '', approvalCode: '', avatarUrl: '' })
+ const [formData, setFormData] = useState({ name: '', dni: '', roleId: '', isActive: true, pin: '', avatarUrl: '' })
  const [saving, setSaving] = useState(false)
  const [uploadingImage, setUploadingImage] = useState(false)
  const [showAdminPinModal, setShowAdminPinModal] = useState(false)
@@ -220,7 +220,7 @@ const [creds, setCreds] = useState<{ pin: string; code?: string } | null>(null)
 
  const openCreateModal = () => {
  setEditingWorker(null)
- setFormData({ name: '', dni: '', roleId: roles[0]?.id || '', isActive: true, pin: '', approvalCode: '', avatarUrl: '' })
+ setFormData({ name: '', dni: '', roleId: roles[0]?.id || '', isActive: true, pin: '', avatarUrl: '' })
  setIsModalOpen(true)
  }
 
@@ -231,7 +231,7 @@ const [creds, setCreds] = useState<{ pin: string; code?: string } | null>(null)
  dni: w.dni || '',
  avatarUrl: w.avatarUrl || '',
  roleId: w.roleId || roles.find(r => r.name === w.role.name)?.id || '',
- isActive: w.isActive, pin: '', approvalCode: ''
+ isActive: w.isActive, pin: ''
  })
  setIsModalOpen(true)
  }
@@ -304,10 +304,8 @@ const [creds, setCreds] = useState<{ pin: string; code?: string } | null>(null)
  const selectedRole = roles.find(r => r.id === formData.roleId)
  const isAdminRole = selectedRole?.name === 'ADMIN' || selectedRole?.name === 'ADMINISTRADOR'
 
- // Same rules as the backend: PIN 5–6 digits, approval code exactly 6 (both optional).
- const formInvalid =
- (formData.pin !== '' && !/^\d{5,6}$/.test(formData.pin)) ||
- (isAdminRole && formData.approvalCode !== '' && !/^\d{6}$/.test(formData.approvalCode))
+ // Same rule as the backend: PIN exactly 6 digits (optional: blank = generated).
+ const formInvalid = formData.pin !== '' && !/^\d{6}$/.test(formData.pin)
 
  const handleSaveWorker = () => {
  if (!formData.name || !formData.roleId || formInvalid) return
@@ -321,10 +319,6 @@ const [creds, setCreds] = useState<{ pin: string; code?: string } | null>(null)
  setAdminPinError(false)
  setSaveError(null)
  try {
- const adminPayload = isAdminRole && formData.approvalCode
- ? { approvalCode: formData.approvalCode }
- : {}
-
  let res
  if (editingWorker) {
  res = await api.hr.workers({ id: editingWorker.id }).patch(
@@ -335,7 +329,6 @@ const [creds, setCreds] = useState<{ pin: string; code?: string } | null>(null)
  ...(formData.dni ? { dni: formData.dni } : {}),
  ...(formData.avatarUrl ? { avatarUrl: formData.avatarUrl } : {}),
  ...(formData.pin ? { pin: formData.pin } : {}),
- ...adminPayload,
  adminPin,
  },
  { query: { tenantId } }
@@ -348,7 +341,6 @@ const [creds, setCreds] = useState<{ pin: string; code?: string } | null>(null)
  ...(formData.dni ? { dni: formData.dni } : {}),
  ...(formData.avatarUrl ? { avatarUrl: formData.avatarUrl } : {}),
  ...(formData.pin ? { pin: formData.pin } : {}),
- ...adminPayload,
  adminPin,
  })
  }
@@ -363,9 +355,9 @@ const [creds, setCreds] = useState<{ pin: string; code?: string } | null>(null)
  setShowAdminPinModal(false)
  setIsModalOpen(false)
  // Credentials are returned only once on creation; show them to the admin now.
- const meta = (res.data as { meta?: { rawPin?: string; rawApprovalCode?: string } })?.meta
+ const meta = (res.data as { meta?: { rawPin?: string } })?.meta
  if (!editingWorker && meta?.rawPin) {
- setCreds({ pin: meta.rawPin, code: meta.rawApprovalCode })
+ setCreds({ pin: meta.rawPin })
  }
  fetchWorkers()
  } catch (e) {
@@ -479,11 +471,10 @@ const [creds, setCreds] = useState<{ pin: string; code?: string } | null>(null)
         <DialogContent size="sm">
           <DialogHeader>
             <DialogTitle>Empleado creado</DialogTitle>
-            <DialogDescription>Anótalos ahora: no se podrán volver a ver.</DialogDescription>
+            <DialogDescription>Anótalo ahora: no se podrá volver a ver.</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 font-mono text-lg select-all">
             <p>PIN de acceso: <strong>{creds?.pin}</strong></p>
-            {creds?.code && <p>Código de aprobación: <strong>{creds.code}</strong></p>}
           </div>
           <DialogFooter><Button onClick={() => setCreds(null)}>Cerrar</Button></DialogFooter>
         </DialogContent>

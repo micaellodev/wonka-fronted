@@ -17,7 +17,7 @@ export interface ApisPeruCompany {
     razonSocial: string;
     nombreComercial: string;
     address: {
-        ubigeo: string;
+        ubigueo: string; // sic: APISPeru spells it this way
         direccion: string;
         provincia?: string;
         departamento?: string;
@@ -34,9 +34,13 @@ export interface ApisPeruInvoiceItem {
     mtoValorUnitario: number; // Precio sin IGV
     mtoPrecioUnitario: number; // Precio con IGV (igual si exonerado)
     mtoValorVenta: number; // cantidad * valorUnitario
-    mtoIGV: number;
-    tipAfeIGV: "10" | "11" | "12" | "13" | "14" | "15" | "16" | "17" | "20" | "21" | "30" | "31" | "32" | "33" | "34" | "35" | "36";
-    porcentajeIGV?: number;
+    mtoBaseIgv: number;
+    igv: number;
+    totalImpuestos: number;
+    tipAfeIgv: "10" | "11" | "12" | "13" | "14" | "15" | "16" | "17" | "20" | "21" | "30" | "31" | "32" | "33" | "34" | "35" | "36";
+    porcentajeIgv?: number;
+    /** Descuento de línea que afecta la base imponible (codTipo 00). */
+    descuentos?: { codTipo: "00"; montoBase: number; factor: number; monto: number }[];
 }
 
 export interface ApisPeruInvoicePayload {
@@ -61,6 +65,7 @@ export interface ApisPeruInvoicePayload {
     subTotal: number;
     mtoImpVenta: number;
     ublVersion?: string;
+    legends: { code: string; value: string }[];
     formaPago?: {
         moneda: "PEN";
         tipo: "Contado" | "Credito";
@@ -90,6 +95,7 @@ export interface ApisPeruCreditNotePayload {
     subTotal: number;
     mtoImpVenta: number;
     ublVersion?: string;
+    legends: { code: string; value: string }[];
 }
 
 // Internal type used to pass sale context to APISPeru helpers
@@ -107,7 +113,9 @@ export interface FiscalLine {
     mtoValorVenta: number;
     mtoIGV: number;
     mtoImpItem: number; // Total line amount
-    tipAfeIGV: ApisPeruInvoiceItem["tipAfeIGV"];
+    mtoDescuento: number; // Descuento de la línea sin IGV (0 = sin descuento)
+    mtoBaseDescuento: number; // Valor de venta de la línea antes del descuento
+    tipAfeIGV: ApisPeruInvoiceItem["tipAfeIgv"];
     igvRate: number;
     regime: "GRAVADO" | "EXONERADO" | "INAFECTO" | "ICBPER" | "GRAVADO_10_5";
 }

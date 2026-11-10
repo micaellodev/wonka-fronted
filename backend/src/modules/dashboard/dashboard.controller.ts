@@ -1,6 +1,8 @@
 import Elysia, { t } from "elysia";
 import { getDashboardStats, getSalesReport, getTenantById, updateTenant } from "./dashboard.service.ts";
 import { verifyAdmin } from "../hr/hr.service.ts";
+import { RateLimitError } from "../../lib/rateLimiter.ts";
+import { prisma } from "../../lib/prisma.ts";
 
 // ============================================================
 //  Dashboard Controller — Prefix: /dashboard
@@ -45,10 +47,11 @@ export const dashboardController = new Elysia({ prefix: "/dashboard", tags: ["Da
     )
     .get(
         "/settings",
-        async ({ query }) => {
+        async ({ query, set }) => {
             const tenant = await getTenantById(query.tenantId);
             if (!tenant) {
-                throw new Error("Tenant not found.");
+                set.status = 404;
+                return { success: false, message: "Tenant not found." };
             }
             return {
                 success: true,
@@ -62,31 +65,54 @@ export const dashboardController = new Elysia({ prefix: "/dashboard", tags: ["Da
             detail: { summary: "Get tenant fiscal configuration" },
         }
     )
+    .get(
+        "/audit",
+        async ({ query }) => {
+            const rows = await prisma.auditLog.findMany({
+                where: { tenantId: query.tenantId },
+                orderBy: { createdAt: "desc" },
+                take: query.limit ?? 50,
+            });
+            return { success: true, data: rows };
+        },
+        {
+            query: t.Object({
+                tenantId: t.String({ minLength: 1 }),
+                limit: t.Optional(t.Numeric({ minimum: 1, maximum: 200 })),
+            }),
+            detail: { summary: "Config-change audit trail (newest first)" },
+        }
+    )
     .patch(
         "/settings",
         async ({ query, body, set }) => {
+            let actor: { id: string; name: string };
             try {
-                await verifyAdmin(query.tenantId, body.adminPin);
+                actor = (await verifyAdmin(query.tenantId, body.adminPin)).worker;
             } catch (err) {
                 const message = err instanceof Error ? err.message : "Unexpected error.";
                 set.status =
-                    message === "Pin Inválido." || message === "Worker does not have ADMIN privileges."
-                        ? 401
-                        : 422;
+                    err instanceof RateLimitError
+                        ? 429
+                        : message === "Pin Inválido." || message === "Worker does not have ADMIN privileges."
+                          ? 401
+                          : 422;
                 return { success: false, message };
             }
 
             const { adminPin, ...updateFields } = body;
             try {
-                const tenant = await updateTenant(query.tenantId, updateFields);
+                const tenant = await updateTenant(query.tenantId, updateFields, actor);
                 return {
                     success: true,
                     data: tenant,
                 };
             } catch (err) {
+                console.error("[dashboard] updateTenant failed:", err);
                 set.status = 422;
-                const message = err instanceof Error ? err.message : "Unexpected error.";
-                return { success: false, message };
+                // Prisma errors are multi-line; keep only the last line (the actual reason).
+                const raw = err instanceof Error ? err.message : "Unexpected error.";
+                return { success: false, message: raw.trim().split("\n").pop() || raw };
             }
         },
         {
@@ -106,11 +132,14 @@ export const dashboardController = new Elysia({ prefix: "/dashboard", tags: ["Da
                         nombreComercial: t.String(),
                         direccion: t.String(),
                         ubigeo: t.String(),
+                        departamento: t.String(),
+                        provincia: t.String(),
+                        distrito: t.String(),
                         receiptFooter: t.String({ maxLength: 300 }),
                         apisperuToken: t.String(),
                         apisperuUrl: t.String(),
                         igvRate: t.Numeric(),
-                        defaultIgvRegime: t.String({ pattern: "^(GRAVADO|EXONERADO|INAFECTO)$" }),
+                        defaultIgvRegime: t.String({ pattern: "^(GRAVADO|GRAVADO_10_5|EXONERADO|INAFECTO|ICBPER)$" }),
                         pricesIncludeIgv: t.Boolean(),
                         electronicInvoicingEnabled: t.Boolean(),
                         serieBoleta: t.String(),

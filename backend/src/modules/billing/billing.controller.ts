@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 import { getAuth } from "../../lib/auth.ts";
 import { RateLimitError } from "../../lib/rateLimiter.ts";
-import { createBillingNote, listBillingNotes, retryPendingDocuments } from "./billing.service.ts";
+import { createBillingNote, findDocumentsByCorrelativo, getDocumentForNote, listBillingNotes, retryPendingDocuments } from "./billing.service.ts";
 
 // POST routes here are admin-only via the global guard (lib/auth.ts admin list).
 export const billingController = new Elysia({ prefix: "/billing" })
@@ -58,6 +58,36 @@ export const billingController = new Elysia({ prefix: "/billing" })
         {
             body: t.Object({ tenantId: t.String({ minLength: 1 }) }),
             detail: { summary: "Reintenta envío a SUNAT de ventas y notas PENDING_SUNAT" },
+        }
+    )
+    .get(
+        "/documents",
+        async ({ query, set }) => {
+            try {
+                return { data: await findDocumentsByCorrelativo(query.tenantId, query.correlativo) };
+            } catch (error: any) {
+                set.status = 400;
+                return { error: error.message };
+            }
+        },
+        {
+            query: t.Object({ tenantId: t.String(), correlativo: t.String({ minLength: 1, maxLength: 8 }) }),
+            detail: { summary: "Busca boletas/facturas por correlativo (para rellenar una nota solo con el número)" },
+        }
+    )
+    .get(
+        "/document",
+        async ({ query, set }) => {
+            try {
+                return { data: await getDocumentForNote(query.tenantId, query.serie, query.correlativo) };
+            } catch (error: any) {
+                set.status = /no encontrado/i.test(error.message) ? 404 : 400;
+                return { error: error.message };
+            }
+        },
+        {
+            query: t.Object({ tenantId: t.String(), serie: t.String({ minLength: 4, maxLength: 4 }), correlativo: t.String({ minLength: 1, maxLength: 8 }) }),
+            detail: { summary: "Documento a modificar: total, saldo y productos (para calcular descuentos de una nota)" },
         }
     )
     .get(

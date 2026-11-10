@@ -97,16 +97,16 @@ describe("empleados / roles / asistencia", () => {
         expect(r.status).toBe(401);
     });
     test("crear empleado con PIN → hash en DB, login OK", async () => {
-        const r = await call("POST", "/hr/workers", { token: c.adminToken, body: { tenantId: c.tid, name: "Nuevo QA", roleId, pin: "77777", adminPin: c.adminPin } });
+        const r = await call("POST", "/hr/workers", { token: c.adminToken, body: { tenantId: c.tid, name: "Nuevo QA", roleId, pin: "777777", adminPin: c.adminPin } });
         expect(r.status).toBe(201);
         wid = r.json.data.id;
         const w = await prisma.worker.findUnique({ where: { id: wid } });
-        expect(w?.pinHash).not.toBe("77777");
+        expect(w?.pinHash).not.toBe("777777");
         expect(w?.pinHash).toHaveLength(64);
-        expect((await login(c.tid, "77777")).res.status).toBe(200);
+        expect((await login(c.tid, "777777")).res.status).toBe(200);
     });
     test("PIN duplicado rechazado", async () => {
-        const r = await call("POST", "/hr/workers", { token: c.adminToken, body: { tenantId: c.tid, name: "Dup", roleId, pin: "77777", adminPin: c.adminPin } });
+        const r = await call("POST", "/hr/workers", { token: c.adminToken, body: { tenantId: c.tid, name: "Dup", roleId, pin: "777777", adminPin: c.adminPin } });
         expect([409, 422]).toContain(r.status);
     });
     test("listar empleados sin hashes", async () => {
@@ -118,7 +118,7 @@ describe("empleados / roles / asistencia", () => {
     test("desactivar empleado → ya no inicia sesión", async () => {
         const r = await call("PATCH", `/hr/workers/${wid}`, { token: c.adminToken, query: { tenantId: c.tid }, body: { isActive: false, adminPin: c.adminPin } });
         expect(r.status).toBe(200);
-        expect((await login(c.tid, "77777")).res.status).toBe(401);
+        expect((await login(c.tid, "777777")).res.status).toBe(401);
     });
     test("asistencia: check-in y luego check-out", async () => {
         const a = await call("POST", "/hr/attendance", { body: { tenantId: c.tid, pin: c.cashierPin } });

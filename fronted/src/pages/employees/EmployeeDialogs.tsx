@@ -9,7 +9,7 @@ import { Select } from '@/components/ui/select'
 
 const AVATAR_FALLBACK = import.meta.env.VITE_AVATAR_FALLBACK_SERVICE || ''
 
-export interface EmployeeForm { name: string; dni: string; roleId: string; isActive: boolean; pin: string; approvalCode: string; avatarUrl: string }
+export interface EmployeeForm { name: string; dni: string; roleId: string; isActive: boolean; pin: string; avatarUrl: string }
 
 const digits = (v: string) => v.replace(/\D/g, '')
 
@@ -61,19 +61,11 @@ export function WorkerFormDialog(p: {
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="emp-pin">PIN de Acceso (5 o 6 dígitos)</Label>
+            <Label htmlFor="emp-pin">PIN de Acceso (6 dígitos, también aprueba anulaciones y cierres)</Label>
             <Input id="emp-pin" inputMode="numeric" maxLength={6} value={form.pin} onChange={e => setForm({ ...form, pin: digits(e.target.value) })}
-              placeholder={p.editing ? 'En blanco si no desea cambiarlo' : 'En blanco = se genera uno'} />
+              placeholder={p.editing ? 'En blanco si no desea cambiarlo' : 'En blanco = se genera uno de 6 dígitos'} />
           </div>
 
-          {p.isAdminRole && (
-            <div className="space-y-1">
-              <Label htmlFor="emp-code">Código de Aprobación del Dueño (6 digitos)</Label>
-              <Input id="emp-code" maxLength={6} value={form.approvalCode} onChange={e => setForm({ ...form, approvalCode: digits(e.target.value) })}
-                placeholder={p.editing ? (form.approvalCode ? 'Nuevo código' : 'En blanco si no desea cambiarlo') : '6 dígitos (en blanco = se genera)'} />
-              <p className="text-xs text-muted-foreground">Solo los dueños/administradores necesitan este código para aprobar anulaciones y cierre de caja.</p>
-            </div>
-          )}
 
           {p.editing && (
             <div className="flex items-center gap-3 pt-2">

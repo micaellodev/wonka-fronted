@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { PinPad } from '@/components/PinPad'
+import { cn } from '@/lib/utils'
 
 // ============================================================
 // CompanySettingsScreen — Fiscal + APISPeru configuration
@@ -25,6 +26,9 @@ interface TenantSettings {
  nombreComercial: string | null
  direccion: string | null
  ubigeo: string | null
+ departamento: string | null
+ provincia: string | null
+ distrito: string | null
  receiptFooter: string | null
  hasApisperuToken: boolean
  apisperuUrl: string | null
@@ -36,6 +40,10 @@ interface TenantSettings {
  serieFactura: string
  serieNotaCredito: string
  serieNotaDebito: string
+ lastBoletaNumber: number
+ lastFacturaNumber: number
+ lastNotaCredito: number
+ lastNotaDebito: number
 }
 
 const DEFAULT_APISPERU_URL = import.meta.env.VITE_APISPERU_URL || 'https://facturacion.apisperu.com/api/v1'
@@ -49,6 +57,9 @@ const emptySettings: TenantSettings = {
  nombreComercial: '',
  direccion: '',
  ubigeo: '',
+ departamento: '',
+ provincia: '',
+ distrito: '',
  receiptFooter: '',
  hasApisperuToken: false,
  apisperuUrl: DEFAULT_APISPERU_URL,
@@ -60,6 +71,39 @@ const emptySettings: TenantSettings = {
  serieFactura: 'F001',
  serieNotaCredito: 'BC01',
  serieNotaDebito: 'BD01',
+ lastBoletaNumber: 0,
+ lastFacturaNumber: 0,
+ lastNotaCredito: 0,
+ lastNotaDebito: 0,
+}
+
+interface AuditRow { id: string; actorName: string | null; createdAt: string; changes: Record<string, [unknown, unknown]> }
+
+function AuditCard({ tenantId, refreshKey }: { tenantId: string; refreshKey: number }) {
+ const [rows, setRows] = useState<AuditRow[]>([])
+ useEffect(() => {
+ api.dashboard.audit.get({ query: { tenantId, limit: 20 } })
+ .then(({ data }: { data?: { data?: AuditRow[] } }) => setRows(data?.data ?? []))
+ .catch(() => setRows([]))
+ }, [tenantId, refreshKey])
+ return (
+ <Card className="bg-background border-border rounded-xl lg:col-span-2">
+ <CardHeader><CardTitle className="text-base">Historial de cambios</CardTitle></CardHeader>
+ <CardContent className="space-y-3">
+ {rows.length === 0 && <p className="text-sm text-muted-foreground">Sin cambios registrados.</p>}
+ {rows.map((r) => (
+ <div key={r.id} className="rounded-lg border border-border bg-muted p-3 text-xs">
+ <p className="font-medium text-foreground">{new Date(r.createdAt).toLocaleString('es-PE', { timeZone: 'America/Lima' })} · {r.actorName ?? 'Desconocido'}</p>
+ <ul className="mt-1 space-y-0.5 text-muted-foreground">
+ {Object.entries(r.changes).map(([k, [a, b]]) => (
+ <li key={k}><span className="font-mono">{k}</span>: {k === 'apisperuToken' ? 'token actualizado' : `${String(a ?? '—')} → ${String(b ?? '—')}`}</li>
+ ))}
+ </ul>
+ </div>
+ ))}
+ </CardContent>
+ </Card>
+ )
 }
 
 export function CompanySettingsScreen() {
@@ -72,6 +116,7 @@ export function CompanySettingsScreen() {
  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
  const [showAdminPinModal, setShowAdminPinModal] = useState(false)
  const [adminPinError, setAdminPinError] = useState(false)
+ const [auditKey, setAuditKey] = useState(0)
 
  useEffect(() => {
  const fetchTenant = async () => {
@@ -95,6 +140,33 @@ export function CompanySettingsScreen() {
  fetchTenant()
  }, [tenantId])
 
+ // Al completar los 11 dígitos del RUC, rellena razón social, nombre comercial, dirección y ubigeo desde el padrón.
+ const handleRucChange = async (value: string) => {
+ const ruc = value.replace(/\D/g, '').slice(0, 11)
+ handleChange('ruc', ruc)
+ if (ruc.length !== 11) return
+ try {
+ const { data, error } = await api.apisperu.ruc({ ruc }).get({ query: { tenantId } })
+ if (error) throw error
+ const r = data?.data as Record<string, string> | undefined
+ if (!r) return
+ setSettings((prev) => prev.ruc !== ruc ? prev : {
+ ...prev,
+ razonSocial: r.razonSocial || prev.razonSocial,
+ nombreComercial: r.nombreComercial || r.razonSocial || prev.nombreComercial,
+ direccion: r.direccion || prev.direccion,
+ ubigeo: r.ubigeo || prev.ubigeo,
+ departamento: r.departamento || prev.departamento,
+ provincia: r.provincia || prev.provincia,
+ distrito: r.distrito || prev.distrito,
+ })
+ setMessage(null)
+ } catch (err) {
+ console.error('RUC lookup failed:', err)
+ setMessage({ type: 'error', text: 'No se pudo consultar el RUC; completa los datos manualmente.' })
+ }
+ }
+
  const handleChange = (field: keyof TenantSettings, value: string | number | boolean) => {
  setSettings((prev) => ({ ...prev, [field]: value }))
  }
@@ -110,18 +182,21 @@ export function CompanySettingsScreen() {
  setAdminPinError(false)
  setMessage(null)
  try {
- const { error } = await api.dashboard.settings.patch({
- query: { tenantId },
- body: {
+ const { error } = await api.dashboard.settings.patch(
+ {
  name: settings.name,
- ruc: settings.ruc,
- razonSocial: settings.razonSocial,
- nombreComercial: settings.nombreComercial,
- direccion: settings.direccion,
- ubigeo: settings.ubigeo,
+ // null (tenant sin datos) no pasa t.String() → 422; undefined se omite
+ ruc: settings.ruc ?? undefined,
+ razonSocial: settings.razonSocial ?? undefined,
+ nombreComercial: settings.nombreComercial ?? undefined,
+ direccion: settings.direccion ?? undefined,
+ ubigeo: settings.ubigeo ?? undefined,
+ departamento: settings.departamento ?? undefined,
+ provincia: settings.provincia ?? undefined,
+ distrito: settings.distrito ?? undefined,
  receiptFooter: settings.receiptFooter ?? '',
  ...(apisperuTokenInput.trim() ? { apisperuToken: apisperuTokenInput.trim() } : {}),
- apisperuUrl: settings.apisperuUrl,
+ apisperuUrl: settings.apisperuUrl ?? undefined,
  igvRate: Number(settings.igvRate),
  defaultIgvRegime: settings.defaultIgvRegime,
  pricesIncludeIgv: settings.pricesIncludeIgv,
@@ -130,12 +205,19 @@ export function CompanySettingsScreen() {
  serieFactura: settings.serieFactura,
  serieNotaCredito: settings.serieNotaCredito,
  serieNotaDebito: settings.serieNotaDebito,
+ lastBoletaNumber: settings.lastBoletaNumber,
+ lastFacturaNumber: settings.lastFacturaNumber,
+ lastNotaCredito: settings.lastNotaCredito,
+ lastNotaDebito: settings.lastNotaDebito,
  adminPin,
  },
- })
+ { query: { tenantId } },
+ )
  if (error) {
  const msg = (error.value as { message?: string } | null)?.message ?? 'Error al guardar la configuración.'
- setAdminPinError(true)
+ // Only 401/429 are PIN problems; a 422 validation error must not shake the PIN pad.
+ setAdminPinError(error.status === 401 || error.status === 429)
+ if (error.status === 422) setShowAdminPinModal(false)
  setMessage({ type: 'error', text: msg })
  return
  }
@@ -144,6 +226,7 @@ export function CompanySettingsScreen() {
  if (apisperuTokenInput.trim()) {
  setSettings((prev) => ({ ...prev, hasApisperuToken: true }))
  }
+ setAuditKey((k) => k + 1)
  setMessage({ type: 'success', text: 'Configuración guardada correctamente.' })
  } catch (err) {
  console.error('Failed to save tenant settings:', err)
@@ -210,7 +293,7 @@ export function CompanySettingsScreen() {
  <Label className="text-xs text-muted-foreground">RUC</Label>
  <Input
  value={settings.ruc ?? ''}
- onChange={(e) => handleChange('ruc', e.target.value)}
+ onChange={(e) => void handleRucChange(e.target.value)}
  placeholder="20123456789"
  className="bg-muted border-border"
  />
@@ -254,6 +337,14 @@ export function CompanySettingsScreen() {
  />
  </div>
  </div>
+ <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+ {([['departamento', 'Departamento'], ['provincia', 'Provincia'], ['distrito', 'Distrito']] as const).map(([f, label]) => (
+ <div key={f} className="space-y-1.5">
+ <Label className="text-xs text-muted-foreground">{label}</Label>
+ <Input value={settings[f] ?? ''} onChange={(e) => handleChange(f, e.target.value.toUpperCase())} className="bg-muted border-border" />
+ </div>
+ ))}
+ </div>
  <div className="space-y-1.5">
  <Label className="text-xs text-muted-foreground">Pie del recibo (vacío = texto por defecto)</Label>
  <Textarea
@@ -287,7 +378,7 @@ export function CompanySettingsScreen() {
  onClick={() => handleChange('electronicInvoicingEnabled', !settings.electronicInvoicingEnabled)}
  className={cn(
  'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
- settings.electronicInvoicingEnabled ? 'bg-primary' : 'bg-muted'
+ settings.electronicInvoicingEnabled ? 'bg-primary' : 'bg-border'
  )}
  aria-label="Activar facturación electrónica"
  >
@@ -381,42 +472,47 @@ export function CompanySettingsScreen() {
  <CardTitle className="text-base">Series de comprobantes</CardTitle>
  </CardHeader>
  <CardContent className="space-y-4">
+ <p className="text-xs text-muted-foreground">
+ Las series se asignan solas y el número avanza con cada comprobante.
+ </p>
  <div className="grid grid-cols-2 gap-4">
- <div className="space-y-1.5">
- <Label className="text-xs text-muted-foreground">Boleta</Label>
+ {([
+ ['serieBoleta', 'Boleta'],
+ ['serieFactura', 'Factura'],
+ ['serieNotaCredito', 'Nota de crédito'],
+ ['serieNotaDebito', 'Nota de débito'],
+ ] as const).map(([field, label]) => (
+ <div key={field} className="space-y-1.5">
+ <Label className="text-xs text-muted-foreground">{label}</Label>
+ <p className="h-10 flex items-center rounded-md border border-border bg-muted px-3 text-sm font-mono text-foreground">{settings[field]}</p>
+ </div>
+ ))}
+ </div>
+ <p className="text-xs text-muted-foreground">
+ Último correlativo emitido (el siguiente será +1). Al migrar desde otro facturador, ingresa el último número ya enviado a SUNAT; no puede bajar.
+ </p>
+ <div className="grid grid-cols-2 gap-4">
+ {([
+ ['lastBoletaNumber', 'Boleta'],
+ ['lastFacturaNumber', 'Factura'],
+ ['lastNotaCredito', 'Nota de crédito'],
+ ['lastNotaDebito', 'Nota de débito'],
+ ] as const).map(([field, label]) => (
+ <div key={field} className="space-y-1.5">
+ <Label className="text-xs text-muted-foreground">Último N.º {label}</Label>
  <Input
- value={settings.serieBoleta}
- onChange={(e) => handleChange('serieBoleta', e.target.value)}
+ type="number"
+ min={0}
+ value={settings[field]}
+ onChange={(e) => handleChange(field, Math.max(0, Math.trunc(Number(e.target.value) || 0)))}
  className="bg-muted border-border"
  />
  </div>
- <div className="space-y-1.5">
- <Label className="text-xs text-muted-foreground">Factura</Label>
- <Input
- value={settings.serieFactura}
- onChange={(e) => handleChange('serieFactura', e.target.value)}
- className="bg-muted border-border"
- />
- </div>
- <div className="space-y-1.5">
- <Label className="text-xs text-muted-foreground">Nota de crédito</Label>
- <Input
- value={settings.serieNotaCredito}
- onChange={(e) => handleChange('serieNotaCredito', e.target.value)}
- className="bg-muted border-border"
- />
- </div>
- <div className="space-y-1.5">
- <Label className="text-xs text-muted-foreground">Nota de débito</Label>
- <Input
- value={settings.serieNotaDebito}
- onChange={(e) => handleChange('serieNotaDebito', e.target.value)}
- className="bg-muted border-border"
- />
- </div>
+ ))}
  </div>
  </CardContent>
  </Card>
+ <AuditCard tenantId={tenantId} refreshKey={auditKey} />
  </div>
  )}
 
@@ -426,7 +522,7 @@ export function CompanySettingsScreen() {
  <DialogContent size="sm" className="gap-5">
  <DialogHeader><DialogTitle className="text-lg font-bold">PIN de Administrador</DialogTitle></DialogHeader>
  <p className="text-center text-sm text-muted-foreground">
- Ingresa el PIN de un administrador (5 dígitos) para guardar la configuración.
+ Ingresa el PIN de un administrador (6 dígitos) para guardar la configuración.
  </p>
  <PinPad onComplete={performSave} disabled={saving} hasError={adminPinError} />
  {adminPinError && message?.text && (
@@ -437,5 +533,3 @@ export function CompanySettingsScreen() {
  </div>
  )
 }
-
-import { cn } from '@/lib/utils'

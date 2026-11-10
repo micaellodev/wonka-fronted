@@ -27,7 +27,7 @@ function useClock() {
 
 export function TicketPanel({ onSaleComplete, className }: { onSaleComplete?: () => void; className?: string }) {
  const { tenantId, activeWorker } = useAuthStore()
- const { items, total, addItem, decrementItem, removeItem, clearCart } = useCartStore()
+ const { items, total, addItem, decrementItem, removeItem, setDiscount, clearCart } = useCartStore()
  const { charges: playzoneCharges, total: playzoneTotal, clearAllCharges, removeCharge } = usePlayzoneTicketStore()
  const [checkoutOpen, setCheckoutOpen] = useState(false)
  const timeStr = useClock().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
@@ -146,6 +146,7 @@ export function TicketPanel({ onSaleComplete, className }: { onSaleComplete?: ()
   onDecrement={() => decrementItem(item.product.id)}
   onIncrement={() => addItem(item.product)}
   onRemove={() => removeItem(item.product.id)}
+  onDiscount={(d) => setDiscount(item.product.id, d)}
  />
  ))}
  </div>

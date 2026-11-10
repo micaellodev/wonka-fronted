@@ -311,7 +311,7 @@ export function CashCloseHistoryScreen({
  <Lock className="h-4 w-4 text-warning" aria-hidden /> Aprobar Cierre Pendiente
  </DialogTitle>
  <DialogDescription>
- Ingrese el código de aprobación (6 dígitos) del administrador para aprobar este cierre.
+ Ingrese el PIN (6 dígitos) del administrador para aprobar este cierre.
  </DialogDescription>
  </DialogHeader>
  {approvingRecord && (

@@ -21,7 +21,7 @@ const q = (token: string, method: string, path: string, body?: object) =>
 
 describe("verify-pin devuelve permisos", () => {
     test("admin: todos; gerente: sin empresa/empleados; cajero: ninguno", async () => {
-        const a = await login(c.tid, "54321"), g = await login(c.tid, PINS.gerente), k = await login(c.tid, "22222");
+        const a = await login(c.tid, "543210"), g = await login(c.tid, PINS.gerente), k = await login(c.tid, "222222");
         expect(a.res.json.permissions).toContain("company.settings");
         expect(g.res.json.permissions).toContain("reports.view");
         expect(g.res.json.permissions).not.toContain("company.settings");
@@ -38,8 +38,8 @@ describe("GERENTE", () => {
         expect((await q(gerente, "PATCH", `/inventory/products/${c.product.id}`, { price: 6 })).status).toBe(200);
     });
     test("no puede: ajustes de empresa ni crear empleados/roles", async () => {
-        expect((await q(gerente, "PATCH", "/dashboard/settings", { adminPin: "54321", name: "x" })).status).toBe(403);
-        expect((await q(gerente, "POST", "/hr/workers", { tenantId: c.tid, name: "X", roleId: "x", pin: "99999" })).status).toBe(403);
+        expect((await q(gerente, "PATCH", "/dashboard/settings", { adminPin: "543210", name: "x" })).status).toBe(403);
+        expect((await q(gerente, "POST", "/hr/workers", { tenantId: c.tid, name: "X", roleId: "x", pin: "999999" })).status).toBe(403);
         expect((await q(gerente, "POST", "/hr/roles", { tenantId: c.tid, name: "otro" })).status).toBe(403);
     });
 });

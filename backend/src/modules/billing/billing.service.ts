@@ -347,6 +347,53 @@ export async function countPendingDocuments(tenantId: string) {
     return { sales, notes };
 }
 
+/** Boletas/facturas del negocio con ese correlativo (puede haber una B001 y una F001 con el mismo número). */
+export async function findDocumentsByCorrelativo(tenantId: string, correlativoRaw: string) {
+    const raw = correlativoRaw.trim();
+    if (!/^\d{1,8}$/.test(raw)) throw new Error("El correlativo debe tener solo dígitos (máx. 8).");
+    const sales = await prisma.sale.findMany({
+        where: { tenantId, correlativo: formatCorrelative(Number(raw)), tipoComprobante: { in: ["BOLETA", "FACTURA"] } },
+        select: { serie: true, correlativo: true, tipoComprobante: true, total: true, clientName: true, clientDocNumber: true, sunatStatus: true, status: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
+        take: 6,
+    });
+    return sales.map((s) => ({ ...s, total: Number(s.total) }));
+}
+
+/**
+ * Datos del documento que una nota va a modificar: total, saldo aún no devuelto y productos.
+ * Sirve para calcular descuentos (motivos 04/05) sin que el cajero haga cuentas a mano.
+ */
+export async function getDocumentForNote(tenantId: string, serieRaw: string, correlativoRaw: string) {
+    const serie = serieRaw.trim().toUpperCase();
+    const correlativo = /^\d{1,8}$/.test(correlativoRaw.trim()) ? formatCorrelative(Number(correlativoRaw.trim())) : correlativoRaw.trim();
+    const sale = await prisma.sale.findFirst({
+        where: { tenantId, serie, correlativo, tipoComprobante: { in: ["BOLETA", "FACTURA"] } },
+        select: {
+            total: true, status: true, sunatStatus: true, clientName: true,
+            items: { select: { qty: true, unitPrice: true, discount: true, virtualLabel: true, product: { select: { name: true } } } },
+        },
+    });
+    if (!sale) throw new Error(`Documento ${serie}-${correlativo} no encontrado.`);
+    const credited = await prisma.billingNote.aggregate({
+        where: { tenantId, type: "CREDIT_NOTE", modifiedDocumentSerie: serie, modifiedDocumentCorrelative: correlativo, NOT: { sunatStatus: "RECHAZADA" } },
+        _sum: { totalAmount: true },
+    });
+    const total = Number(sale.total);
+    const creditedAmount = Number(credited._sum.totalAmount ?? 0);
+    return {
+        serie, correlativo,
+        status: sale.status, sunatStatus: sale.sunatStatus, clientName: sale.clientName,
+        total, credited: creditedAmount,
+        available: Math.max(0, Math.round((total - creditedAmount) * 100) / 100),
+        items: sale.items.map((i) => ({
+            name: i.product?.name ?? i.virtualLabel ?? "Venta libre",
+            qty: i.qty,
+            lineTotal: Math.round((Number(i.unitPrice) * i.qty - Number(i.discount)) * 100) / 100,
+        })),
+    };
+}
+
 export async function listBillingNotes(tenantId: string, page: number = 1, limit: number = 20) {
     const skip = (page - 1) * limit;
 

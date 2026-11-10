@@ -14,7 +14,7 @@ import { CryptoHasher } from "bun";
 export function generatePin(): string {
     const array = new Uint32Array(1);
     crypto.getRandomValues(array);
-    const pin = 10000 + (array[0]! % 90000);
+    const pin = 100000 + (array[0]! % 900000);
     return pin.toString();
 }
 
@@ -56,15 +56,9 @@ async function assertPinFree(tenantId: string, pinHash: string, exceptWorkerId?:
     if (clash) throw new Error("Ese PIN ya está en uso por otro trabajador.");
 }
 
-export function isValidApprovalCode(code: string): boolean {
-    return /^\d{6}$/.test(code);
-}
-
-export function generateApprovalCode(): string {
-    const array = new Uint32Array(1);
-    crypto.getRandomValues(array);
-    const code = 100000 + (array[0]! % 900000);
-    return code.toString();
+/** PIN nuevo o cambiado: exactamente 6 dígitos (el login sigue aceptando 5–6 para PIN antiguos). */
+export function isValidNewPin(pin: string): boolean {
+    return /^\d{6}$/.test(pin);
 }
 
 /**
@@ -83,8 +77,8 @@ export async function verifyApprovalCode(
     workerId: string,
     rawCode: string
 ): Promise<{ success: true; worker: { id: string; name: string } }> {
-    if (!isValidApprovalCode(rawCode)) {
-        throw new Error("Approval code must be exactly 6 numeric digits.");
+    if (!isValidPin(rawCode)) {
+        throw new Error("PIN must be 6 numeric digits.");
     }
     // Client key = the approver: these routes already require a session token.
     limitAttempt("approval", tenantId, `approver:${workerId}`);
@@ -95,7 +89,7 @@ export async function verifyApprovalCode(
         where: {
             id: workerId,
             tenantId,
-            approvalCodeHash: targetHash,
+            pinHash: targetHash,
             isActive: true,
         },
         include: { role: true },
@@ -140,7 +134,6 @@ export async function createWorker({
     dni,
     avatarUrl,
     pin,
-    approvalCode,
 }: {
     tenantId: string;
     name: string;
@@ -148,12 +141,11 @@ export async function createWorker({
     dni?: string;
     avatarUrl?: string;
     pin?: string;
-    approvalCode?: string;
 }) {
     const rawPin = pin ?? generatePin();
 
-    if (!isValidPin(rawPin)) {
-        throw new Error("PIN must be 5 or 6 numeric digits.");
+    if (!isValidNewPin(rawPin)) {
+        throw new Error("PIN must be exactly 6 numeric digits.");
     }
 
     const role = await prisma.role.findFirst({
@@ -162,18 +154,6 @@ export async function createWorker({
 
     if (!role) {
         throw new Error("Role not found for this tenant.");
-    }
-
-    const isAdminRole = role.name === "ADMIN" || role.name === "ADMINISTRADOR";
-
-    let approvalCodeHash: string | undefined;
-    let rawApprovalCode: string | undefined;
-    if (isAdminRole) {
-        rawApprovalCode = approvalCode ?? generateApprovalCode();
-        if (!isValidApprovalCode(rawApprovalCode)) {
-            throw new Error("Approval code must be exactly 6 numeric digits.");
-        }
-        approvalCodeHash = hashPin(tenantId, rawApprovalCode);
     }
 
     // 🚀 HASH DETERMINISTA: Se calcula en microsegundos
@@ -186,7 +166,6 @@ export async function createWorker({
             name,
             roleId,
             pinHash, // Guardamos el hash SHA-256
-            ...(approvalCodeHash ? { approvalCodeHash } : {}),
             ...(dni ? { dni } : {}),
             ...(avatarUrl ? { avatarUrl } : {}),
         },
@@ -202,7 +181,7 @@ export async function createWorker({
         },
     });
 
-    return { worker, rawPin, rawApprovalCode };
+    return { worker, rawPin };
 }
 
 export async function updateWorker({
@@ -214,7 +193,6 @@ export async function updateWorker({
     avatarUrl,
     isActive,
     pin,
-    approvalCode,
 }: {
     tenantId: string;
     workerId: string;
@@ -223,28 +201,15 @@ export async function updateWorker({
     dni?: string;
     avatarUrl?: string;
     isActive?: boolean;
-    pin?: string; // Nuevo PIN
-    approvalCode?: string; // Nuevo código de aprobación (6 dígitos)
+    pin?: string; // Nuevo PIN (6 dígitos)
 }) {
     let newPinHash;
     if (pin) {
-        if (!isValidPin(pin)) {
-            throw new Error("PIN must be 5 or 6 numeric digits.");
+        if (!isValidNewPin(pin)) {
+            throw new Error("PIN must be exactly 6 numeric digits.");
         }
         newPinHash = hashPin(tenantId, pin);
         await assertPinFree(tenantId, newPinHash, workerId);
-    }
-
-    let newApprovalCodeHash;
-    if (approvalCode !== undefined) {
-        if (approvalCode === null) {
-            newApprovalCodeHash = null;
-        } else {
-            if (!isValidApprovalCode(approvalCode)) {
-                throw new Error("Approval code must be exactly 6 numeric digits.");
-            }
-            newApprovalCodeHash = hashPin(tenantId, approvalCode);
-        }
     }
 
     if (roleId) {
@@ -263,7 +228,6 @@ export async function updateWorker({
     if (dni !== undefined) dataToUpdate.dni = dni;
     if (avatarUrl !== undefined) dataToUpdate.avatarUrl = avatarUrl;
     if (newPinHash !== undefined) dataToUpdate.pinHash = newPinHash;
-    if (newApprovalCodeHash !== undefined) dataToUpdate.approvalCodeHash = newApprovalCodeHash;
 
     const exists = await prisma.worker.findFirst({ where: { id: workerId, tenantId }, select: { id: true } });
     if (!exists) throw new Error("Worker not found for this tenant.");
@@ -426,13 +390,13 @@ export async function verifyApprovalCodeAny(
     rawCode: string,
     callerId: string
 ): Promise<{ success: true; worker: { id: string; name: string } }> {
-    if (!isValidApprovalCode(rawCode)) throw new Error("Approval code must be exactly 6 numeric digits.");
+    if (!isValidPin(rawCode)) throw new Error("PIN must be 6 numeric digits.");
     limitAttempt("approval", tenantId, `approver:${callerId}`);
     const worker = await prisma.worker.findFirst({
         where: {
             tenantId,
             isActive: true,
-            approvalCodeHash: hashPin(tenantId, rawCode),
+            pinHash: hashPin(tenantId, rawCode),
             role: { name: { in: ["ADMIN", "ADMINISTRADOR"] } },
         },
         select: { id: true, name: true },

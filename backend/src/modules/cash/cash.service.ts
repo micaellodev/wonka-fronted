@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma.ts";
 import { aggregateSales, closeFigures, currentShift, getDaySummary } from "./summary.ts";
-import { hashPin, verifyAdmin, verifyApprovalCode } from "../hr/hr.service.ts";
+import { verifyAdmin } from "../hr/hr.service.ts";
 
 // ============================================================
 //  Cash Management Service
@@ -159,23 +159,8 @@ export async function recordCashClose(input: CashCloseInput): Promise<CashCloseR
   return toRecord(record);
 }
 
-/**
- * Accepts the 6-digit approval code of an admin of the tenant, or an admin's
- * login PIN. Both checks are tenant-scoped and rate-limited in hr.service.
- */
+/** The approver is an admin of the tenant identified by their login PIN (tenant-scoped, rate-limited in hr.service). */
 async function resolveApprover(tenantId: string, code: string) {
-  if (/^\d{6}$/.test(code)) {
-    const byCode = await prisma.worker.findFirst({
-      where: {
-        tenantId,
-        isActive: true,
-        approvalCodeHash: hashPin(tenantId, code),
-        role: { name: { in: ["ADMIN", "ADMINISTRADOR"] } },
-      },
-      select: { id: true },
-    });
-    if (byCode) return (await verifyApprovalCode(tenantId, byCode.id, code)).worker;
-  }
   return (await verifyAdmin(tenantId, code)).worker;
 }
 
@@ -233,7 +218,7 @@ async function historyDaySummaries(tenantId: string, records: { closedDate: stri
     prisma.cashMovement.findMany({ where: { tenantId, type: "OPENING", createdAt }, select: { amount: true, createdAt: true }, orderBy: { createdAt: "asc" } }),
     prisma.sale.findMany({
       where: { tenantId, createdAt },
-      select: { total: true, paymentMethod: true, status: true, createdAt: true, items: { select: { productId: true, isVirtual: true, virtualSku: true, unitPrice: true, qty: true } } },
+      select: { total: true, paymentMethod: true, status: true, createdAt: true, items: { select: { productId: true, isVirtual: true, virtualSku: true, unitPrice: true, discount: true, qty: true } } },
     }),
     prisma.cashMovement.findMany({ where: { tenantId, type: { in: ["IN", "OUT"] }, createdAt }, select: { type: true, amount: true, currency: true, createdAt: true } }),
   ]);

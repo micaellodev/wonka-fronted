@@ -22,7 +22,7 @@ export function ApprovalDialog({ open, onClose, onPin, approving, pinError, tota
             <Lock className="h-4 w-4 text-primary" aria-hidden /> Aprobación de Cierre de Caja
           </DialogTitle>
           <DialogDescription>
-            Ingrese el código de aprobación (6 dígitos) del administrador para confirmar el cierre.
+            Ingrese el PIN (6 dígitos) del administrador para confirmar el cierre.
           </DialogDescription>
         </DialogHeader>
         <p className="text-center text-sm font-semibold text-foreground">

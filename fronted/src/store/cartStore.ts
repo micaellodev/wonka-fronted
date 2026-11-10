@@ -24,12 +24,20 @@ interface CartState {
  removeItem: (productId: string) => void
  /** Set exact quantity for a product (clamped 1–stock). */
  setQuantity: (productId: string, quantity: number) => void
+ /** Descuento en soles sobre el total de la línea (siempre menor al total de la línea). */
+ setDiscount: (productId: string, discount: number) => void
  /** Wipe the whole cart (after a successful sale or cancel). */
  clearCart: () => void
 }
 
 const calcTotal = (items: CartItem[]): number =>
- items.reduce((sum, i) => sum + i.product.price * i.quantity, 0)
+ items.reduce((sum, i) => sum + i.product.price * i.quantity - (i.discount ?? 0), 0)
+
+/** Mantiene el descuento por debajo del total de la línea (al bajar la cantidad puede quedar mayor). */
+const fitDiscount = (i: CartItem): CartItem => {
+ const max = Math.max(0, Math.round(i.product.price * i.quantity * 100) / 100 - 0.01)
+ return i.discount && i.discount > max ? { ...i, discount: max } : i
+}
 
 /** Products without stock control can always be sold */
 export const stockLimit = (p: Product) => (p.trackStock ? p.stock : Infinity)
@@ -66,6 +74,7 @@ export const useCartStore = create<CartState>((set, get) => ({
  : i,
  )
  .filter((i) => i.quantity > 0)
+ .map(fitDiscount)
 
  set({ items: next, total: calcTotal(next) })
  },
@@ -81,7 +90,14 @@ export const useCartStore = create<CartState>((set, get) => ({
 
  const clamped = Math.max(1, Math.min(quantity, stockLimit(item.product)))
  const next = get().items.map((i) =>
- i.product.id === productId ? { ...i, quantity: clamped } : i,
+ i.product.id === productId ? fitDiscount({ ...i, quantity: clamped }) : i,
+ )
+ set({ items: next, total: calcTotal(next) })
+ },
+
+ setDiscount: (productId, discount) => {
+ const next = get().items.map((i) =>
+ i.product.id === productId ? fitDiscount({ ...i, discount: Math.max(0, Math.round((Number(discount) || 0) * 100) / 100) }) : i,
  )
  set({ items: next, total: calcTotal(next) })
  },

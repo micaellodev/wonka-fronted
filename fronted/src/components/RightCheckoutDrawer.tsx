@@ -75,6 +75,9 @@ export function RightCheckoutDrawer({ open, onClose, cart, playzoneCharges, onSa
    razonSocial: tenant.razonSocial,
    nombreComercial: tenant.nombreComercial,
    direccion: tenant.direccion,
+   departamento: tenant.departamento,
+   provincia: tenant.provincia,
+   distrito: tenant.distrito,
    receiptFooter: tenant.receiptFooter,
    name: tenant.name,
   })
@@ -88,7 +91,7 @@ export function RightCheckoutDrawer({ open, onClose, cart, playzoneCharges, onSa
  }, [open, tenantId])
 
  const lines = useMemo(
-  () => cart.map((item) => calculateLine(item.product, item.quantity, config)),
+  () => cart.map((item) => calculateLine(item.product, item.quantity, config, item.discount ?? 0)),
   [cart, config]
  )
 
@@ -165,8 +168,9 @@ export function RightCheckoutDrawer({ open, onClose, cart, playzoneCharges, onSa
  setClientProvincia((result?.provincia as string) ?? '')
  setClientDistrito((result?.distrito as string) ?? '')
  const hasAddress = Boolean((result?.direccion as string) || (result?.departamento as string))
- if (!hasAddress) {
- setError('Persona natural: la dirección no viene en el padrón. Ingresa la dirección manualmente.')
+ // RUC 10 = persona natural: el padrón casi nunca trae dirección ni ubicación; se completan a mano
+ if (clientDocNumber.startsWith('10') || !hasAddress) {
+ setError('RUC 10 / persona natural: completa a mano la dirección, el departamento, la provincia y el distrito.')
  }
  } else {
  setError('Número de documento inválido.')
@@ -209,9 +213,11 @@ export function RightCheckoutDrawer({ open, onClose, cart, playzoneCharges, onSa
  const normalizedName = clientName.trim() || 'CLIENTE VARIOS'
  const normalizedDoc = clientDocNumber.trim() || '0'
 
+ const fullClientAddress = invoiceType === 'FACTURA' ? [clientAddress, clientDistrito, clientProvincia, clientDepartamento].filter(Boolean).join(', ') : ''
+
  const saleItems = [
   // free-sale-* lines carry their own price/label; catalog and playzone lines are priced by the backend
-  ...cart.map((item) => ({ productId: item.product.id, qty: item.quantity, unitPrice: item.product.price, label: item.product.name })),
+  ...cart.map((item) => ({ productId: item.product.id, qty: item.quantity, unitPrice: item.product.price, label: item.product.name, ...(item.discount ? { discount: item.discount } : {}) })),
   ...playzoneCharges.map((c) => ({ productId: c.id, qty: 1 })),
  ]
 
@@ -224,7 +230,8 @@ export function RightCheckoutDrawer({ open, onClose, cart, playzoneCharges, onSa
   clientDocType: clientDocType as '1' | '6' | '-',
   clientDocNumber: invoiceType === 'TICKET' ? undefined : normalizedDoc,
   clientName: invoiceType === 'TICKET' ? undefined : normalizedName,
-  clientAddress: invoiceType === 'FACTURA' ? [clientAddress, clientDistrito, clientProvincia, clientDepartamento].filter(Boolean).join(', ') : undefined,
+  clientAddress: fullClientAddress || undefined,
+  amountReceived: paymentMethod === 'efectivo' ? cashGivenValue : undefined,
  })
 
  if (error) {
@@ -237,7 +244,7 @@ export function RightCheckoutDrawer({ open, onClose, cart, playzoneCharges, onSa
  const saleResult = data?.data as { sale: { total: string; tipoComprobante: string; serie: string | null; correlativo: string | null; sunatStatus: string | null }; items: SaleResultItem[] }
  // The backend total is authoritative (playzone lines are re-priced server-side)
  const saleTotal = Number(saleResult.sale.total)
- printReceipt({ saleData: saleResult.sale, saleItems: saleResult.items, clientNameStr: normalizedName, method: paymentMethod, total: saleTotal, config, lines, summary, playzoneCharges, activeWorker })
+ printReceipt({ saleData: saleResult.sale, saleItems: saleResult.items, clientNameStr: normalizedName, method: paymentMethod, total: saleTotal, config, lines, summary, playzoneCharges, activeWorker, clientDocNumber: invoiceType === 'TICKET' ? undefined : clientDocNumber, clientAddress: fullClientAddress || undefined, amountPaid: paymentMethod === 'efectivo' ? cashGivenValue : undefined })
 
  const warnings: string[] = []
  if (Math.abs(saleTotal - totalToPay) >= 0.01) warnings.push(`El total cobrado según sistema es ${formatPEN(saleTotal)} (en pantalla ${formatPEN(totalToPay)}).`)

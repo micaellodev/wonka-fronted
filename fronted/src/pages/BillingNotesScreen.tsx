@@ -3,12 +3,13 @@
 // ============================================================
 
 import { useCallback, useEffect, useState } from 'react'
-import { Plus, FileText, Search, Receipt, RefreshCw } from 'lucide-react'
+import { Plus, FileText, Search, Receipt, RefreshCw, Printer } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { api } from '@/lib/api'
 import { toast } from '@/components/ui/toast'
 import { formatPEN } from '@/lib/format'
 import { CreateBillingNoteModal, type BillingNoteResult } from '@/components/CreateBillingNoteModal'
+import { printBillingNote } from '@/components/checkout/note-receipt'
 
 type BillingNote = {
  id: string
@@ -20,6 +21,9 @@ type BillingNote = {
  modifiedDocumentCorrelative: string
  clientName: string
  clientDocNumber: string
+ clientDocType?: string
+ reasonCode?: string
+ reasonDescription?: string
  totalAmount: string | number
  sunatStatus: string | null
  sunatResponse?: { error?: unknown; cdrResponse?: { description?: string } } | null
@@ -222,10 +226,13 @@ export function BillingNotesScreen() {
  <div className="col-span-1 text-right font-black font-mono text-foreground">
  {formatPEN(Number(note.totalAmount))}
  </div>
- <div className="col-span-1 flex justify-center">
+ <div className="col-span-1 flex items-center justify-center gap-1">
  <div title={sunatDetail(note)} className={`px-2 py-0.5 rounded-full border text-[11px] uppercase font-bold tracking-widest ${st.cls}`}>
  {st.label}
  </div>
+ <button onClick={() => void printBillingNote(note)} aria-label="Imprimir nota" title="Imprimir nota" className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground">
+ <Printer className="h-4 w-4" aria-hidden />
+ </button>
  </div>
  </div>
  )

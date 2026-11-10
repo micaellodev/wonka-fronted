@@ -26,7 +26,7 @@ export function resolveIgvRegime(productRegime: string | null | undefined, tenan
     return "EXONERADO";
 }
 
-export function getTipAfeIGV(regime: IgvRegime): ApisPeruInvoiceItem["tipAfeIGV"] {
+export function getTipAfeIGV(regime: IgvRegime): ApisPeruInvoiceItem["tipAfeIgv"] {
     switch (regime) {
         case "GRAVADO":
         case "GRAVADO_10_5":
@@ -55,10 +55,15 @@ export function calculateFiscalLine(
     qty: number,
     regime: IgvRegime,
     igvRate: number,
-    pricesIncludeIgv: boolean
+    pricesIncludeIgv: boolean,
+    /** Descuento total de la línea, en el mismo criterio de precio que unitPrice (con o sin IGV). */
+    discount = 0
 ): FiscalLine {
+    const round2 = (n: number) => Number(n.toFixed(2));
+
     if (regime === "EXONERADO" || regime === "INAFECTO") {
-        const mtoValorVenta = unitPrice * qty;
+        const base = unitPrice * qty;
+        const mtoValorVenta = discount > 0 ? round2(base - discount) : base;
         return {
             qty,
             unitPrice,
@@ -67,26 +72,32 @@ export function calculateFiscalLine(
             mtoValorVenta,
             mtoIGV: 0,
             mtoImpItem: mtoValorVenta,
+            mtoDescuento: round2(discount),
+            mtoBaseDescuento: round2(base),
             tipAfeIGV: getTipAfeIGV(regime),
             igvRate: 0,
             regime,
         };
     }
 
-    const rate = regime === "GRAVADO_10_5" ? 10.5 / 100 : (regime === "ICBPER" ? igvRate / 100 : igvRate / 100);
+    const rate = regime === "GRAVADO_10_5" ? 10.5 / 100 : igvRate / 100;
 
     let mtoValorUnitario: number;
     let mtoPrecioUnitario: number;
+    let descValor: number; // descuento expresado como valor de venta (sin IGV)
 
     if (pricesIncludeIgv) {
         mtoValorUnitario = unitPrice / (1 + rate);
         mtoPrecioUnitario = unitPrice;
+        descValor = discount / (1 + rate);
     } else {
         mtoValorUnitario = unitPrice;
         mtoPrecioUnitario = unitPrice * (1 + rate);
+        descValor = discount;
     }
 
-    const mtoValorVenta = mtoValorUnitario * qty;
+    const base = mtoValorUnitario * qty;
+    const mtoValorVenta = base - descValor;
     const mtoIGV = mtoValorVenta * rate;
     const mtoImpItem = mtoValorVenta + mtoIGV;
 
@@ -98,6 +109,8 @@ export function calculateFiscalLine(
         mtoValorVenta: Number(mtoValorVenta.toFixed(2)),
         mtoIGV: Number(mtoIGV.toFixed(2)),
         mtoImpItem: Number(mtoImpItem.toFixed(2)),
+        mtoDescuento: round2(descValor),
+        mtoBaseDescuento: round2(base),
         tipAfeIGV: getTipAfeIGV(regime),
         igvRate: regime === "GRAVADO_10_5" ? 10.5 : igvRate,
         regime,
@@ -118,7 +131,8 @@ export function buildFiscalSummary(saleContext: SaleContext): FiscalSummary {
             item.qty,
             regime,
             igvRate,
-            pricesIncludeIgv
+            pricesIncludeIgv,
+            Number(item.discount ?? 0)
         );
     });
 
@@ -168,8 +182,11 @@ function buildCompany(tenant: SaleContext["tenant"]): ApisPeruCompany {
         razonSocial: tenant.razonSocial ?? "",
         nombreComercial: tenant.nombreComercial ?? tenant.razonSocial ?? "",
         address: {
-            ubigeo: tenant.ubigeo ?? "150101",
+            ubigueo: tenant.ubigeo ?? "150101",
             direccion: tenant.direccion ?? "",
+            departamento: tenant.departamento ?? "LIMA",
+            provincia: tenant.provincia ?? "LIMA",
+            distrito: tenant.distrito ?? "LIMA",
         },
     };
 }
@@ -191,11 +208,50 @@ function buildDetails(summary: FiscalSummary, sale: SaleContext["sale"]): ApisPe
             mtoValorUnitario: line.mtoValorUnitario,
             mtoPrecioUnitario: line.mtoPrecioUnitario,
             mtoValorVenta: line.mtoValorVenta,
-            mtoIGV: line.mtoIGV,
-            tipAfeIGV: line.tipAfeIGV,
-            porcentajeIGV: line.mtoIGV > 0 ? line.igvRate : 0,
+            mtoBaseIgv: line.mtoValorVenta,
+            igv: line.mtoIGV,
+            totalImpuestos: line.mtoIGV,
+            tipAfeIgv: line.tipAfeIGV,
+            porcentajeIgv: line.mtoIGV > 0 ? line.igvRate : 0,
+            ...(line.mtoDescuento > 0 && line.mtoBaseDescuento > 0
+                ? { descuentos: [{ codTipo: "00" as const, montoBase: line.mtoBaseDescuento, factor: Number((line.mtoDescuento / line.mtoBaseDescuento).toFixed(5)), monto: line.mtoDescuento }] }
+                : {}),
         };
     });
+}
+
+const UNITS = ["", "UN", "DOS", "TRES", "CUATRO", "CINCO", "SEIS", "SIETE", "OCHO", "NUEVE", "DIEZ", "ONCE", "DOCE", "TRECE", "CATORCE", "QUINCE",
+    "DIECISEIS", "DIECISIETE", "DIECIOCHO", "DIECINUEVE", "VEINTE", "VEINTIUN", "VEINTIDOS", "VEINTITRES", "VEINTICUATRO", "VEINTICINCO",
+    "VEINTISEIS", "VEINTISIETE", "VEINTIOCHO", "VEINTINUEVE"];
+const TENS = ["", "", "", "TREINTA", "CUARENTA", "CINCUENTA", "SESENTA", "SETENTA", "OCHENTA", "NOVENTA"];
+const HUNDREDS = ["", "CIENTO", "DOSCIENTOS", "TRESCIENTOS", "CUATROCIENTOS", "QUINIENTOS", "SEISCIENTOS", "SETECIENTOS", "OCHOCIENTOS", "NOVECIENTOS"];
+
+function wordsBelow1000(n: number): string {
+    if (n === 100) return "CIEN";
+    const h = Math.floor(n / 100);
+    const r = n % 100;
+    const tail = r < 30 ? UNITS[r]! : TENS[Math.floor(r / 10)]! + (r % 10 ? " Y " + UNITS[r % 10] : "");
+    return [HUNDREDS[h], tail].filter(Boolean).join(" ");
+}
+
+/** Spanish words for 0..999,999,999. shortcut: no billions, not needed for POS tickets. */
+export function numberToWords(n: number): string {
+    if (n === 0) return "CERO";
+    const mill = Math.floor(n / 1_000_000);
+    const mil = Math.floor((n % 1_000_000) / 1000);
+    const rest = n % 1000;
+    const parts: string[] = [];
+    if (mill) parts.push(mill === 1 ? "UN MILLON" : wordsBelow1000(mill) + " MILLONES");
+    if (mil) parts.push(mil === 1 ? "MIL" : wordsBelow1000(mil).replace(/UN$/, "UN") + " MIL");
+    if (rest) parts.push(wordsBelow1000(rest));
+    return parts.join(" ");
+}
+
+/** SUNAT legend 1000: "SON CIENTO DIECIOCHO CON 00/100 SOLES". */
+export function amountLegend(total: number): { code: string; value: string } {
+    const cents = Math.round(total * 100);
+    const value = `SON ${numberToWords(Math.floor(cents / 100))} CON ${String(cents % 100).padStart(2, "0")}/100 SOLES`;
+    return { code: "1000", value };
 }
 
 export function buildInvoicePayload(saleContext: SaleContext): ApisPeruInvoicePayload {
@@ -228,6 +284,7 @@ export function buildInvoicePayload(saleContext: SaleContext): ApisPeruInvoicePa
         subTotal: summary.subTotal,
         mtoImpVenta: summary.mtoImpVenta,
         ublVersion: "2.1",
+        legends: [amountLegend(summary.mtoImpVenta)],
         formaPago: {
             moneda: "PEN",
             tipo: "Contado",
@@ -272,6 +329,7 @@ export function buildCreditNotePayload(
         subTotal: summary.subTotal,
         mtoImpVenta: summary.mtoImpVenta,
         ublVersion: "2.1",
+        legends: [amountLegend(summary.mtoImpVenta)],
     };
 }
 
@@ -322,9 +380,11 @@ export function buildManualNotePayload(
             mtoValorUnitario: line.mtoValorUnitario,
             mtoPrecioUnitario: line.mtoPrecioUnitario,
             mtoValorVenta: line.mtoValorVenta,
-            mtoIGV: line.mtoIGV,
-            tipAfeIGV: line.tipAfeIGV,
-            porcentajeIGV: gravada ? line.igvRate : 0,
+            mtoBaseIgv: line.mtoValorVenta,
+            igv: line.mtoIGV,
+            totalImpuestos: line.mtoIGV,
+            tipAfeIgv: line.tipAfeIGV,
+            porcentajeIgv: gravada ? line.igvRate : 0,
         }],
         mtoOperGravadas: gravada ? line.mtoValorVenta : 0,
         mtoOperExoneradas: line.regime === "EXONERADO" ? line.mtoValorVenta : 0,
@@ -335,6 +395,7 @@ export function buildManualNotePayload(
         subTotal: line.mtoImpItem,
         mtoImpVenta: line.mtoImpItem,
         ublVersion: "2.1",
+        legends: [amountLegend(line.mtoImpItem)],
     };
 }
 
@@ -386,8 +447,10 @@ async function sendDocument(
     endpoint: "invoice/send" | "note/send",
     payload: unknown
 ): Promise<EmissionResult> {
-    if (!tenant.apisperuToken) {
-        throw new Error("APISPeru token not configured for this tenant.");
+    // Facturación token only (apiperu.dev DNI/RUC uses APISPERU_TOKEN). Tenant token wins over env.
+    const token = tenant.apisperuToken || process.env["APISPERU_FACTURACION_TOKEN"];
+    if (!token) {
+        throw new Error("APISPeru token not configured (tenant or APISPERU_FACTURACION_TOKEN).");
     }
     if (!tenant.ruc || !tenant.razonSocial) {
         throw new Error("Company fiscal data not configured.");
@@ -398,7 +461,7 @@ async function sendDocument(
         headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
-            Authorization: `Bearer ${tenant.apisperuToken}`,
+            Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
         signal: AbortSignal.timeout(Number(process.env["APISPERU_TIMEOUT_MS"] ?? 15000)),

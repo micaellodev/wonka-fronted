@@ -5,15 +5,15 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Delete, X } from 'lucide-react'
 
-// Login PINs are 5 or 6 digits: auto-submit at 6, "Entrar" button from 5.
+// PINs are exactly 6 digits; it submits automatically at 6.
 const DEFAULT_MAX_LENGTH = 6
-const DEFAULT_MIN_LENGTH = 5
+const DEFAULT_MIN_LENGTH = 6
 
 interface PinPadProps {
  onComplete: (pin: string) => void
  disabled?: boolean
  hasError?: boolean
- /** Fixed length (e.g. 6 for approval codes). Omit for a 5–6 digit PIN. */
+ /** Fixed length; omit for the standard 6-digit PIN. */
  length?: number
 }
 

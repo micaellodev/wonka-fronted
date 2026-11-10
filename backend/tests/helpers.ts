@@ -43,7 +43,8 @@ export type Ctx = Awaited<ReturnType<typeof createTenant>>;
 /** Fresh tenant with ADMIN + CAJERO workers, one category and two products (one tracked, one untracked). */
 export async function createTenant(label = "qa") {
     const tid = `${label}_${Date.now().toString(36)}_${randomInt(1e6)}`;
-    const adminPin = "54321", cashierPin = "22222", approvalCode = "135790", admin6Pin = "246813";
+    const adminPin = "543210", cashierPin = "222222", admin6Pin = "246813";
+    const approvalCode = adminPin; // un solo PIN: el de login del administrador es también su código de aprobación
     await prisma.tenant.create({
         data: {
             id: tid, name: `QA ${tid}`, slug: tid,
@@ -55,11 +56,11 @@ export async function createTenant(label = "qa") {
     const adminRole = await prisma.role.create({ data: { tenantId: tid, name: "ADMIN" } });
     const cashierRole = await prisma.role.create({ data: { tenantId: tid, name: "CAJERO" } });
     const admin = await prisma.worker.create({
-        data: { tenantId: tid, roleId: adminRole.id, name: "QA Admin", pinHash: sha256(`${tid}:${adminPin}`), approvalCodeHash: sha256(`${tid}:${approvalCode}`) },
+        data: { tenantId: tid, roleId: adminRole.id, name: "QA Admin", pinHash: sha256(`${tid}:${adminPin}`) },
     });
     // 6-digit admin login whose PIN doubles as approval code (same as seeded 060904 reviewer).
     const admin6 = await prisma.worker.create({
-        data: { tenantId: tid, roleId: adminRole.id, name: "QA Admin6", pinHash: sha256(`${tid}:${admin6Pin}`), approvalCodeHash: sha256(`${tid}:${admin6Pin}`) },
+        data: { tenantId: tid, roleId: adminRole.id, name: "QA Admin6", pinHash: sha256(`${tid}:${admin6Pin}`) },
     });
     const cashier = await prisma.worker.create({
         data: { tenantId: tid, roleId: cashierRole.id, name: "QA Cajero", pinHash: sha256(`${tid}:${cashierPin}`) },

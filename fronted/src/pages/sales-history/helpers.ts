@@ -1,9 +1,10 @@
 import { printHtml } from '@/lib/print'
-import { api } from '@/lib/api'
+import { api, API_URL } from '@/lib/api'
 import { toLima } from '@/lib/format'
 import { apiErrorMessage } from '@/lib/api-error'
 import { toast } from '@/components/ui/toast'
 import { useAuthStore } from '@/store/authStore'
+import { useAdminStore } from '@/store/adminStore'
 import { renderReceipt } from '@/components/checkout/receipt'
 import { resolveRegime, type IgvRegime, type TenantFiscalConfig } from '@/components/checkout/fiscal'
 
@@ -15,14 +16,18 @@ export interface Sale {
   correlativo: string | null
   createdAt: string
   status: string
+  sunatStatus?: string | null
   paymentMethod: string
   clientName: string | null
   clientDocNumber?: string | null
+  clientAddress?: string | null
+  amountReceived?: number | string | null
   worker: { name: string }
   items?: Array<{
     qty: number
     product: { name: string; sku?: string; igvRegime?: string | null }
     unitPrice: number
+    discount?: number | string
     isVirtual?: boolean
   }>
 }
@@ -84,26 +89,59 @@ export async function printReceipt(sale: Sale) {
     let sumExonerado = 0, sumGravado = 0, sumIgv = 0
     const items = (full.items ?? []).map((it) => {
       const price = Number(it.unitPrice)
+      const disc = Number(it.discount ?? 0)
       const virtual = it.isVirtual || /^(pz-|free-sale-)/.test(it.product.sku ?? '')
       // Juegos y venta libre siempre exonerados (igual que al cobrar); el resto, según el producto o el régimen por defecto
       const regime = virtual ? 'EXONERADO' : resolveRegime(it.product.igvRegime, config.defaultIgvRegime)
-      if (regime === 'EXONERADO' || regime === 'INAFECTO') sumExonerado += price * it.qty
+      if (regime === 'EXONERADO' || regime === 'INAFECTO') sumExonerado += price * it.qty - disc
       else {
         const rate = (regime === 'GRAVADO_10_5' ? 10.5 : config.igvRate) / 100
-        const valor = (config.pricesIncludeIgv ? price / (1 + rate) : price) * it.qty
+        const valor = config.pricesIncludeIgv ? (price * it.qty - disc) / (1 + rate) : price * it.qty - disc
         sumGravado += valor
         sumIgv += valor * rate
       }
-      return { productName: it.product.name, qty: it.qty, unitPrice: String(price), lineTotal: String(price * it.qty) }
+      return { productName: it.product.name, qty: it.qty, unitPrice: String(price), discount: disc.toFixed(2), lineTotal: String(price * it.qty - disc) }
     })
     const method = (full.paymentMethod || '').toLowerCase()
     void printHtml(renderReceipt({
       tipo: full.tipoComprobante, serie: full.serie, correlativo: full.correlativo, ticketId: full.id.slice(-8),
       date: new Date(full.createdAt), cashier: full.worker?.name || 'Cajero', clientName: full.clientName || '',
       method: method === 'yape' || method === 'tarjeta' ? method : 'efectivo', total: Number(full.total), config, items,
-      sumExonerado, sumGravado, sumIgv,
+      sumExonerado, sumGravado, sumIgv, clientDocNumber: full.clientDocNumber, clientAddress: full.clientAddress, amountPaid: full.amountReceived != null ? Number(full.amountReceived) : undefined,
     }))
   } catch (err) {
     toast.error(apiErrorMessage(err, 'No se pudo preparar el comprobante'))
+  }
+}
+
+/** Descarga el XML firmado o el CDR de SUNAT de una venta (el listado no los trae: pesan). */
+export async function downloadSunatFile(sale: Sale, kind: 'xml' | 'cdr') {
+  const tenantId = useAuthStore.getState().tenantId
+  const token = useAdminStore.getState().adminToken ?? useAuthStore.getState().token
+  try {
+    const res = await fetch(`${API_URL}/pos/sales/${sale.id}/sunat/${kind}?tenantId=${encodeURIComponent(tenantId)}`, {
+      headers: token ? { authorization: `Bearer ${token}` } : {},
+    })
+    if (!res.ok) throw new Error(((await res.json().catch(() => null)) as { message?: string } | null)?.message ?? `Error ${res.status}`)
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(await res.blob())
+    a.download = `${kind === 'xml' ? '' : 'R-'}${sale.serie}-${sale.correlativo}.${kind === 'xml' ? 'xml' : 'zip'}`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  } catch (err) {
+    toast.error(apiErrorMessage(err, 'No se pudo descargar el archivo'))
+  }
+}
+
+/** Reenvía a SUNAT los comprobantes pendientes del negocio. */
+export async function retryPendingSunat(): Promise<boolean> {
+  const tenantId = useAuthStore.getState().tenantId
+  try {
+    const { error } = await api.billing['retry-pending'].post({ tenantId })
+    if (error) throw error
+    return true
+  } catch (err) {
+    toast.error(apiErrorMessage(err, 'No se pudo reintentar el envío'))
+    return false
   }
 }

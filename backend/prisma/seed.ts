@@ -86,17 +86,15 @@ async function main() {
     const isProd = process.env['NODE_ENV'] === 'production'
     const reviewPin = process.env['SEED_ADMIN_PIN'] ?? (isProd ? undefined : '060904')
     if (reviewPin) {
-        if (!/^\d{5,6}$/.test(reviewPin)) throw new Error('SEED_ADMIN_PIN must be 5-6 digits')
+        if (!/^\d{6}$/.test(reviewPin)) throw new Error('SEED_ADMIN_PIN must be 6 digits')
         const reviewHash = sha256(`${TID}:${reviewPin}`)
-        const approvalHash = /^\d{6}$/.test(reviewPin) ? reviewHash : null
         await prisma.worker.upsert({
             where: { id: 'review_admin_001' },
-            update: { pinHash: reviewHash, approvalCodeHash: approvalHash, isActive: true, roleId: adminRole.id },
+            update: { pinHash: reviewHash, isActive: true, roleId: adminRole.id },
             create: {
                 id: 'review_admin_001',
                 name: 'Admin Revisión',
                 pinHash: reviewHash,
-                approvalCodeHash: approvalHash,
                 isActive: true,
                 tenantId: TID,
                 roleId: adminRole.id,

@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PinPad } from '@/components/PinPad'
+import { printBillingNote, type PrintableNote } from '@/components/checkout/note-receipt'
 import { formatCurrency, formatTime } from '@/lib/format'
 
 // ============================================================
@@ -128,7 +129,9 @@ export function ApprovalsScreen() {
  return
  }
 
- const resolved = data?.data as VoidRequest | undefined
+ const resolved = data?.data as (VoidRequest & { creditNote?: PrintableNote | null }) | undefined
+ // La nota de crédito se imprime apenas el administrador aprueba la anulación
+ if (resolved?.creditNote) void printBillingNote(resolved.creditNote)
  if (resolved?.creditNoteSerie && resolved?.creditNoteCorrelativo) {
  setResultMessage(
  `Nota de Crédito ${resolved.creditNoteSerie}-${resolved.creditNoteCorrelativo} generada y aceptada por SUNAT.`
@@ -274,7 +277,7 @@ export function ApprovalsScreen() {
  <VoidPinDialog
  open={!!selectedRequest}
  title="Aprobar anulación"
- prompt="Ingrese el código de aprobación del dueño para confirmar"
+ prompt="Ingrese el PIN del administrador para confirmar"
  request={selectedRequest}
  label={saleLabel}
  resultMessage={resultMessage}
@@ -286,7 +289,7 @@ export function ApprovalsScreen() {
  <VoidPinDialog
  open={!!rejectingRequest}
  title="Rechazar anulación"
- prompt="Ingrese el código de aprobación del dueño para confirmar el rechazo"
+ prompt="Ingrese el PIN del administrador para confirmar el rechazo"
  request={rejectingRequest}
  label={saleLabel}
  resultMessage={rejectResultMessage}

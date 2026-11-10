@@ -10,7 +10,7 @@ import { treaty } from '@elysiajs/eden'
 import { useAuthStore } from '@/store/authStore'
 import { useAdminStore } from '@/store/adminStore'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 export const api = treaty(API_URL, {
  headers() {
