@@ -1,2 +1,4 @@
-Cambio pequeño · 4 archivos, 117 líneas, 1 cambios
-- Impresión: modo Directo (ESC/POS) para térmicas cuyo driver de Windows deja caracteres raros
+Cambio pequeño · 6 archivos, 178 líneas, 3 cambios
+- Impresión: ticket en negrita para que el texto salga tan oscuro como el QR
+- Impresión: logo liviano/sin logo, QR más chico y envío por bandas con pausa en modo Directo
+- Impresión: botón de diagnóstico directo (texto, GS v 0, ESC *, QR nativo)
