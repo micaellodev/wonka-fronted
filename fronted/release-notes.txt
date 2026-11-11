@@ -1,2 +1,2 @@
-Cambio pequeño · 3 archivos, 81 líneas, 1 cambios
-- Playzone: botón de WhatsApp con datos de la visita (solo tras cobrar); el cajero puede quitar juegos sin cobrar del carrito
+Cambio pequeño · 2 archivos, 6 líneas, 1 cambios
+- WhatsApp: abrir WhatsApp Web (emojis se rompían) y enlaces externos en el navegador del sistema
