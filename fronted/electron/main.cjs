@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron')
+const { app, BrowserWindow, ipcMain, shell } = require('electron')
 const path = require('path')
 const { setupUpdater } = require('./updater.cjs')
 const { setupPrinting } = require('./printing.cjs')
@@ -32,6 +32,8 @@ function createWindow() {
     if (w <= 0 || h <= 0 || mainWindow.isMinimized()) return
     mainWindow.webContents.setZoomFactor(Math.max(0.25, Math.min(1, w / 1280, h / 720)))
   }
+  // Enlaces target=_blank (WhatsApp) se abren en el navegador del sistema, no en una ventana de la app
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => { if (/^https:\/\//.test(url)) shell.openExternal(url); return { action: 'deny' } })
   mainWindow.webContents.on('did-finish-load', fitZoom)
   mainWindow.on('resize', fitZoom)
 

@@ -132,7 +132,7 @@ function whatsappLink(session: ActiveSession, kids: ActiveSession[], durationOpt
  '🍬 ¡Gracias por visitarnos y vivir la magia de Renzo Wonka Park!',
  ]
  // shortcut: 9 dígitos = celular peruano (+51); otros países deben guardarse con prefijo
- return `https://wa.me/${digits.length === 9 ? '51' : ''}${digits}?text=${encodeURIComponent(lines.join('\n'))}`
+ return `https://web.whatsapp.com/send?phone=${digits.length === 9 ? '51' : ''}${digits}&text=${encodeURIComponent(lines.join('\n'))}`
 }
 
 export function SessionCard({
