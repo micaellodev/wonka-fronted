@@ -39,8 +39,8 @@ const ROUTE_PERMISSIONS: Record<string, Permission> = {
     "GET /billing/notes": "billing.notes", "GET /billing/document": "billing.notes", "GET /billing/documents": "billing.notes",
     "DELETE /cash/movements/:id": "cash.manage",
     "PUT /playzone/rates": "playzone.rates",
-    // Anular un juego sin cobrar: el cajero debe cobrarlo; solo un gerente/admin puede deshacerlo
-    "DELETE /playzone/sessions/:id/cancel": "approvals.resolve", "DELETE /playzone/sessions/:id/extend": "approvals.resolve",
+    // Quitar un juego del carrito (cancel) lo puede el cajero; deshacer una ampliación sigue siendo de gerente/admin
+    "DELETE /playzone/sessions/:id/extend": "approvals.resolve",
 };
 
 /** Escrituras (no-GET) bajo estos prefijos exigen permiso por defecto, para no dejar abiertas rutas nuevas. */

@@ -3,7 +3,7 @@ import { formatPEN } from '@/lib/format'
 import { useNow } from '@/hooks/useNow'
 import {
  Baby, CheckCircle2, AlertTriangle, XCircle,
- Shield, LogOut
+ Shield, LogOut, MessageCircle
 } from 'lucide-react'
 
 export type Loose = any
@@ -48,6 +48,11 @@ export interface ActiveSession {
  childGender: string | null
  guardianName: string
  guardianDni: string
+ guardianPhone?: string | null
+ /** Boleta/factura que cobró la sesión (null si aún no se cobra o fue ticket) */
+ receipt?: string | null
+ /** Monto cobrado por la sesión (null si aún no se cobra) */
+ paid?: number | null
  durationMinutes: number | null
  allyDiscount?: boolean
  startTime: string
@@ -97,6 +102,39 @@ function fmtClock(totalSec: number) {
  return h ? `${h}:${mm}:${ss}` : `${m}:${ss}`
 }
 
+/** Enlace wa.me al chat del apoderado con los datos de la visita; null si no hay un teléfono válido. */
+function whatsappLink(session: ActiveSession, kids: ActiveSession[], durationOptions: DurationOpt[]) {
+ const digits = (session.guardianPhone ?? '').replace(/\D/g, '')
+ if (digits.length < 9) return null
+ // Primero se cobra: sin cobro no hay botón (el tiempo libre se cobra al terminar, ahí no aplica)
+ if (!session.isUnlimited && kids.some((k) => k.paid == null)) return null
+ const { tolerance, block } = overtimeRules
+ const hm = (d: Date) => d.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false })
+ const start = new Date(session.startTime)
+ const min = session.durationMinutes
+ const end = min ? new Date(start.getTime() + min * 60_000) : null
+ const limit = end && new Date(end.getTime() + tolerance * 60_000)
+ const paid = kids.some((k) => k.paid != null) ? kids.reduce((t, k) => t + (k.paid ?? 0), 0) : null
+ const blockPrice = durationOptions.find((o) => !o.ally && o.minutes === block)?.price
+ const lines = [
+ '🍭 ¡Bienvenidos a Renzo Wonka Park! 🎉', '',
+ 'Les compartimos los datos de su visita.', '',
+ ...(session.receipt ? [`🧾 Boleta N.º ${session.receipt}`] : []),
+ `👧🧒 Nombre ${kids.map((k) => k.childName).join(', ')}`,
+ `🎟️ Duración del turno ${min ? fmtTime(min) : 'Tiempo libre'}`,
+ ...(paid !== null ? [`💰 Monto pagado ${formatPEN(paid)}`] : []),
+ '',
+ `🕒 Inicio del turno ${hm(start)}`,
+ ...(end && limit ? [`🕓 Fin del turno ${hm(end)}`, `⏳ Hora límite de salida con tolerancia ${hm(limit)}`, '',
+ `Recuerden que cuentan con ${tolerance} minutos de tolerancia para salir al finalizar su turno. Superado ese plazo, se iniciará un turno adicional de ${block} minutos${blockPrice != null ? ` por ${formatPEN(blockPrice)}` : ''}.`] : []),
+ '',
+ '🌈 Los invitamos a respetar las reglas del salón y seguir las indicaciones de nuestro equipo para disfrutar juntos una experiencia increíble y segura.', '',
+ '🍬 ¡Gracias por visitarnos y vivir la magia de Renzo Wonka Park!',
+ ]
+ // shortcut: 9 dígitos = celular peruano (+51); otros países deben guardarse con prefijo
+ return `https://wa.me/${digits.length === 9 ? '51' : ''}${digits}?text=${encodeURIComponent(lines.join('\n'))}`
+}
+
 export function SessionCard({
  session, onCheckout, checking, durationOptions, showCode = true, onExtend, group, onFinishGroup,
 }: {
@@ -142,6 +180,7 @@ export function SessionCard({
  ? { border: 'border-warning', banner: 'bg-warning', text: 'text-accent-500', bar: 'bg-warning', label: 'POR TERMINAR', Icon: AlertTriangle }
  : { border: 'border-success', banner: 'bg-success', text: 'text-success', bar: 'bg-success', label: session.isUnlimited ? 'TIEMPO LIBRE' : 'EN JUEGO', Icon: CheckCircle2 }
 
+ const waLink = whatsappLink(session, group ?? [session], durationOptions)
  const price = durationOptions.find((o) => !o.ally && o.minutes === session.durationMinutes)?.price ?? null
  const mainLabel = session.isUnlimited ? 'Transcurrido' : inTolerance ? 'Tolerancia' : blocks > 0 ? `Extra +${blocks * block} min` : 'Restante'
  const mainClock = session.isUnlimited ? fmtClock(elapsedSec) : inTolerance ? fmtClock(tolerance * 60 - (elapsedSec - contractedMin * 60)) : fmtClock(remainingSec ?? 0)
@@ -203,13 +242,21 @@ export function SessionCard({
  {session.notes && <p className="break-words rounded-md bg-muted px-2 py-1 text-xs font-medium text-foreground">📝 {session.notes}</p>}
  </div>
 
+ <div className="flex gap-2">
+ {waLink && (
+ <a href={waLink} target="_blank" rel="noopener noreferrer" title={`WhatsApp a ${session.guardianName}`} aria-label={`Enviar WhatsApp a ${session.guardianName}`}
+ className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#25D366] px-3 text-sm font-bold text-white transition-colors hover:bg-[#1ebe5a]">
+ <MessageCircle className="h-4 w-4" aria-hidden /> <span className="hidden min-[260px]:inline">WhatsApp</span>
+ </a>
+ )}
  <button
  onClick={() => (group && onFinishGroup ? onFinishGroup() : onCheckout(session.id))}
  disabled={checking}
- className={`flex h-11 w-full items-center justify-center gap-2 rounded-lg text-sm font-bold transition-colors disabled:opacity-40 ${isOverdue ? 'bg-brand-600 text-white hover:bg-brand-700' : 'border border-border bg-muted text-foreground hover:bg-border'}`}
+ className={`flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-2 text-sm font-bold transition-colors disabled:opacity-40 ${isOverdue ? 'bg-brand-600 text-white hover:bg-brand-700' : 'border border-border bg-muted text-foreground hover:bg-border'}`}
  >
- <LogOut className="h-4 w-4" aria-hidden /> {checking ? 'Terminando...' : group ? `Terminar juego (${group.length})` : 'Terminar juego'}
+ <LogOut className="h-4 w-4 shrink-0" aria-hidden /> <span className="truncate">{checking ? 'Terminando...' : group ? `Terminar juego (${group.length})` : 'Terminar juego'}</span>
  </button>
+ </div>
  </div>
  </div>
  )

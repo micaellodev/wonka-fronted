@@ -508,13 +508,35 @@ export async function listActiveSessions(tenantId: string) {
         orderBy: { startTime: "asc" },
         include: { child: { include: { guardian: true } } },
     });
-    return sessions.map(enrichSession);
+    // Boleta y monto pagado salen de las ventas que cobraron los cargos de cada sesión (para el mensaje de WhatsApp)
+    const skus = sessions.flatMap((s) => (["base", "comp", "disc"] as const).map((k) => `pz-${k}-${s.id}`));
+    const billed = skus.length
+        ? await prisma.saleItem.findMany({
+              where: { virtualSku: { in: skus }, sale: { tenantId, status: { not: "CANCELLED" } } },
+              select: { virtualSku: true, qty: true, unitPrice: true, discount: true, sale: { select: { serie: true, correlativo: true } } },
+          })
+        : [];
+    return sessions.map((s) => {
+        const mine = billed.filter((b) => b.virtualSku?.endsWith(s.id));
+        const sale = mine.find((b) => b.sale.serie && b.sale.correlativo)?.sale;
+        return {
+            ...enrichSession(s),
+            receipt: sale ? `${sale.serie}-${sale.correlativo}` : null,
+            paid: mine.length ? mine.reduce((t, b) => t + b.qty * Number(b.unitPrice) - Number(b.discount), 0) : null,
+        };
+    });
 }
 
 // ── Session: cancel (quitada del carrito antes de cobrar) ────
 
 export async function cancelPendingSession(tenantId: string, sessionId: string) {
     // Quitar del carrito anula la sesión; solo si el cargo base/acompañantes sigue sin cobrar (no hay venta con ese cargo)
+    // Como ya no exige aprobación, nunca anula una sesión cuyo cargo ya está cobrado (eso es una anulación de venta)
+    const charged = await prisma.saleItem.findFirst({
+        where: { virtualSku: { in: [`pz-base-${sessionId}`, `pz-comp-${sessionId}`] }, sale: { tenantId, status: { not: "CANCELLED" } } },
+        select: { id: true },
+    });
+    if (charged) throw new Error("Esta sesión ya fue cobrada; solo se puede anular con la venta.");
     const { count } = await prisma.playSession.deleteMany({ where: { id: sessionId, tenantId, status: { in: ["PENDING", "ACTIVE"] } } });
     if (count === 0) throw new Error("Sesión pendiente no encontrada.");
 }
