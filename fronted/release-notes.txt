@@ -1,2 +1,2 @@
-Cambio pequeño · 8 archivos, 133 líneas, 1 cambios
-- Playzone: grupo en un solo recuadro, lista de niños ordenada, carnet de extranjería, cajero puede quitar juegos del ticket; nota de crédito/débito con maqueta de boleta; fixes feriados y cantidad de niños
+Cambio pequeño · 3 archivos, 81 líneas, 1 cambios
+- Playzone: botón de WhatsApp con datos de la visita (solo tras cobrar); el cajero puede quitar juegos sin cobrar del carrito
