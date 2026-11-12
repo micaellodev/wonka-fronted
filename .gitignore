@@ -20,3 +20,11 @@ nohup.out
 .dev-logs/
 demo/salida/
 demo/audio/
+
+# Archivos sueltos / temporales
+_temp*
+boleta*.jpeg
+error*.png
+iniciar-local.bat
+.claude/settings.json
+video-promo-renzo-wonka/.hyperframes/
